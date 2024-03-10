@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
 const PostSchema = new Schema({
-  userName: {
+  username: {
     type: String,
     required: true,
     ref: 'User',
@@ -10,7 +10,6 @@ const PostSchema = new Schema({
   },
   communityName: {
     type: String,
-    required: true,
     ref: 'Community',
     refPath: 'name'
   },
