@@ -1,5 +1,5 @@
 const express = require('express')
-const connectDB = require('./models/mongoose')
+const connectDB = require('./models/Mongoose')
 const dotenv = require('dotenv')
 dotenv.config()
 
