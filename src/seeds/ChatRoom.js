@@ -7,9 +7,10 @@ const rooms = []
 function createRandomChatRooms () {
   for (let i = 0; i < Object.keys(chatRooms).length; i++) {
     rooms.push({
+      _id: chatRooms[i]._id,
       name: faker.lorem.word(),
-      members: chatRooms[i],
-      host: chatRooms[i][0]
+      members: chatRooms[i].members,
+      host: chatRooms[i].members[0]
     })
   }
 }

@@ -7,6 +7,10 @@ const seedComments = require('./Comment')
 const seedNotifications = require('./Notification')
 const seedHistory = require('./History')
 const seedChatRooms = require('./ChatRoom')
+const seedMessages = require('./Message')
+const seedChatRequests = require('./ChatRequest')
+const seedReports = require('./Report')
+const seedChatMessages = require('./ChatMessage')
 
 connectDB()
 
@@ -19,6 +23,10 @@ async function seed () {
   await seedNotifications()
   await seedHistory()
   await seedChatRooms()
+  await seedChatRequests()
+  await seedMessages()
+  await seedReports()
+  await seedChatMessages()
   process.exit()
 }
 

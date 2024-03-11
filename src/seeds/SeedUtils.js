@@ -1,12 +1,13 @@
 const { faker } = require('@faker-js/faker')
-const { USERS, POSTS, COMMENTS, COMMUNITIES, CHAT_ROOMS } = require('./SeedConfig')
+const { USERS, POSTS, COMMENTS, COMMUNITIES, CHAT_ROOMS, MESSAGES } = require('./SeedConfig')
 
 const usernames = []
 const postIDs = []
 const communityNames = []
 const communityIDs = []
 const commentIDs = []
-const chatRooms = {}
+const chatRooms = []
+const messageIDs = []
 
 function createRandomEntities () {
   for (let i = 0; i < USERS; i++) {
@@ -30,7 +31,11 @@ function createRandomEntities () {
     commentIDs.push(faker.database.mongodbObjectId())
   }
 
-  for (let i = 0; i < CHAT_ROOMS; i++) {
+  for (let i = 0; i < MESSAGES; i++) {
+    messageIDs.push(faker.database.mongodbObjectId())
+  }
+
+  for (let i = 1; i <= CHAT_ROOMS; i++) {
     const roomUsernames = []
     for (let j = 0; j < 4; j++) {
       let username = faker.helpers.arrayElement(usernames)
@@ -39,8 +44,8 @@ function createRandomEntities () {
       }
       roomUsernames.push(username)
     }
-    chatRooms[i] = roomUsernames
+    chatRooms.push({ _id: faker.database.mongodbObjectId(), members: roomUsernames })
   }
 }
 
-module.exports = { usernames, postIDs, communityNames, communityIDs, commentIDs, chatRooms, createRandomEntities }
+module.exports = { usernames, postIDs, communityNames, communityIDs, commentIDs, chatRooms, messageIDs, createRandomEntities }
