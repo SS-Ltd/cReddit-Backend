@@ -1,0 +1,2385 @@
+openapi: 3.0.3
+info:
+  title: cReddit
+  description: Reddit Clone Project for CMPS203 Software Engineering Course
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+security:
+  - jwt_auth: []
+tags:
+  - name: user
+    description: User Management
+  - name: post
+    description: Post/Comments Management
+  - name: subreddit
+    description: Community Management
+  - name: notification
+    description: Notifications Management
+  - name: mod
+    description: Moderation
+paths:
+  #########################################
+  ##                                     ##
+  ##              User                   ##
+  ##                                     ##
+  #########################################
+
+  /user:
+    post:
+      tags:
+        - user
+      summary: Create user (Signup)
+      description: Register a new user.
+      operationId: createUser
+      requestBody:
+        description: Created user object
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+        required: true
+      responses:
+        "200":
+          description: User created successfully
+          content:
+            application/json:
+              example:
+                message: User created successfully
+        "500":
+          description: Internal Server Error
+    delete:
+      tags:
+        - user
+      summary: Delete a user
+      operationId: deleteUser
+      responses:
+        "200":
+          description: User deleted successfully
+          content:
+            application/json:
+              example:
+                message: User deleted successfully
+        "400":
+          description: Bad request
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /user/login:
+    post:
+      tags:
+        - user
+      summary: Logs user into the system using
+      description: Log in with username and password.
+      operationId: loginUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserLogin"
+        required: true
+      responses:
+        "200":
+          description: User logged in successfully
+          content:
+            application/json:
+              example:
+                token: <JWT_TOKEN_HERE>
+        "401":
+          description: "Unauthorized, invalid credentials"
+        "500":
+          description: Internal Server Error
+  /user/auth/google:
+    get:
+      tags:
+        - user
+      summary: Logs user into the system using google services
+      description: Log in with google OAuth token
+      operationId: loginUserGoogle
+      responses:
+        "200":
+          description: User logged in successfully
+          content:
+            application/json:
+              example:
+                token: <JWT_TOKEN_HERE>
+        "401":
+          description: "Unauthorized, invalid credentials"
+        "500":
+          description: Internal Server Error
+  /user/logout:
+    get:
+      tags:
+        - user
+      summary: Logs out current logged in user session
+      operationId: logoutUser
+      responses:
+        "200":
+          description: User logged out successfully
+          content:
+            application/json:
+              example:
+                message: User logged out successfully
+        "500":
+          description: Internal Server Error
+  /user/verify/{refreshToken}:
+    patch:
+      tags:
+        - user
+      summary: Email Verification
+      description: Verify user email
+      operationId: verifyUser
+      parameters:
+        - name: refreshToken
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Email verified successfully
+          content:
+            application/json:
+              example:
+                message: Email verified successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /user/u/{username}:
+    get:
+      tags:
+        - user
+      summary: Get user data
+      description: Retrieve information about a specific user.
+      operationId: getUserView
+      parameters:
+        - name: username
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User data retrieved successfully
+          content:
+            application/json:
+              example:
+                username: u/theUser
+                displayName: theUser
+                about: Hello to my page
+                email: john@email.com
+                profilePicture: drive.creddit.com/pfp
+                banner: drive.creddit.com/pfp
+                followers: 100
+                cakeDay: 29/08/2023
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: User not found
+        "500":
+          description: Internal Server Error
+  /user/{username}/overview:
+    get:
+      tags:
+        - user
+      summary: Get user data
+      description: Retrieve information about a specific user.
+      operationId: getUserOverview
+      parameters:
+        - name: username
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User overview retreived successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Overview"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: User not found
+        "500":
+          description: Internal Server Error
+  /user/{username}/upvoted:
+    get:
+      tags:
+        - user
+      summary: Get user upvoted posts
+      description: Retrieve user's upvoted posts.
+      operationId: getUserUpvotes
+      parameters:
+        - name: username
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User upvotes retreived successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: User not found
+        "500":
+          description: Internal Server Error      
+  /user/{username}/downvoted:
+    get:
+      tags:
+        - user
+      summary: Get user downvoted posts
+      description: Retrieve user's downvoted posts.
+      operationId: getUserDownvotes
+      parameters:
+        - name: username
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User downvotes retreived successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: User not found
+        "500":
+          description: Internal Server Error
+  /user/submitted/{username}:
+    get:
+      tags:
+        - user
+      summary: Get user submitted posts
+      description: Retrieve user's submitted posts.
+      operationId: getUserSubmitted
+      parameters:
+        - name: username
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User submitted posts retreived successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: User not found
+        "500":
+          description: Internal Server Error
+  /user/settings:
+    get:
+      tags:
+        - user
+      summary: Get user settings
+      description: Retrieve user settings to display
+      operationId: getUserSettings
+      responses:
+        "200":
+          description: User settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+    put:
+      tags:
+        - user
+      summary: Edit user settings
+      description: Update user settings.
+      operationId: editUserSettings
+      requestBody:
+        description: User settings object
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserSettings"
+        required: true
+      responses:
+        "200":
+          description: User settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /user/forgot-password:
+    post:
+      tags:
+        - user
+      summary: Send an email to the user to reset password
+      operationId: forgotPassword
+      requestBody:
+        description: Send reset link
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPassword"
+        required: true
+      responses:
+        "200":
+          description: Password reset email sent successfully
+          content:
+            application/json:
+              example:
+                message: Password reset email sent successfully
+        "404":
+          description: Username or email does not exist
+          content:
+            application/json:
+              example:
+                message: Username or email does not exist
+        "500":
+          description: Internal Server Error
+  /user/change-password:
+    patch:
+      tags:
+        - user
+      summary: Change password (for when user doesn't remember password and follows link in email)
+      operationId: changePassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePassword"
+        required: true
+      responses:
+        "200":
+          description: Password changed successfully
+          content:
+            application/json:
+              example:
+                message: Password changed successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /user/reset-password:
+    patch:
+      tags:
+        - user
+      summary: Send an email to the user to reset password
+      operationId: resetPassword
+      requestBody:
+        description: Send reset link
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPassword"
+        required: true
+      responses:
+        "200":
+          description: Password reset email sent successfully
+          content:
+            application/json:
+              example:
+                message: Password reset email sent successfully
+        "401":
+          description: User must be logged in
+        "500":
+          description: Internal Server Error
+  /user/forgot-username:
+    post:
+      tags:
+        - user
+      summary: Send an email to the user to remind user of username
+      operationId: forgotUsername
+      requestBody:
+        description: Send username in an email
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotUsername"
+        required: true
+      responses:
+        "200":
+          description: Username reminder email sent successfully
+          content:
+            application/json:
+              example:
+                message: Username reminder email sent successfully
+        "404":
+          description: Email does not exist
+          content:
+            application/json:
+              example:
+                message: Email does not exist
+        "500":
+          description: Internal Server Error
+  /user/change-email:
+    patch:
+      tags:
+        - user
+      summary: Allows user to change email
+      description: Change user email address.
+      operationId: changeEmail
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeEmail"
+        required: true
+      responses:
+        "200":
+          description: Email changed successfully
+          content:
+            application/json:
+              example:
+                message: Email changed successfully
+        "400":
+          description: Invalid Email
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /user/block/{username}:
+    post:
+      tags:
+        - user
+      summary: Block User
+      description: Block a specific user.
+      operationId: blockUser
+      parameters:
+        - name: username
+          in: path
+          description: Username of the user to block
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User blocked successfully
+          content:
+            application/json:
+              example:
+                message: User blocked successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+    delete:
+      tags:
+        - user
+      summary: Unblock
+      operationId: unblockUser
+      parameters:
+        - name: username
+          in: path
+          description: Username of the user to unblock
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User unblocked successfully
+          content:
+            application/json:
+              example:
+                message: User unblocked successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /user/follow/{username}:
+    post:
+      tags:
+        - user
+      summary: Follow User
+      description: Follow a specific user.
+      operationId: followUser
+      parameters:
+        - name: username
+          in: path
+          description: Username of the user to follow
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User followed successfully
+          content:
+            application/json:
+              example:
+                message: User followed successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: User not found
+        "500":
+          description: Internal Server Error
+    delete:
+      tags:
+        - user
+      summary: Unfollow
+      operationId: unfollowUser
+      parameters:
+        - name: username
+          in: path
+          description: Username of the user to follow
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User unfollowed successfully
+          content:
+            application/json:
+              example:
+                message: User unfollowed successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: User not found
+        "500":
+          description: Internal Server Error
+  /user/is-available/{username}:
+    get:
+      tags:
+        - user
+      summary: Check if username is available
+      description: Check if a username is available for registration.
+      operationId: isUsernameAvailable
+      parameters:
+        - name: username
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Username is available
+          content:
+            application/json:
+              example:
+                available: true
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /user/clear-history:
+    delete:
+      tags:
+        - user
+      summary: Clear user history
+      description: Clear user browsing history.
+      operationId: clearHistory
+      responses:
+        "200":
+          description: User history cleared successfully
+          content:
+            application/json:
+              example:
+                message: User history cleared successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /user/block-community/{subreddit}:
+    post:
+      tags:
+        - user
+      summary: Block Community
+      description: Block a specific community.
+      operationId: blockCommunity
+      parameters:
+        - name: subreddit
+          in: path
+          description: Name of the community to block
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Community blocked successfully
+          content:
+            application/json:
+              example:
+                message: Community blocked successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: Community not found
+        "500":
+          description: Internal Server Error
+    delete:
+      tags:
+        - user
+      summary: Unblock
+      operationId: unblockCommunity
+      parameters:
+        - name: subreddit
+          in: path
+          description: Name of the community to Unblock
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Community unblocked successfully
+          content:
+            application/json:
+              example:
+                message: Community unblocked successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: Community not found
+        "500":
+          description: Internal Server Error
+
+  #########################################
+  ##                                     ##
+  ##                Posts                ##
+  ##                                     ##
+  #########################################
+
+  /post:
+    post:
+      tags:
+        - post
+      summary: Create post
+      operationId: createPost
+      requestBody:
+        description: Created post object
+        content:
+          application/json:
+            example:
+              communityId: '350651awd651awd'
+              title: 'Hello World'
+              content: 'This is my content'
+              isNSFW: false
+              isSpoiler: false
+              pollOptions:
+              - 'Option 1'
+              - 'Option 2'
+              - 'Option 3'
+              child:
+                postId: 350651awd651awd
+                ownerId: 350651awd651awd
+                communityId: 350651awd651awd
+                communityProfilePicture: drive.creddit.com/test
+                ownerProfilePicture: drive.creddit.com/test
+                uploadDate: 06/03/2024 22:10:03
+                title: Hello World
+                content: This is my content
+                comments: 50
+                upvotes: 1500
+                downvotes: 100
+                isUpvoted: true
+                isDownvoted: false
+                isNSFW: false
+                isSpoiler: false
+
+        required: true
+      responses:
+        "200":
+          description: Post created successfully
+          content:
+            application/json:
+              example:
+                message: Post created successfully
+        "500":
+          description: Internal Server Error
+  /post/{postId}:
+    patch:
+      tags:
+        - post
+      summary: Edit post
+      operationId: editPost
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      requestBody:
+        description: Edit post object
+        content:
+          application/json:
+            example:
+              content: 'This is my content'
+              isNSFW: false
+              isSpoiler: false
+
+        required: true
+      responses:
+        "200":
+          description: Post edited successfully
+          content:
+            application/json:
+              example:
+                message: Post edited successfully
+        "500":
+          description: Internal Server Error
+          
+    delete:
+      tags:
+        - post
+      summary: Delete Post
+      operationId: deletePost
+      parameters:
+        - name: postId
+          in: path
+          description: ID of post to be deleted
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Post deleted Successfully
+          content:
+            application/json:
+              example:
+                message: Post deleted successfully
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "404":
+          description: Post not found
+        "500":
+          description: Internal Server Error
+  /post/{postId}/comments:
+    get:
+      tags:
+        - post
+      summary: Gets comments under a single post
+      operationId: getPostComments
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: string
+            example: new
+      responses:
+        "200":
+          description: Comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "500":
+          description: Internal Server Error
+  /post/{postId}/vote:
+    patch:
+      tags:
+        - post
+      summary: Vote on a poll
+      operationId: votePost
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      requestBody:
+        description: vote on a post object
+        content:
+          application/json:
+            example:
+              votedOption: "Option 1"
+
+        required: true
+      responses:
+        "200":
+          description: Post voted successfully
+          content:
+            application/json:
+              example:
+                message: Post voted successfully
+  /post/{postId}/save:
+    patch:
+      tags:
+        - post
+      summary: Save post
+      operationId: savePost
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      requestBody:
+        description: Created post object
+        content:
+          application/json:
+            example:
+              isSaved: true
+      responses:
+        "200":
+          description: Post saved successfully
+          content:
+            application/json:
+              example:
+                message: Post saved successfully
+        "500":
+          description: Internal Server Error
+  /post/{postId}/lock:
+    patch:
+      tags:
+        - post
+      summary: Lock post
+      operationId: lockPost
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      requestBody:
+        description: Created post object
+        content:
+          application/json:
+            example:
+              isLocked: true
+      responses:
+        "200":
+          description: Post lock changed successfully
+          content:
+            application/json:
+              example:
+                message: Post lock changed successfully
+        "500":
+          description: Internal Server Error
+  /post/{postId}/hidden:
+    patch:
+      tags:
+        - post
+      summary: Hide post
+      operationId: hidePost
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      requestBody:
+        description: Hides post object
+        content:
+          application/json:
+            example:
+              isHidden: true
+      responses:
+        "200":
+          description: Post visibility changed successfully
+          content:
+            application/json:
+              example:
+                message: Post visibility changed successfully
+        "500":
+          description: Internal Server Error
+  /post/{postId}/follow:
+    patch:
+      tags:
+        - post
+      summary: Follow post
+      operationId: followPost
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      requestBody:
+        description: Follows post object
+        content:
+          application/json:
+            example:
+              isFollowed: true
+      responses:
+        "200":
+          description: Post followed successfully
+          content:
+            application/json:
+              example:
+                message: Post followed successfully
+        "500":
+          description: Internal Server Error
+  /post/{postId}/report:
+    post:
+      tags:
+        - post
+      summary: Report post
+      operationId: reportPost
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      requestBody:
+        description: Reports post object
+        content:
+          application/json:
+            example:
+              reason: "Harassment"
+      responses:
+        "200":
+          description: Post reported successfully
+          content:
+            application/json:
+              example:
+                message: Post reported successfully
+        "500":
+          description: Internal Server Error
+
+  #########################################
+  ##                                     ##
+  ##            Subreddits               ##
+  ##                                     ##
+  #########################################
+  
+  /subreddit:
+    post:
+      tags:
+        - subreddit
+      summary: Create community
+      operationId: createSubreddit
+      requestBody:
+        description: Created community object
+        content:
+          application/json:
+            example:
+              name: 'btengan'
+              isNSFW: false
+
+        required: true
+      responses:
+        "200":
+          description: Community created successfully
+          content:
+            application/json:
+              example:
+                message: Community created successfully
+        "500":
+          description: Internal Server Error
+  /subreddit/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Get subreddit details
+      description: Called when user navigates to subreddit
+      operationId: getSubreddit
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of posts sorted by HOT method
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Community"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/{subreddit}/settings:
+    get:
+      tags:
+        - subreddit
+      summary: Get subreddit settings
+      description: Retrieve subreddit settings to display
+      operationId: getSubredditSettings
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Subreddit settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubredditSettings"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+    put:
+      tags:
+        - subreddit
+      summary: Edit subreddit settings
+      description: Update subreddit settings.
+      operationId: editSubredditSettings
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      requestBody:
+        description: User subreddit object
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubredditSettings"
+        required: true
+      responses:
+        "200":
+          description: Subreddit settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubredditSettings"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /subreddit/{subreddit}/new:
+    get:
+      tags:
+        - subreddit
+      summary: Check if username is available
+      description: Retrieve the post in this subreddit "NEW".
+      operationId: getSubredditPosts(NEW)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of posts sorted by NEW method
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/{subreddit}/top:
+    get:
+      tags:
+        - subreddit
+      summary: Check if username is available
+      description: Retrieve the post in this subreddit "TOP".
+      operationId: getSubredditPosts(TOP)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of posts sorted by TOP method
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/{subreddit}/rising:
+    get:
+      tags:
+        - subreddit
+      summary: Check if username is available
+      description: Retrieve the post in this subreddit "RISING".
+      operationId: getSubredditPosts(RISING)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of posts sorted by RISING method
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/{subreddit}/hot:
+    get:
+      tags:
+        - subreddit
+      summary: Check if username is available
+      description: Retrieve the post in this subreddit "HOT".
+      operationId: getSubredditPosts(HOT)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of posts sorted by RISING method
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/about/edited/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve edited posts for a subreddit
+      description: Retrieve the post in this subreddit "HOT".
+      operationId: getEditedPosts(subreddit)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of edited posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/mine/moderator:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve subreddits that user is a moderator
+      description: Retrieve subreddits that user is a moderator
+      operationId: getSubredditMod()
+      responses:
+        "200":
+          description: list of subreddits
+          content:
+            application/json:
+              example:
+                id: "1"
+                name: "Egypt"
+                noOfMembers: "100"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/about/banned/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve banned users
+      description: Retrieve banned users
+      operationId: getBanned(subreddit)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of Banned Subreddits
+          content:
+            application/json:
+              example:
+                id: "1"
+                pic: "pic URL"
+                name: "Baroudy1452"
+                moderatorSince: "1/1/2001"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/about/muted/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve muted users
+      description: Retrieve muted users
+      operationId: getMuted(subreddit)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of Muted Users
+          content:
+            application/json:
+              example:
+                id: "1"
+                pic: "pic URL"
+                name: "Baroudy1452"
+                moderatorSince: "1/1/2001"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/about/moderator/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve moderator users
+      description: Retrieve moderator users
+      operationId: getModerators(subreddit)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of moderator Subreddits
+          content:
+            application/json:
+              example:
+                id: "1"
+                pic: "pic URL"
+                name: "Baroudy1452"
+                moderatorSince: "1/1/2001"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/about/reports/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve reported posts
+      description: Retrieve reported posts
+      operationId: getReportedPosts(subreddit)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of Reported Posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/about/spam/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve spam posts
+      description: Retrieve spam posts
+      operationId: getSpammedPosts(subreddit)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of Spam posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/about/modqueue/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve modqueue posts
+      description: Retrieve modqueue posts
+      operationId: getModQueuePosts(subreddit)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of pending posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+  /subreddit/about/unmoderated/{subreddit}:
+    get:
+      tags:
+        - subreddit
+      summary: Retrieve unmoderated posts
+      description: Retrieve unmoderated posts
+      operationId: getUnmoderatedPosts(subreddit)
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: list of unmoderated posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          description: No such subreddit is found
+        "500":
+          description: Internal Server Error
+
+          
+  #########################################
+  ##                                     ##
+  ##            Notifications            ##
+  ##                                     ##
+  #########################################
+    
+  /notification/all:
+    get:
+      tags:
+        - notification
+      summary: Get all notifications for a user
+      description: Get all notifications for a user
+      operationId: getAllNotifications(HOT)
+      responses:
+        "200":
+          description: list of all notifications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "500":
+          description: Internal Server Error
+  /notification/mark-all-as-read:
+    patch:
+      tags: 
+        - notification
+      summary: Mark all notifications as read
+      description: Mark all notifications as read
+      operationId: markAllNotificationsAsRead(HOT)
+      responses:
+        "200":
+          description: All notifications marked as read successfully
+          content:
+            application/json:
+              example:
+                message: All notifications marked as read successfully
+        "500":
+          description: Internal Server Error
+  /notification:
+    post:
+      tags: 
+        - notification
+      summary: Create notification
+      description: Create notification
+      operationId: createNotification(HOT)
+      requestBody:
+        description: Follow resource
+        content:
+          application/json:
+            example:
+              resourceId: awunioawd3ui5378y34iu
+              userId: awunioawd3ui5378y34iu
+              type: post
+        required: true
+      responses:
+        "200":
+          description: Notification created successfully
+          content:
+            application/json:
+              example:
+                message: Notification created successfully 
+        "500":
+          description: Internal Server Error
+    
+    get:
+      tags:
+        - notification
+      summary: Get 5 recent notifications
+      description: Get 5 recent notifications
+      operationId: getRecentNotifications(HOT)
+      responses:
+        "200":
+          description: Recent notifications
+          content:
+            application/json:
+              example:
+                message: Recent notifications
+        "500":
+          description: Internal Server Error
+
+  #########################################
+  ##                                     ##
+  ##            Messages "Email"         ##
+  ##                                     ##
+  #########################################
+  
+  /message/compose:
+    post:
+      tags: 
+      - message
+      summary: Create a message
+      description: Create message.
+      operationId: createMessage
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Message"
+        required: true
+      responses:
+        "200":
+          description: Message has been sent successfully
+          content:
+            application/json:
+              example:
+                Message: "Message has been sent successfully"
+        "401":
+          description: "Unauthorized, invalid credentials"
+        "500":
+          description: Internal Server Error
+  /message/{messageID}:
+    delete:
+      tags: 
+      - message
+      summary: Delete a message
+      description: Delete message.
+      operationId: deleteMessage
+      parameters:
+        - name: messageID
+          in: path
+          description: ID of the message to be deleted
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Message has been Deleted successfully
+          content:
+            application/json:
+              example:
+                Message: "Message has been sent successfully"
+        "400":
+           description: "Message is not found"
+        "401":
+          description: "Unauthorized, invalid credentials"
+        "500":
+          description: Internal Server Error
+  /message/sent:
+    get:
+      tags:
+        - message
+      summary: Get user sent messages
+      description: Retrieve user messages that he has sent to display
+      operationId: getUserSentMessages
+      responses:
+        "200":
+          description: User Sent Messsages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /message/inbox:
+    get:
+      tags:
+        - message
+      summary: Get user messages
+      description: Retrieve user messages to display
+      operationId: getUserMessages
+      responses:
+        "200":
+          description: User Messsages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inbox"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+  /message/unread:
+    get:
+      tags:
+        - message
+      summary: Get user unread messages
+      description: Retrieve user unread messages to display
+      operationId: getUserUnreadMessages
+      responses:
+        "200":
+          description: User unread Messsages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inbox"
+        "401":
+          description: "Unauthorized, user must be logged in"
+        "500":
+          description: Internal Server Error
+          
+    post:
+      tags:
+        - message
+      summary: Unread a specific message
+      description: Unread a specific message.
+      operationId: unreadMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: The ID of the message to be marked as unread
+              required:
+                - messageID
+      responses:
+        "200":
+          description: Message has been unread successfully
+          content:
+            application/json:
+              example:
+                Message: "Message has been unread successfully"
+        "401":
+          description: "Unauthorized, invalid credentials"
+        "500":
+          description: Internal Server Error
+  /message/read-all-messages:
+    post:
+      tags: 
+      - message
+      summary: Read all messages
+      description: Read all messages.
+      operationId: readAllMessage
+      responses:
+        "200":
+          description: All messages have been read successfully
+          content:
+            application/json:
+              example:
+                Message: "Messages have been read successfully"
+        "400":
+          description: "You don't have unread messages"
+        "401":
+          description: "Unauthorized, invalid credentials"
+        "500":
+          description: Internal Server Error         
+  /message/report:
+    post:
+      tags:
+      - message
+      summary: Report a messages
+      description: Report a messages.
+      operationId: reportMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: The ID of the message to be reported
+              required:
+                - messageID
+      responses:
+        "200":
+          description: All messages have been read successfully
+          content:
+            application/json:
+              example:
+                Message: "Messages have been read successfully"
+        "400":
+          description: "You don't have unread messages"
+        "401":
+          description: "Unauthorized, invalid credentials"
+        "500":
+          description: Internal Server Error
+  
+  #########################################
+  ##                                     ##
+  ##              Moderator              ##
+  ##                                     ##
+  #########################################
+  
+  /mod/approve-post:
+    patch:
+      tags:
+        - mod
+      summary: Approve a post
+      description: Approve a post.
+      operationId: approvePost(postId)
+      requestBody:
+        description: Approve post object
+        content:
+          application/json:
+            example:
+              postId: "1"
+        required: true
+      responses:
+        "200":
+          description: post approved successfully
+          content:
+            application/json:
+              example:
+                message: post approved successfully
+        "500":
+          description: Internal Server Error
+  /mod/invite:
+    post:
+      tags:
+        - mod
+      summary: invite a moderator
+      description: invite a moderator
+      operationId: inviteMod(postId)
+      requestBody:
+        description: Add moderator object
+        content:
+          application/json:
+            example:
+              communityID: "1"
+              userID: "1"
+        required: true
+      responses:
+        "200":
+          description: Mod invited successfully
+          content:
+            application/json:
+              example:
+                message: Mod invited successfully
+        "500":
+          description: Internal Server Error
+  /mod/accept-invite:
+    patch:
+      tags:
+        - mod
+      summary: Accept moderation invite
+      description: Accept moderation invite
+      operationId: acceptModInvite(postId)
+      requestBody:
+        description: Accept moderator object
+        content:
+          application/json:
+            example:
+              communityID: "1"
+        required: true
+      responses:
+        "200":
+          description: Mod invite accepted successfully
+          content:
+            application/json:
+              example:
+                message: Mod invite accepted successfully
+        "500":
+          description: Internal Server Error
+  /mod/reject-invite/{communityID}:
+    delete:
+      tags:
+        - mod
+      summary: reject moderation invite
+      description: reject moderation invite
+      operationId: rejectModInvite(postId)
+      parameters:
+        - name: communityID
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Mod invite rejected successfully
+          content:
+            application/json:
+              example:
+                message: Mod invite rejected successfully
+        "500":
+          description: Internal Server Error
+  /mod/leave/{communityID}:
+    delete:
+      tags:
+        - mod
+      summary: Leave community moderation
+      description: Leave community moderation
+      operationId: leaveCommunityMod(communityID)
+      parameters:
+        - name: communityID
+          in: path
+          required: true
+          style: simple
+          explode: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Mod invite rejected successfully
+          content:
+            application/json:
+              example:
+                message: Mod invite rejected successfully
+        "500":
+          description: Internal Server Error
+  /mod/mute:
+    patch:
+      tags:
+        - mod
+      summary: mute user in community
+      description: mute user in community
+      operationId: muteUser(communityID)
+      requestBody:
+        description: community & user to be muted
+        content:
+          application/json:
+            example:
+              communityID: "1"
+              userID: "1"
+        required: true
+      responses:
+        "200":
+          description: User Muted successfully
+          content:
+            application/json:
+              example:
+                message: User Muted successfully
+        "500":
+          description: Internal Server Error
+  /mod/unmute:
+    patch:
+      tags:
+        - mod
+      summary: unmute user in community
+      description: unmute user in community
+      operationId: unmuteUser(communityID)
+      requestBody:
+        description: community & user to be unmuted
+        content:
+          application/json:
+            example:
+              communityID: "1"
+              userID: "1"
+        required: true
+      responses:
+        "200":
+          description: User unmuted successfully
+          content:
+            application/json:
+              example:
+                message: User unmuted successfully
+        "500":
+          description: Internal Server Error
+
+components:
+  schemas:
+    #########################################
+    ##                                     ##
+    ##                User                 ##
+    ##                                     ##
+    #########################################
+
+    User:
+      type: object
+      properties:
+        username:
+          type: string
+          example: theUser
+        email:
+          type: string
+          example: john@email.com
+        password:
+          type: string
+          example: "12345"
+        gender:
+          type: string
+          example: Man
+    Overview:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            type: object
+            oneOf:
+              - $ref: "#/components/schemas/Post"
+    Feed:
+      type: array
+      items:
+        oneOf:
+          - $ref: "#/components/schemas/Post"
+          - $ref: "#/components/schemas/Post"
+          - $ref: "#/components/schemas/Post"
+    UserSettings:
+      type: object
+      properties:
+        displayName:
+          type: string
+          example: theUser
+        email:
+          type: string
+          example: jondoe@gmail.com
+        about:
+          type: string
+          example: Hello world
+        gender:
+          type: string
+          example: Man
+        country:
+          type: string
+          example: Egypt
+        preferences:
+          $ref: "#/components/schemas/UserSettings_preferences"
+    ForgotPassword:
+      type: object
+      properties:
+        username:
+          type: string
+          example: theUser
+        email:
+          type: string
+          example: john@email.com
+    ChangePassword:
+      type: object
+      properties:
+        newPassword:
+          type: string
+          example: ABC123
+    ForgotUsername:
+      type: object
+      properties:
+        email:
+          type: string
+          example: john@email.com
+    ChangeEmail:
+      type: object
+      properties:
+        password:
+          type: string
+          example: Abc123
+        newEmail:
+          type: string
+          example: john@email.com
+    ResetPassword:
+      type: object
+      properties:
+        oldPassword:
+          type: string
+          example: Abc123
+        newPassword:
+          type: string
+          example: Xyz789
+    UserLogin:
+      type: object
+      properties:
+        username:
+          type: string
+          example: theUser
+        password:
+          type: string
+          example: "12345"
+    UserSettings_preferences_socialLinks:
+      type: object
+      properties:
+        platform:
+          type: string
+          example: twitter
+        displayName:
+          type: string
+          example: El twitter bta3y
+        url:
+          type: string
+          example: https://twitter.com/faUwUsa
+    UserSettings_preferences:
+      type: object
+      properties:
+        showAdultContent:
+          type: boolean
+          example: true
+        autoPlayMedia:
+          type: boolean
+          example: true
+        communityThemes:
+          type: boolean
+          example: true
+        communityContentSort:
+          type: string
+          enum:
+            - top
+            - rising
+            - hot
+            - new
+        globalContentView:
+          type: string
+          enum:
+            - card
+            - classic
+            - compact
+        darkMode:
+          type: boolean
+          example: true
+        openNewTab:
+          type: boolean
+          example: true
+        google:
+          type: string
+          example: jondoe@gmail.com
+        apple:
+          type: string
+          example: apple id
+        twitter:
+          type: string
+          example: twitter handle
+        socialLinks:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSettings_preferences_socialLinks"
+        inboxMessagesNotif:
+          type: boolean
+          example: true
+        chatMessagesNotif:
+          type: boolean
+          example: true
+        chatRequests:
+          type: boolean
+          example: true
+        mentionsNotif:
+          type: boolean
+          example: true
+        commentsNotif:
+          type: boolean
+          example: true
+        upvotesNotif:
+          type: boolean
+          example: true
+        repliesNotif:
+          type: boolean
+          example: true
+        newFollowerNotif:
+          type: boolean
+          example: true
+        cakeDayNotif:
+          type: boolean
+          example: true
+        modNotif:
+          type: boolean
+          example: true
+        invitationNotif:
+          type: boolean
+          example: true
+        followEmail:
+          type: boolean
+          example: true
+        chatEmail:
+          type: boolean
+          example: true
+        allowFollow:
+          type: boolean
+          example: true
+        isContentVisible:
+          type: boolean
+          example: true
+        isActiveCommunityVisible:
+          type: boolean
+          example: true
+
+    #########################################
+    ##                                     ##
+    ##                Posts                ##
+    ##                                     ##
+    #########################################
+
+    SinglePost:
+      type: object
+      properties:
+        postId:
+          type: string
+          example: 350651awd651awd
+        ownerId:
+          type: string
+          example: 350651awd651awd
+        communityId:
+          type: string
+          example: 350651awd651awd
+        communityProfilePicture:
+          type: string
+          example: drive.creddit.com/test
+        ownerProfilePicture:
+          type: string
+          example: drive.creddit.com/test
+        uploadDate:
+          type: string
+          example: 06/03/2024 22:10:03
+        title:
+          type: string
+          example: Hello World
+        content:
+          type: string
+          example: This is my content
+        comments:
+          type: integer
+          example: 50
+        upvotes:
+          type: integer
+          example: 1500
+        downvotes:
+          type: integer
+          example: 100
+        isUpvoted:
+          type: boolean
+          example: true
+        isDownvoted:
+          type: boolean
+          example: false
+        isNSFW:
+          type: boolean
+          example: false
+        isSpoiler:
+          type: boolean
+          example: false
+        children:
+          type: object
+    Post:
+      type: object
+      properties:
+        postId:
+          type: string
+          example: 350651awd651awd
+        ownerId:
+          type: string
+          example: 350651awd651awd
+        communityId:
+          type: string
+          example: 350651awd651awd
+        communityProfilePicture:
+          type: string
+          example: drive.creddit.com/test
+        ownerProfilePicture:
+          type: string
+          example: drive.creddit.com/test
+        uploadDate:
+          type: string
+          example: 06/03/2024 22:10:03
+        title:
+          type: string
+          example: Hello World
+        content:
+          type: string
+          example: This is my content
+        comments:
+          type: integer
+          example: 50
+        upvotes:
+          type: integer
+          example: 1500
+        downvotes:
+          type: integer
+          example: 100
+        isUpvoted:
+          type: boolean
+          example: true
+        isDownvoted:
+          type: boolean
+          example: false
+        isNSFW:
+          type: boolean
+          example: false
+        isSpoiler:
+          type: boolean
+          example: false
+        isSaved:
+          type: boolean
+          example: true
+        isLocked:
+          type: boolean
+          example: true
+        isFollowed:
+          type: boolean
+          example: true
+        pollVotes:
+          type: object
+          properties:
+            option1:
+              type: integer
+              example: 10
+            option2:
+              type: integer
+              example: 20
+            option3:
+              type: integer
+              example: 40
+        children:
+          type: array
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/SinglePost"
+
+    #########################################
+    ##                                     ##
+    ##            Subreddits               ##
+    ##                                     ##
+    #########################################
+
+    Community:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "r/cReddit_SW_Project"
+        profilePicture:
+          type: string
+          example: "drive.creddit.com/test"
+        banner:
+          type: string
+          example: "drive.creddit.com/test"
+        members:
+          type: integer
+          example: 1000
+        rules:
+          type: array
+          items:
+            type: string
+            example:
+              - "Rule 1"
+              - "Rule 2"
+              - "Rule 3"
+        mods:
+          type: array
+          items:
+            type: string
+            example:
+              - "SlaxSplash"
+              - "Baroudy 14"
+              - "No_Animator_8210"
+        # Should I add notification setting??
+    SubredditSettings:
+      type: object
+      properties:
+        name:
+          type: string
+          example: theUser
+        description:
+          type: string
+          example: Community description
+        rules:
+          type: array
+          items:
+            type: object
+            properties:
+              rule:
+                type: string
+                example: Mahmoud
+              appliesTo:
+                type: string
+                example: Posts & comments
+    
+    #########################################
+    ##                                     ##
+    ##            Notifications            ##
+    ##                                     ##
+    #########################################
+    
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          example: sjdshfjsVNJNSDJv
+        userId:
+          type: string
+          example: asnfjsvjknsdjkvnjdsnvj
+        resourceId:
+          type: string
+          example: asnfjsvjknsdjkvnjdsnvj
+        type:
+          type: string
+          enum:
+            - message
+            - post
+            - user
+        isRead:
+          type: boolean
+          example: True
+  
+    #########################################
+    ##                                     ##
+    ##           Messages "Email"          ##
+    ##                                     ##
+    #########################################
+    
+    Message:
+      type: object
+      properties:
+        to:
+          type: string
+          example: Silver_Flamingo
+        subject:
+          type: string
+          example: LIFE
+        text:
+          type: string
+          example: Everything is gonna be great :)
+        
+          
+    
+          
+    Inbox:
+      type: object
+      properties:
+        from:
+          type: string
+          example: Team Backend
+        subject:
+          type: string
+          example: LIFE
+        text:
+          type: string
+          example: El API sha8al :)
+        
+        
+
+  securitySchemes:
+    jwt_auth:
+      type: apiKey
+      description: |
+        JWT token should be provided in the header as follows:
+        ```
+        Authorization: Bearer <JWT_TOKEN_HERE>
+        ```
+      name: Authorization
+      in: header
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/cReddit/cReddit/1.0.0

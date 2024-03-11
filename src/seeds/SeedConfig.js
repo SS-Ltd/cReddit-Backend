@@ -1,0 +1,19 @@
+const USERS = 10
+const POSTS = 100
+const COMMENTS = 1000
+const COMMUNITIES = 10
+const HISTORY = 50
+const NOTIFICATIONS = 100
+const CHAT_ROOMS = 5
+const MESSAGES = 20
+
+module.exports = {
+  USERS,
+  POSTS,
+  COMMENTS,
+  COMMUNITIES,
+  HISTORY,
+  NOTIFICATIONS,
+  CHAT_ROOMS,
+  MESSAGES
+}
