@@ -1,6 +1,8 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
+// TODO: Check the dbdiagram Schema for updates to the moderator table
+
 const ModeratorSchema = new Schema({
   user: {
     type: String,
