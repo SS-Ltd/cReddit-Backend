@@ -4,6 +4,7 @@ const COMMENTS = 1000
 const COMMUNITIES = 10
 const HISTORY = 50
 const NOTIFICATIONS = 100
+const CHAT_ROOMS = 5
 
 module.exports = {
   USERS,
@@ -11,5 +12,6 @@ module.exports = {
   COMMENTS,
   COMMUNITIES,
   HISTORY,
-  NOTIFICATIONS
+  NOTIFICATIONS,
+  CHAT_ROOMS
 }
