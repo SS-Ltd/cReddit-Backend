@@ -1,13 +1,13 @@
 const express = require('express')
 const connectDB = require('./models/Mongoose')
 const dotenv = require('dotenv')
-dotenv.config()
+dotenv.config({ path: '../.env' })
 
 connectDB()
 
 const app = express()
 
-const port = process.env.PORT || 3000
+const port = process.env.PORT
 
 app.get('/', (req, res) => {
   res.send('Hello World!')

@@ -1,4 +1,4 @@
-const connectDB = require('../models/mongoose')
+const connectDB = require('../models/Mongoose')
 const { createRandomEntities } = require('./SeedUtils')
 const seedUsers = require('./User')
 const seedPosts = require('./Post')

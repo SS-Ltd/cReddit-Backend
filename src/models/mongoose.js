@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
+require('dotenv').config({ path: '../../.env' })
 
-const dbURL = 'mongodb+srv://u1:AGO5eGlwyPMueGXK@creddit.bgtkbtn.mongodb.net/cReddit?retryWrites=true&w=majority&appName=cReddit'
+const dbURL = process.env.MONGO_DB || process.env.DB_URL
 const connectDB = async () => {
   try {
     await mongoose.connect(dbURL)
