@@ -1,5 +1,6 @@
 const express = require('express')
 const connectDB = require('./models/mongoose')
+const userRouter = require('./routes/User')
 const dotenv = require('dotenv')
 dotenv.config()
 
@@ -7,7 +8,11 @@ connectDB()
 
 const app = express()
 
-const port = process.env.PORT || 3000
+const port = process.env.PORT
+
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use('/user', userRouter)
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
@@ -16,3 +21,5 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`)
 })
+
+module.exports = app
