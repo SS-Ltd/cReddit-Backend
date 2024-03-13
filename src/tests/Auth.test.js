@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const { createUser } = require('../controllers/Auth')
+const { createUser, deleteUser } = require('../controllers/Auth')
 const User = require('../models/User')
 
 describe('createUser', () => {
@@ -139,5 +139,47 @@ describe('createUser', () => {
 
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Password must be at least 8 characters long' })
+  })
+})
+
+describe('deleteUser', () => {
+  test('should delete user when user exists', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const findOneMock = jest.spyOn(User, 'findOne').mockResolvedValueOnce({ username: 'testUser' })
+    const updateOneMock = jest.spyOn(User, 'updateOne').mockResolvedValueOnce()
+
+    await deleteUser(req, res)
+
+    expect(findOneMock).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(updateOneMock).toHaveBeenCalledWith({ username: 'testUser' }, { $set: { isDeleted: true } })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User deleted successfully' })
+  })
+
+  test('should return 404 when user does not exist', async () => {
+    const req = {
+      decoded: {
+        username: 'nonExistingUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const findOneMock = jest.spyOn(User, 'findOne').mockResolvedValueOnce(null)
+
+    await deleteUser(req, res)
+
+    expect(findOneMock).toHaveBeenCalledWith({ username: 'nonExistingUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 })
