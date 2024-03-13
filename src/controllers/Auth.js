@@ -103,7 +103,62 @@ async function deleteUser (req, res) {
   }
 }
 
+async function login (req, res) {
+  const { username, password } = req.body
+  try {
+    if (!username || !password) {
+      throw new Error('Username and password are required')
+    }
+
+    const user = await User
+      .findOne({ username, isDeleted: false })
+
+    if (!user) {
+      throw new Error('Invalid username')
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password)
+    if (!validPassword) {
+      throw new Error('Invalid password')
+    }
+
+    const accessToken = jwt.sign(
+      {
+        username
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: '10m' }
+    )
+
+    const refreshToken = jwt.sign(
+      {
+        username
+      },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: '1d' }
+    )
+
+    await User.updateOne({ username }, {
+      $set: {
+        refreshToken
+      }
+    })
+
+    res.cookie('jwt', accessToken, {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 24 * 60 * 60 * 1000
+    })
+
+    res.status(200).json({ message: 'User logged in successfully', refreshToken })
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error logging in' })
+  }
+}
+
 module.exports = {
   createUser,
-  deleteUser
+  deleteUser,
+  login
 }
