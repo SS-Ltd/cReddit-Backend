@@ -157,8 +157,27 @@ async function login (req, res) {
   }
 }
 
+async function logout (req, res) {
+  const { username } = req.decoded
+  try {
+    const user = await User.findOne({ username })
+
+    if (!user) {
+      throw new Error('User not found')
+    }
+    user.refreshToken = ''
+    await user.save()
+
+    res.clearCookie('jwt')
+    res.status(200).json({ message: 'User logged out successfully' })
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error logging out' })
+  }
+}
+
 module.exports = {
   createUser,
   deleteUser,
-  login
+  login,
+  logout
 }
