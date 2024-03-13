@@ -1,5 +1,7 @@
 const mongoose = require('mongoose')
-const { createUser, deleteUser } = require('../controllers/Auth')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+const { createUser, deleteUser, login } = require('../controllers/Auth')
 const User = require('../models/User')
 
 describe('createUser', () => {
@@ -181,5 +183,89 @@ describe('deleteUser', () => {
     expect(findOneMock).toHaveBeenCalledWith({ username: 'nonExistingUser', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+})
+
+describe('login', () => {
+  test('should login successfully when provided with valid username and password', async () => {
+    const req = {
+      body: {
+        username: 'validUsername',
+        password: 'validPassword'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    const user = {
+      username: 'validUsername',
+      password: 'hashedPassword'
+    }
+    User.findOne = jest.fn().mockResolvedValue(user)
+    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    jwt.sign = jest.fn().mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken')
+    User.updateOne = jest.fn()
+
+    await login(req, res)
+
+    expect(User.findOne).toHaveBeenCalledWith({ username: 'validUsername', isDeleted: false })
+    expect(bcrypt.compare).toHaveBeenCalledWith('validPassword', 'hashedPassword')
+    expect(jwt.sign).toHaveBeenCalledWith({ username: 'validUsername' }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '10m' })
+    expect(jwt.sign).toHaveBeenCalledWith({ username: 'validUsername' }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '1d' })
+    expect(User.updateOne).toHaveBeenCalledWith({ username: 'validUsername' }, { $set: { refreshToken: 'refreshToken' } })
+    expect(res.cookie).toHaveBeenCalledWith('jwt', 'accessToken', {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 24 * 60 * 60 * 1000
+    })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User logged in successfully', refreshToken: 'refreshToken' })
+  })
+
+  test('should throw an error when username is empty', async () => {
+    const req = {
+      body: {
+        username: '',
+        password: 'validPassword'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await login(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Username and password are required' })
+  })
+
+  test('should throw an error when invalid password is provided', async () => {
+    const req = {
+      body: {
+        username: 'validUsername',
+        password: 'invalidPassword'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      username: 'validUsername',
+      password: 'hashedPassword'
+    }
+    User.findOne = jest.fn().mockResolvedValue(user)
+    bcrypt.compare = jest.fn().mockResolvedValue(false)
+
+    await login(req, res)
+
+    expect(User.findOne).toHaveBeenCalledWith({ username: 'validUsername', isDeleted: false })
+    expect(bcrypt.compare).toHaveBeenCalledWith('invalidPassword', 'hashedPassword')
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid password' })
   })
 })
