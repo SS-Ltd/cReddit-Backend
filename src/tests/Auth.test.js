@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const { createUser, deleteUser, login } = require('../controllers/Auth')
+const { createUser, deleteUser, login, logout } = require('../controllers/Auth')
 const User = require('../models/User')
 
 describe('createUser', () => {
@@ -267,5 +267,54 @@ describe('login', () => {
     expect(bcrypt.compare).toHaveBeenCalledWith('invalidPassword', 'hashedPassword')
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid password' })
+  })
+})
+
+describe('logout', () => {
+  it('should clear refresh token, clear jwt cookie, and return status 200 when user is found', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      }
+    }
+    const res = {
+      clearCookie: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      save: jest.fn(),
+      refreshToken: 'testtoken'
+    }
+    User.findOne = jest.fn().mockResolvedValue(user)
+
+    await logout(req, res)
+
+    expect(User.findOne).toHaveBeenCalledWith({ username: 'testuser' })
+    expect(user.refreshToken).toBe('')
+    expect(user.save).toHaveBeenCalled()
+    expect(res.clearCookie).toHaveBeenCalledWith('jwt')
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User logged out successfully' })
+  })
+
+  it('should return error message with status 400 when user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      }
+    }
+    const res = {
+      clearCookie: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    User.findOne = jest.fn().mockResolvedValue(null)
+
+    await logout(req, res)
+
+    expect(User.findOne).toHaveBeenCalledWith({ username: 'testuser' })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 })
