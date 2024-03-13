@@ -83,6 +83,27 @@ async function createUser (req, res) {
   }
 }
 
+async function deleteUser (req, res) {
+  const { username } = req.decoded
+  try {
+    const deletedUser = await User.findOne({ username, isDeleted: false })
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    await User.updateOne({ username }, {
+      $set: {
+        isDeleted: true
+      }
+    })
+
+    res.status(200).json({ message: 'User deleted successfully' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error deleting user' })
+  }
+}
+
 module.exports = {
-  createUser
+  createUser,
+  deleteUser
 }
