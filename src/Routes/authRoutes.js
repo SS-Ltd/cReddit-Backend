@@ -5,5 +5,6 @@ const router = express.Router()
 
 router.route('/forget-password').post(authController.forgetPassword)
 router.route('/reset-password/:token').patch(authController.resetPassword)
+router.route('/forget-username').post(authController.forgotUsername)
 
 module.exports = router

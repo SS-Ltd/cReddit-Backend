@@ -75,3 +75,30 @@ exports.resetPassword = async (req, res, next) => {
   //
   return res.status(200).json({ message: 'Password has been reset successfully' })
 }
+
+exports.forgotUsername = async (req, res, next) => {
+  // 1) Check if the user exists with the email provided
+  const user = await User.findOne({ email: req.body.email })
+
+  if (!user) {
+    res.status(404).json({ message: 'Email not found' })
+    return next(new Error('Email not found'))
+  }
+
+  // 2) Send to user's email the username
+  const message = `Hey there,\n\nYou forgot it didn't you? No worries. Here you go:\n\nYour username is: ${user.username}\n\n(Username checks out, nicely done.)\n\nIf you didn't forget your username, please ignore this email!`
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'So you wanna know your Reddit username, huh?',
+      message
+    })
+
+    return res.status(200).json({ message: 'Username has been sent to the user successfully' })
+  } catch (error) {
+    console.error('Error sending the email: ', error)
+    res.status(500).json({ message: 'There was an error sending the email. Try again later' })
+    return next(new Error('There was an error sending the email. Try again later'))
+  }
+}
