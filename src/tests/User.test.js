@@ -1,6 +1,6 @@
 const UserModel = require('../models/User')
 const dotenv = require('dotenv')
-const { follow, unfollow } = require('../controllers/User')
+const { follow, unfollow, block, unblock } = require('../controllers/User')
 
 dotenv.config()
 
@@ -191,7 +191,7 @@ describe('follow', () => {
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       status: 'Not Found',
-      message: 'Followed user does not exist'
+      message: 'User to be followed does not exist'
     })
   })
 
@@ -224,7 +224,7 @@ describe('follow', () => {
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       status: 'Not Found',
-      message: 'Followed user does not exist'
+      message: 'User to be followed does not exist'
     })
   })
 })
@@ -340,7 +340,7 @@ describe('unfollow', () => {
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       status: 'Not Found',
-      message: 'User does not exist'
+      message: 'User to be unfollowed does not exist'
     })
   })
 
@@ -376,6 +376,340 @@ describe('unfollow', () => {
     expect(res.json).toHaveBeenCalledWith({
       status: 'Bad Request',
       message: 'User cannot unfollow themselves'
+    })
+  })
+})
+
+describe('block', () => {
+  beforeEach(() => {
+    UserModel.findOne.mockClear()
+  })
+
+  it('should block a valid user successfully', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      blockedUsers: [],
+      save: jest.fn()
+    }
+
+    const userBlocked = {
+      username: 'user2'
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(user)
+    UserModel.findOne.mockResolvedValueOnce(userBlocked)
+
+    await block(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user2', isDeleted: false })
+    expect(user.blockedUsers).toContain('user2')
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'OK',
+      message: 'User blocked'
+    })
+  })
+
+  it('should return a 404 error if the user to be blocked does not exist', async () => {
+    const req = {
+      params: {
+        username: 'nonexistentuser'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      blockedUsers: [],
+      save: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(user)
+    UserModel.findOne.mockResolvedValueOnce(null)
+
+    await block(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentuser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'User to be blocked does not exist'
+    })
+  })
+
+  it('should return a 404 error if the current user does not exist', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(null)
+
+    await block(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'User does not exist'
+    })
+  })
+
+  it('should return a 400 error when user tries to block themselves', async () => {
+    const req = {
+      params: {
+        username: 'user1'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      blockedUsers: [],
+      save: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValue(user)
+
+    await block(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(user.blockedUsers).not.toContain('user1')
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'User cannot block themselves'
+    })
+  })
+
+  it('should return a 400 error if the user already blocks the user to be blocked', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'use1',
+      blockedUsers: ['user2'],
+      save: jest.fn()
+    }
+
+    const userBlocked = {
+      username: 'user2'
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(user)
+    UserModel.findOne.mockResolvedValueOnce(userBlocked)
+
+    await block(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user2', isDeleted: false })
+    expect(user.save).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'User already blocks the user'
+    })
+  })
+})
+
+describe('unblock', () => {
+  beforeEach(() => {
+    UserModel.findOne.mockClear()
+  })
+
+  it('should unblock a user when they are blocked', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      blockedUsers: ['user2'],
+      save: jest.fn()
+    }
+
+    const userUnblocked = {
+      username: 'user2'
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(user)
+    UserModel.findOne.mockResolvedValueOnce(userUnblocked)
+
+    await unblock(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user2', isDeleted: false })
+    expect(user.blockedUsers).not.toContain('user2')
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'OK',
+      message: 'User unblocked'
+    })
+  })
+
+  it('should return a 404 error when the user does not exist', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(null)
+
+    await unblock(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'User does not exist'
+    })
+  })
+
+  it('should return a 404 error when the user to be unblocked does not exist', async () => {
+    const req = {
+      params: {
+        username: 'nonexistentUser'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      blockedUsers: ['user2']
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(user)
+    UserModel.findOne.mockResolvedValueOnce(null)
+
+    await unblock(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'User to be unblocked does not exist'
+    })
+  })
+
+  it('should return a 400 error when the user tries to unblock themselves', async () => {
+    const req = {
+      params: {
+        username: 'user1'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      blockedUsers: ['user2']
+    }
+
+    UserModel.findOne.mockResolvedValue(user)
+
+    await unblock(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(user.blockedUsers).toContain('user2')
+    expect(user.blockedUsers).not.toContain('user1')
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'User cannot unblock themselves'
     })
   })
 })
