@@ -3,7 +3,7 @@ const dotenv = require('dotenv')
 
 dotenv.config()
 
-module.exports.follow = async (req, res) => {
+const follow = async (req, res) => {
   try {
     const { username } = req.params
 
@@ -64,7 +64,7 @@ module.exports.follow = async (req, res) => {
   }
 }
 
-module.exports.unfollow = async (req, res) => {
+const unfollow = async (req, res) => {
   try {
     const { username } = req.params
 
@@ -115,7 +115,7 @@ module.exports.unfollow = async (req, res) => {
   }
 }
 
-module.exports.block = async (req, res) => {
+const block = async (req, res) => {
   try {
     const { username } = req.params
 
@@ -167,7 +167,7 @@ module.exports.block = async (req, res) => {
   }
 }
 
-module.exports.unblock = async (req, res) => {
+const unblock = async (req, res) => {
   try {
     const { username } = req.params
 
@@ -212,4 +212,47 @@ module.exports.unblock = async (req, res) => {
       message: 'An error occurred while unblocking the user'
     })
   }
+}
+
+const isUsernameAvailable = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
+
+    const user = await UserModel.findOne({ username })
+
+    if (!user) {
+      return res.status(200).json({
+        status: 'OK',
+        message: 'Username is available',
+        available: true
+      })
+    } else {
+      return res.status(409).json({
+        status: 'Conflict',
+        message: 'Username is not available',
+        available: false
+      })
+    }
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      status: 'Internal Server Error',
+      message: 'An error occurred while checking if the username is available'
+    })
+  }
+}
+
+module.exports = {
+  follow,
+  unfollow,
+  block,
+  unblock,
+  isUsernameAvailable
 }

@@ -9,4 +9,6 @@ router.delete('/unfollow/:username', verifyToken, user.unfollow)
 router.post('/block/:username', verifyToken, user.block)
 router.delete('/unblock/:username', verifyToken, user.unblock)
 
+router.get('/is-username-available/:username', user.isUsernameAvailable)
+
 module.exports = router
