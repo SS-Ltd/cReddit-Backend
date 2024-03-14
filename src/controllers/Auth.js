@@ -1,10 +1,10 @@
 const User = require('../models/User')
 const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken')
 const emailValidator = require('deep-email-validator')
 const SendVerificationEmail = require('../Utils/Email')
+const generateTokens = require('./JWT')
 
-async function createUser (req, res) {
+const createUser = async (req, res) => {
   const { username, password, email, gender } = req.body
   try {
     if (!username || !password || !email || !gender) {
@@ -41,49 +41,26 @@ async function createUser (req, res) {
     const salt = await bcrypt.genSalt(10)
     const hash = await bcrypt.hash(password, salt)
 
-    const accessToken = jwt.sign(
-      {
-        username
-      },
-      'dcfb3c278e0b4a50ba065ca60fada97efa4f20a97e6c2ed712b42b325a5139dd',
-      { expiresIn: '10m' }
-    )
-
-    const refreshToken = jwt.sign(
-      {
-        username
-      },
-      '55a4a69aa127621f12185faa93c9b6bf7d9ddddafd0448e217bec17516858425',
-      { expiresIn: '1d' }
-    )
+    const { refreshToken } = generateTokens({ username }, res)
 
     const newUser = new User({
       username,
       displayName: username,
       email,
       password: hash,
-      salt,
       gender,
       refreshToken
     })
 
     await newUser.save()
-
-    res.cookie('jwt', accessToken, {
-      httpOnly: true,
-      sameSite: 'None',
-      secure: true,
-      maxAge: 24 * 60 * 60 * 1000
-    })
-
-    await SendVerificationEmail(email, username, accessToken)
-    res.status(201).json({ message: 'User created successfully', refreshToken })
+    await SendVerificationEmail(email, username)
+    res.status(201).json({ message: 'User created successfully' })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error creating user' })
   }
 }
 
-async function deleteUser (req, res) {
+const deleteUser = async (req, res) => {
   const { username } = req.decoded
   try {
     const deletedUser = await User.findOne({ username, isDeleted: false })
@@ -103,15 +80,14 @@ async function deleteUser (req, res) {
   }
 }
 
-async function login (req, res) {
+const login = async (req, res) => {
   const { username, password } = req.body
   try {
     if (!username || !password) {
       throw new Error('Username and password are required')
     }
 
-    const user = await User
-      .findOne({ username, isDeleted: false })
+    const user = await User.findOne({ username, isDeleted: false })
 
     if (!user) {
       throw new Error('Invalid username')
@@ -122,42 +98,20 @@ async function login (req, res) {
       throw new Error('Invalid password')
     }
 
-    const accessToken = jwt.sign(
-      {
-        username
-      },
-      process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: '10m' }
-    )
-
-    const refreshToken = jwt.sign(
-      {
-        username
-      },
-      process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: '1d' }
-    )
+    const { refreshToken } = generateTokens({ username }, res)
 
     await User.updateOne({ username }, {
       $set: {
         refreshToken
       }
     })
-
-    res.cookie('jwt', accessToken, {
-      httpOnly: true,
-      sameSite: 'None',
-      secure: true,
-      maxAge: 24 * 60 * 60 * 1000
-    })
-
-    res.status(200).json({ message: 'User logged in successfully', refreshToken })
+    res.status(200).json({ message: 'User logged in successfully' })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error logging in' })
   }
 }
 
-async function logout (req, res) {
+const logout = async (req, res) => {
   const { username } = req.decoded
   try {
     const user = await User.findOne({ username })
@@ -168,7 +122,8 @@ async function logout (req, res) {
     user.refreshToken = ''
     await user.save()
 
-    res.clearCookie('jwt')
+    res.clearCookie('accessToken')
+    res.clearCookie('refreshToken')
     res.status(200).json({ message: 'User logged out successfully' })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error logging out' })
