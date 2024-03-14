@@ -1,10 +1,10 @@
-const UserModel = require('../models/User')
+const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
-const { follow, unfollow, block, unblock, isUsernameAvailable } = require('../controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable } = require('../src/controllers/User')
 
 dotenv.config()
 
-jest.mock('../models/User', () => ({
+jest.mock('../src/models/User', () => ({
   findOne: jest.fn()
 }))
 
@@ -13,7 +13,7 @@ describe('follow', () => {
     UserModel.findOne.mockClear()
   })
 
-  it('should return a bad request error when username is not provided', async () => {
+  test('should return a bad request error when username is not provided', async () => {
     const req = {
       params: {}
     }
@@ -33,7 +33,7 @@ describe('follow', () => {
     })
   })
 
-  it('should follow user when user is authenticated and exists', async () => {
+  test('should follow user when user is authenticated and exists', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -79,7 +79,7 @@ describe('follow', () => {
     })
   })
 
-  it('should return a bad request error when user already follows the user', async () => {
+  test('should return a bad request error when user already follows the user', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -120,7 +120,7 @@ describe('follow', () => {
     })
   })
 
-  it('should return an error message when user attempts to follow themselves', async () => {
+  test('should return an error message when user attempts to follow themselves', async () => {
     const req = {
       params: {
         username: 'user1'
@@ -154,7 +154,7 @@ describe('follow', () => {
     })
   })
 
-  it('should return user does not exist error when user is not found', async () => {
+  test('should return user does not exist error when user is not found', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -182,7 +182,7 @@ describe('follow', () => {
     })
   })
 
-  it('should return an error message when attempting to follow a non-existent user', async () => {
+  test('should return an error message when attempting to follow a non-existent user', async () => {
     const req = {
       params: {
         username: 'nonexistentuser'
@@ -215,7 +215,7 @@ describe('follow', () => {
     })
   })
 
-  it('should return an error message when attempting to follow a deleted user', async () => {
+  test('should return an error message when attempting to follow a deleted user', async () => {
     const req = {
       params: {
         username: 'deleteduser'
@@ -254,7 +254,7 @@ describe('unfollow', () => {
     UserModel.findOne.mockClear()
   })
 
-  it('should return a bad request error when username is not provided', async () => {
+  test('should return a bad request error when username is not provided', async () => {
     const req = {
       params: {}
     }
@@ -274,7 +274,7 @@ describe('unfollow', () => {
     })
   })
 
-  it('should successfully unfollow a user when all parameters are valid', async () => {
+  test('should successfully unfollow a user when all parameters are valid', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -320,7 +320,7 @@ describe('unfollow', () => {
     })
   })
 
-  it('should return a 404 error when the user does not exist', async () => {
+  test('should return a 404 error when the user does not exist', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -348,7 +348,7 @@ describe('unfollow', () => {
     })
   })
 
-  it('should return a 404 error when the user to unfollow does not exist', async () => {
+  test('should return a 404 error when the user to unfollow does not exist', async () => {
     const req = {
       params: {
         username: 'nonexistentuser'
@@ -384,7 +384,7 @@ describe('unfollow', () => {
     })
   })
 
-  it('should return a 400 error when the user tries to unfollow themselves', async () => {
+  test('should return a 400 error when the user tries to unfollow themselves', async () => {
     const req = {
       params: {
         username: 'user1'
@@ -425,7 +425,7 @@ describe('block', () => {
     UserModel.findOne.mockClear()
   })
 
-  it('should return a bad request error when username is not provided', async () => {
+  test('should return a bad request error when username is not provided', async () => {
     const req = {
       params: {}
     }
@@ -447,7 +447,7 @@ describe('block', () => {
     })
   })
 
-  it('should block a valid user successfully', async () => {
+  test('should block a valid user successfully', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -489,7 +489,7 @@ describe('block', () => {
     })
   })
 
-  it('should return a 404 error if the user to be blocked does not exist', async () => {
+  test('should return a 404 error if the user to be blocked does not exist', async () => {
     const req = {
       params: {
         username: 'nonexistentuser'
@@ -525,7 +525,7 @@ describe('block', () => {
     })
   })
 
-  it('should return a 404 error if the current user does not exist', async () => {
+  test('should return a 404 error if the current user does not exist', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -553,7 +553,7 @@ describe('block', () => {
     })
   })
 
-  it('should return a 400 error when user tries to block themselves', async () => {
+  test('should return a 400 error when user tries to block themselves', async () => {
     const req = {
       params: {
         username: 'user1'
@@ -588,7 +588,7 @@ describe('block', () => {
     })
   })
 
-  it('should return a 400 error if the user already blocks the user to be blocked', async () => {
+  test('should return a 400 error if the user already blocks the user to be blocked', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -635,7 +635,7 @@ describe('unblock', () => {
     UserModel.findOne.mockClear()
   })
 
-  it('should return a bad request error when username is not provided', async () => {
+  test('should return a bad request error when username is not provided', async () => {
     const req = {
       params: {}
     }
@@ -655,7 +655,7 @@ describe('unblock', () => {
     })
   })
 
-  it('should unblock a user when they are blocked', async () => {
+  test('should unblock a user when they are blocked', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -697,7 +697,7 @@ describe('unblock', () => {
     })
   })
 
-  it('should return a 404 error when the user does not exist', async () => {
+  test('should return a 404 error when the user does not exist', async () => {
     const req = {
       params: {
         username: 'user2'
@@ -725,7 +725,7 @@ describe('unblock', () => {
     })
   })
 
-  it('should return a 404 error when the user to be unblocked does not exist', async () => {
+  test('should return a 404 error when the user to be unblocked does not exist', async () => {
     const req = {
       params: {
         username: 'nonexistentUser'
@@ -760,7 +760,7 @@ describe('unblock', () => {
     })
   })
 
-  it('should return a 400 error when the user tries to unblock themselves', async () => {
+  test('should return a 400 error when the user tries to unblock themselves', async () => {
     const req = {
       params: {
         username: 'user1'
@@ -801,7 +801,7 @@ describe('isUsernameAvailable', () => {
     UserModel.findOne.mockClear()
   })
 
-  it('should return 400 status code and message when username is not provided', async () => {
+  test('should return 400 status code and message when username is not provided', async () => {
     const req = {
       params: {}
     }
@@ -821,7 +821,7 @@ describe('isUsernameAvailable', () => {
     })
   })
 
-  it('should return 200 status code and message when username is available', async () => {
+  test('should return 200 status code and message when username is available', async () => {
     const req = {
       params: {
         username: 'testuser'
@@ -847,7 +847,7 @@ describe('isUsernameAvailable', () => {
     })
   })
 
-  it('should return 409 status code and message when username is not available', async () => {
+  test('should return 409 status code and message when username is not available', async () => {
     const req = {
       params: {
         username: 'testuser'
