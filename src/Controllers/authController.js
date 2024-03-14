@@ -1,5 +1,6 @@
 const User = require('../models/User')
 const sendEmail = require('../Utils/email')
+const bcrypt = require('bcrypt')
 
 exports.forgetPassword = async (req, res, next) => {
   // 1) Check if the user exists with the username and email provided
@@ -36,4 +37,41 @@ exports.forgetPassword = async (req, res, next) => {
     res.status(500).json({ message: 'There was an error sending the email. Try again later' })
     return next(new Error('There was an error sending the email. Try again later'))
   }
+}
+
+exports.resetPassword = async (req, res, next) => {
+  // 1) Get user based on the token but keep in mind that the token is stored in the database as a hashed value
+  const user = await User.findOne({ resetPasswordTokenExpire: { $gt: Date.now() } })
+
+  if (!user) {
+    res.status(400).json({ message: 'Token has expired' })
+    return next(new Error('Token has expired'))
+  }
+
+  const isTokenValid = await bcrypt.compare(req.params.token, user.resetPasswordToken)
+  if (!isTokenValid) {
+    return res.status(400).json({ message: 'Token is invalid' })
+  }
+
+  // 2) Set the new password
+  const resetPassword = req.body.password
+  const confirmPassword = req.body.confirmPassword
+  console.log('resetPassword: ', resetPassword, 'confirmPassword: ', confirmPassword)
+  if (resetPassword !== confirmPassword) {
+    res.status(400).json({ message: 'Passwords do not match' })
+    return next(new Error('Passwords do not match'))
+  }
+
+  const salt = await bcrypt.genSalt(10)
+  user.password = await bcrypt.hash(resetPassword, salt)
+  user.passwordChangedAt = Date.now()
+  user.resetPasswordToken = undefined
+  user.resetPasswordTokenExpire = undefined
+
+  await user.save()
+  // for testing purposes
+  const pass = await bcrypt.compare(resetPassword, user.password)
+  console.log('pass: ', pass)
+  //
+  return res.status(200).json({ message: 'Password has been reset successfully' })
 }
