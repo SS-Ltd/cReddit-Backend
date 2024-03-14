@@ -1,6 +1,6 @@
 const UserModel = require('../models/User')
 const dotenv = require('dotenv')
-const { follow, unfollow, block, unblock } = require('../controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable } = require('../controllers/User')
 
 dotenv.config()
 
@@ -710,6 +710,88 @@ describe('unblock', () => {
     expect(res.json).toHaveBeenCalledWith({
       status: 'Bad Request',
       message: 'User cannot unblock themselves'
+    })
+  })
+})
+
+describe('isUsernameAvailable', () => {
+  beforeEach(() => {
+    UserModel.findOne.mockClear()
+  })
+
+  it('should return 400 status code and message when username is not provided', async () => {
+    const req = {
+      params: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await isUsernameAvailable(req, res)
+
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'Username is required'
+    })
+  })
+
+  it('should return 200 status code and message when username is available', async () => {
+    const req = {
+      params: {
+        username: 'testuser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await isUsernameAvailable(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser' })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'OK',
+      message: 'Username is available',
+      available: true
+    })
+  })
+
+  it('should return 409 status code and message when username is not available', async () => {
+    const req = {
+      params: {
+        username: 'testuser'
+      }
+    }
+
+    const user = {
+      username: 'testuser'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await isUsernameAvailable(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser' })
+    expect(res.status).toHaveBeenCalledWith(409)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Conflict',
+      message: 'Username is not available',
+      available: false
     })
   })
 })
