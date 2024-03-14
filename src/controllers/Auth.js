@@ -2,7 +2,7 @@ const User = require('../models/User')
 const bcrypt = require('bcrypt')
 const emailValidator = require('deep-email-validator')
 const SendVerificationEmail = require('../Utils/Email')
-const generateTokens = require('./JWT')
+const { generateTokens, decryptToken } = require('./JWT')
 
 const createUser = async (req, res) => {
   const { username, password, email, gender } = req.body
@@ -31,7 +31,7 @@ const createUser = async (req, res) => {
     }
 
     if (!['Man', 'Woman', 'I Prefer Not To Say', 'None'].includes(gender)) {
-      throw new Error('Invalid Gender')
+      throw new Error('Invalid gender')
     }
 
     if (password.length < 8) {
@@ -130,9 +130,30 @@ const logout = async (req, res) => {
   }
 }
 
+const verifyUser = async (req, res) => {
+  const { token } = req.params
+  try {
+    const { email, username } = decryptToken(token, process.env.VERIFICATION_TOKEN_SECRET)
+    const user = await User.findOne({ username, email, isDeleted: false })
+    if (!user) {
+      throw new Error('User not found')
+    }
+
+    const { refreshToken } = generateTokens({ username }, res)
+
+    user.isVerified = true
+    user.refreshToken = refreshToken
+    await user.save()
+    res.status(200).json({ message: 'User verified successfully' })
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error verifying user' })
+  }
+}
+
 module.exports = {
   createUser,
   deleteUser,
   login,
-  logout
+  logout,
+  verifyUser
 }

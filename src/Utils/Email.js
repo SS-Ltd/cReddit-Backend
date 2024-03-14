@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer')
 const jwt = require('jsonwebtoken')
 
 async function SendVerificationEmail (email, username) {
-  const verificationToken = jwt.sign({ username }, process.env.VERIFICATION_TOKEN_SECRET, { expiresIn: '1d' })
+  const verificationToken = jwt.sign({ email, username }, process.env.VERIFICATION_TOKEN_SECRET, { expiresIn: '1d' })
   const subject = 'Email Verification'
   const body = `Hello ${username},\n\nPlease verify your email by clicking on the link below\n\n${process.env.BASE_URL}/verify-email?token=${verificationToken}`
   await SendEmail(email, subject, body)

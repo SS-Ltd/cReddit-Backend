@@ -1,7 +1,7 @@
 const dotenv = require('dotenv').config()
 const jwt = require('jsonwebtoken')
 
-function generateTokens (payload, res) {
+const generateTokens = (payload, res) => {
   const { username } = payload
   const accessToken = jwt.sign(
     {
@@ -34,4 +34,16 @@ function generateTokens (payload, res) {
   return { refreshToken }
 }
 
-module.exports = generateTokens
+const decryptToken = (token, secret) => {
+  return jwt.verify(token, secret, (error, decoded) => {
+    if (error) {
+      throw new Error('Invalid or expired token')
+    }
+    return decoded
+  })
+}
+
+module.exports = {
+  generateTokens,
+  decryptToken
+}
