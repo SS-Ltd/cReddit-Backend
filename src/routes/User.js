@@ -3,11 +3,9 @@ const router = express.Router()
 const user = require('../controllers/User')
 const verifyToken = require('../middlewares/Verify')
 
-router.post('/follow/:username', verifyToken, user.follow)
-router.delete('/unfollow/:username', verifyToken, user.unfollow)
+router.route('/follow/:username').post(verifyToken, user.follow).delete(verifyToken, user.unfollow)
 
-router.post('/block/:username', verifyToken, user.block)
-router.delete('/unblock/:username', verifyToken, user.unblock)
+router.route('/block/:username').post(verifyToken, user.block).delete(verifyToken, user.unblock)
 
 router.get('/is-username-available/:username', user.isUsernameAvailable)
 
