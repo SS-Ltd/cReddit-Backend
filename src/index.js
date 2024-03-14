@@ -1,13 +1,17 @@
 const express = require('express')
-const connectDB = require('./models/Mongoose')
+const connectDB = require('./models/mongoose')
 const dotenv = require('dotenv')
 dotenv.config({ path: '../.env' })
+const authRoutes = require('./Routes/authRoutes')
 
 connectDB()
 
 const app = express()
+app.use(express.json())
 
 const port = process.env.PORT
+
+app.use('/user', authRoutes)
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
