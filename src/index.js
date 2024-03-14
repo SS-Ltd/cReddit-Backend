@@ -2,7 +2,7 @@ const express = require('express')
 const connectDB = require('./models/mongoose')
 const dotenv = require('dotenv')
 dotenv.config({ path: '../.env' })
-const authRoutes = require('./Routes/authRoutes')
+const authRoutes = require('./routes/User')
 
 connectDB()
 

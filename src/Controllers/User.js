@@ -1,5 +1,5 @@
 const User = require('../models/User')
-const sendEmail = require('../Utils/email')
+const sendEmail = require('../utils/Email')
 const bcrypt = require('bcrypt')
 
 exports.forgetPassword = async (req, res, next) => {
@@ -10,10 +10,8 @@ exports.forgetPassword = async (req, res, next) => {
     res.status(404).json({ message: 'Username or Email not found' })
     return next(new Error('Username or Email not found'))
   }
-  console.log('after')
   // 2) Generate reset token
   const resetToken = await user.createResetPasswordToken()
-  console.log('resetToken in controller: ', resetToken)
   await user.save()
 
   // 3) Send to user's email the reset token
@@ -33,7 +31,6 @@ exports.forgetPassword = async (req, res, next) => {
     user.passwordResetToken = undefined
     user.resetPasswordTokenExpire = undefined
     await user.save()
-    console.error('Error sending the email: ', error)
     res.status(500).json({ message: 'There was an error sending the email. Try again later' })
     return next(new Error('There was an error sending the email. Try again later'))
   }
@@ -56,7 +53,6 @@ exports.resetPassword = async (req, res, next) => {
   // 2) Set the new password
   const resetPassword = req.body.password
   const confirmPassword = req.body.confirmPassword
-  console.log('resetPassword: ', resetPassword, 'confirmPassword: ', confirmPassword)
   if (resetPassword !== confirmPassword) {
     res.status(400).json({ message: 'Passwords do not match' })
     return next(new Error('Passwords do not match'))
@@ -69,10 +65,7 @@ exports.resetPassword = async (req, res, next) => {
   user.resetPasswordTokenExpire = undefined
 
   await user.save()
-  // for testing purposes
-  const pass = await bcrypt.compare(resetPassword, user.password)
-  console.log('pass: ', pass)
-  //
+
   return res.status(200).json({ message: 'Password has been reset successfully' })
 }
 
@@ -97,7 +90,6 @@ exports.forgotUsername = async (req, res, next) => {
 
     return res.status(200).json({ message: 'Username has been sent to the user successfully' })
   } catch (error) {
-    console.error('Error sending the email: ', error)
     res.status(500).json({ message: 'There was an error sending the email. Try again later' })
     return next(new Error('There was an error sending the email. Try again later'))
   }

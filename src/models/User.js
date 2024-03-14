@@ -303,9 +303,8 @@ UserSchema.methods.createResetPasswordToken = async function () {
   const hashedToken = await bcrypt.hash(resetToken, salt)
 
   this.resetPasswordToken = hashedToken
-  console.log('resetToken: ', resetToken)
-  console.log('hashedToken: ', hashedToken)
   this.resetPasswordTokenExpire = Date.now() + 10 * 60 * 1000
+
   return resetToken
 }
 
