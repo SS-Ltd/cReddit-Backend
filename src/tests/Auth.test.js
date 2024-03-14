@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const { createUser, deleteUser, login, logout } = require('../controllers/Auth')
+const { createUser, deleteUser, login, logout, verifyUser } = require('../controllers/Auth')
 const User = require('../models/User')
 
 describe('createUser', () => {
@@ -118,7 +118,7 @@ describe('createUser', () => {
     await createUser(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid Gender' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid gender' })
   })
 
   test('should throw an error when password is less than 8 characters', async () => {
@@ -321,6 +321,68 @@ describe('logout', () => {
     await logout(req, res)
 
     expect(User.findOne).toHaveBeenCalledWith({ username: 'testuser' })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+})
+
+describe('verify', () => {
+  test('should verify user successfully and return a refresh token', async () => {
+    const req = {
+      params: {
+        token: 'testtoken'
+      },
+      decoded: {
+        username: 'testuser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    const user = {
+      username: 'testuser',
+      isDeleted: false,
+      isVerified: false,
+      save: jest.fn()
+    }
+    User.findOne = jest.fn().mockResolvedValue(user)
+    jwt.sign = jest.fn().mockReturnValue('refreshToken')
+    jwt.verify = jest.fn().mockReturnValue({ email: 'testemail', username: 'testuser' })
+
+    await verifyUser(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User verified successfully' })
+    expect(User.findOne).toHaveBeenCalledWith({ email: 'testemail', username: 'testuser', isDeleted: false })
+    expect(user.isVerified).toBe(true)
+    expect(user.save).toHaveBeenCalled()
+    expect(jwt.sign).toHaveBeenCalledWith(
+      { username: 'testuser' },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: '1d' }
+    )
+  })
+
+  test('should throw an error if user is not found', async () => {
+    const req = {
+      params: {
+        token: 'testtoken'
+      },
+      decoded: {
+        username: 'testuser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    User.findOne = jest.fn().mockResolvedValue(null)
+
+    await verifyUser(req, res)
+
+    expect(User.findOne).toHaveBeenCalledWith({ email: 'testemail', username: 'testuser', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
