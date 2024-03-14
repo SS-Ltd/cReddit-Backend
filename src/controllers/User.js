@@ -20,7 +20,7 @@ module.exports.follow = async (req, res) => {
     if (!userFollowed) {
       return res.status(404).json({
         status: 'Not Found',
-        message: 'Followed user does not exist'
+        message: 'User to be followed does not exist'
       })
     }
 
@@ -81,7 +81,7 @@ module.exports.unfollow = async (req, res) => {
     if (!userUnfollowed) {
       return res.status(404).json({
         status: 'Not Found',
-        message: 'User does not exist'
+        message: 'User to be unfollowed does not exist'
       })
     }
 
@@ -111,6 +111,105 @@ module.exports.unfollow = async (req, res) => {
     res.status(500).json({
       status: 'Internal Server Error',
       message: 'An error occurred while unfollowing the user'
+    })
+  }
+}
+
+module.exports.block = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User does not exist'
+      })
+    }
+
+    const userBlocked = await UserModel.findOne({ username, isDeleted: false })
+    if (!userBlocked) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User to be blocked does not exist'
+      })
+    }
+
+    if (user.username === userBlocked.username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User cannot block themselves'
+      })
+    }
+
+    if (user.blockedUsers.includes(userBlocked.username)) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User already blocks the user'
+      })
+    }
+
+    user.blockedUsers.push(userBlocked.username)
+
+    await user.save()
+
+    res.status(200).json({
+      status: 'OK',
+      message: 'User blocked'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      status: 'Internal Server Error',
+      message: 'An error occurred while blocking the user'
+    })
+  }
+}
+
+module.exports.unblock = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User does not exist'
+      })
+    }
+
+    const userUnblocked = await UserModel.findOne({ username, isDeleted: false })
+    if (!userUnblocked) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User to be unblocked does not exist'
+      })
+    }
+
+    if (user.username === userUnblocked.username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User cannot unblock themselves'
+      })
+    }
+
+    user.blockedUsers = user.blockedUsers.filter(
+      (unblock) => unblock !== userUnblocked.username
+    )
+
+    await user.save()
+
+    res.status(200).json({
+      status: 'OK',
+      message: 'User unblocked'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      status: 'Internal Server Error',
+      message: 'An error occurred while unblocking the user'
     })
   }
 }
