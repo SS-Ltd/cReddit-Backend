@@ -34,8 +34,7 @@ describe('createUser', () => {
 
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({
-      message: 'User created successfully',
-      refreshToken: expect.any(String)
+      message: 'User created successfully'
     })
   })
 
@@ -215,14 +214,21 @@ describe('login', () => {
     expect(jwt.sign).toHaveBeenCalledWith({ username: 'validUsername' }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '10m' })
     expect(jwt.sign).toHaveBeenCalledWith({ username: 'validUsername' }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '1d' })
     expect(User.updateOne).toHaveBeenCalledWith({ username: 'validUsername' }, { $set: { refreshToken: 'refreshToken' } })
-    expect(res.cookie).toHaveBeenCalledWith('jwt', 'accessToken', {
+    expect(res.cookie).toHaveBeenCalledWith('refreshToken', 'refreshToken', {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/refreshToken'
+    })
+    expect(res.cookie).toHaveBeenCalledWith('accessToken', 'accessToken', {
       httpOnly: true,
       sameSite: 'None',
       secure: true,
       maxAge: 24 * 60 * 60 * 1000
     })
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'User logged in successfully', refreshToken: 'refreshToken' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'User logged in successfully' })
   })
 
   test('should throw an error when username is empty', async () => {
@@ -271,7 +277,7 @@ describe('login', () => {
 })
 
 describe('logout', () => {
-  it('should clear refresh token, clear jwt cookie, and return status 200 when user is found', async () => {
+  test('should clear refresh token, clear jwt cookie, and return status 200 when user is found', async () => {
     const req = {
       decoded: {
         username: 'testuser'
@@ -293,12 +299,13 @@ describe('logout', () => {
     expect(User.findOne).toHaveBeenCalledWith({ username: 'testuser' })
     expect(user.refreshToken).toBe('')
     expect(user.save).toHaveBeenCalled()
-    expect(res.clearCookie).toHaveBeenCalledWith('jwt')
+    expect(res.clearCookie).toHaveBeenCalledWith('accessToken')
+    expect(res.clearCookie).toHaveBeenCalledWith('refreshToken')
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'User logged out successfully' })
   })
 
-  it('should return error message with status 400 when user is not found', async () => {
+  test('should return error message with status 400 when user is not found', async () => {
     const req = {
       decoded: {
         username: 'testuser'
