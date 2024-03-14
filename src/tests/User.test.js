@@ -1,0 +1,381 @@
+const UserModel = require('../models/User')
+const dotenv = require('dotenv')
+const { follow, unfollow } = require('../controllers/User')
+
+dotenv.config()
+
+jest.mock('../models/User', () => ({
+  findOne: jest.fn()
+}))
+
+describe('follow', () => {
+  beforeEach(() => {
+    UserModel.findOne.mockClear()
+  })
+
+  it('should follow user when user is authenticated and exists', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user2 = {
+      username: 'user2',
+      followers: [],
+      save: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      follows: [],
+      save: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(user)
+    UserModel.findOne.mockResolvedValueOnce(user2)
+
+    await follow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user2', isDeleted: false })
+    expect(user.follows).toContain('user2')
+    expect(user2.followers).toContain('user1')
+    expect(user.save).toHaveBeenCalled()
+    expect(user2.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'OK',
+      message: 'User followed'
+    })
+  })
+
+  it('should return a bad request error when user already follows the user', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user1 = {
+      username: 'user1',
+      follows: ['user2']
+    }
+
+    const user2 = {
+      username: 'user2',
+      followers: ['user1']
+    }
+
+    UserModel.findOne = jest.fn()
+      .mockResolvedValueOnce(user1)
+      .mockResolvedValueOnce(user2)
+
+    await follow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user2', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'User already follows the user'
+    })
+  })
+
+  it('should return an error message when user attempts to follow themselves', async () => {
+    const req = {
+      params: {
+        username: 'user1'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user1 = {
+      username: 'user1',
+      follows: []
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user1)
+
+    await follow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(user1.follows).not.toContain('user1')
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'User cannot follow themselves'
+    })
+  })
+
+  it('should return user does not exist error when user is not found', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(null)
+
+    await follow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'User does not exist'
+    })
+  })
+
+  it('should return an error message when attempting to follow a non-existent user', async () => {
+    const req = {
+      params: {
+        username: 'nonexistentuser'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user1 = {
+      username: 'user1'
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(user1).mockResolvedValueOnce(null)
+
+    await follow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentuser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'Followed user does not exist'
+    })
+  })
+
+  it('should return an error message when attempting to follow a deleted user', async () => {
+    const req = {
+      params: {
+        username: 'deleteduser'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user1 = {
+      username: 'user1'
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(user1).mockResolvedValueOnce(null)
+
+    await follow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'deleteduser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'Followed user does not exist'
+    })
+  })
+})
+
+describe('unfollow', () => {
+  beforeEach(() => {
+    UserModel.findOne.mockClear()
+  })
+
+  it('should successfully unfollow a user when all parameters are valid', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      follows: ['user2'],
+      save: jest.fn()
+    }
+
+    const userUnfollowed = {
+      username: 'user2',
+      followers: ['user1'],
+      save: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(user)
+    UserModel.findOne.mockResolvedValueOnce(userUnfollowed)
+
+    await unfollow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user2', isDeleted: false })
+    expect(user.follows).not.toContain('user2')
+    expect(userUnfollowed.followers).not.toContain('user1')
+    expect(user.save).toHaveBeenCalled()
+    expect(userUnfollowed.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'OK',
+      message: 'User unfollowed'
+    })
+  })
+
+  it('should return a 404 error when the user does not exist', async () => {
+    const req = {
+      params: {
+        username: 'user2'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(null)
+
+    await unfollow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'User does not exist'
+    })
+  })
+
+  it('should return a 404 error when the user to unfollow does not exist', async () => {
+    const req = {
+      params: {
+        username: 'nonexistentuser'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      follows: ['user2'],
+      save: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValueOnce(user)
+    UserModel.findOne.mockResolvedValueOnce(null)
+
+    await unfollow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentuser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Not Found',
+      message: 'User does not exist'
+    })
+  })
+
+  it('should return a 400 error when the user tries to unfollow themselves', async () => {
+    const req = {
+      params: {
+        username: 'user1'
+      },
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      follows: ['user2'],
+      save: jest.fn()
+    }
+
+    UserModel.findOne.mockResolvedValue(user)
+
+    await unfollow(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(user.follows).not.toContain('user1')
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'User cannot unfollow themselves'
+    })
+  })
+})
