@@ -7,6 +7,13 @@ const follow = async (req, res) => {
   try {
     const { username } = req.params
 
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
+
     const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
 
     if (!user) {
@@ -68,6 +75,13 @@ const unfollow = async (req, res) => {
   try {
     const { username } = req.params
 
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
+
     const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
 
     if (!user) {
@@ -118,6 +132,13 @@ const unfollow = async (req, res) => {
 const block = async (req, res) => {
   try {
     const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
 
     const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
 
@@ -170,6 +191,13 @@ const block = async (req, res) => {
 const unblock = async (req, res) => {
   try {
     const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
 
     const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
 

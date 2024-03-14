@@ -13,6 +13,26 @@ describe('follow', () => {
     UserModel.findOne.mockClear()
   })
 
+  it('should return a bad request error when username is not provided', async () => {
+    const req = {
+      params: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await follow(req, res)
+
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'Username is required'
+    })
+  })
+
   it('should follow user when user is authenticated and exists', async () => {
     const req = {
       params: {
@@ -234,6 +254,26 @@ describe('unfollow', () => {
     UserModel.findOne.mockClear()
   })
 
+  it('should return a bad request error when username is not provided', async () => {
+    const req = {
+      params: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await unfollow(req, res)
+
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'Username is required'
+    })
+  })
+
   it('should successfully unfollow a user when all parameters are valid', async () => {
     const req = {
       params: {
@@ -383,6 +423,28 @@ describe('unfollow', () => {
 describe('block', () => {
   beforeEach(() => {
     UserModel.findOne.mockClear()
+  })
+
+  it('should return a bad request error when username is not provided', async () => {
+    const req = {
+      params: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await block(req, res)
+
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'Username is required'
+    })
   })
 
   it('should block a valid user successfully', async () => {
@@ -571,6 +633,26 @@ describe('block', () => {
 describe('unblock', () => {
   beforeEach(() => {
     UserModel.findOne.mockClear()
+  })
+
+  it('should return a bad request error when username is not provided', async () => {
+    const req = {
+      params: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await unblock(req, res)
+
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      status: 'Bad Request',
+      message: 'Username is required'
+    })
   })
 
   it('should unblock a user when they are blocked', async () => {
