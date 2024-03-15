@@ -1,5 +1,7 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
+const crypto = require('crypto')
+const bcrypt = require('bcrypt')
 
 const UserSchema = new Schema({
   username: {
@@ -231,10 +233,31 @@ const UserSchema = new Schema({
   refreshToken: {
     type: String
   },
+  resetPasswordToken: {
+    type: String
+  },
+  resetPasswordTokenExpire: {
+    type: Date
+  },
+  passwordChangedAt: {
+    type: Date
+  },
   isDeleted: {
     type: Boolean,
     default: false
   }
 }, { timestamps: true })
+
+UserSchema.methods.createResetPasswordToken = async function () {
+  const resetToken = crypto.randomBytes(32).toString('hex')
+
+  const salt = await bcrypt.genSalt(10)
+  const hashedToken = await bcrypt.hash(resetToken, salt)
+
+  this.resetPasswordToken = hashedToken
+  this.resetPasswordTokenExpire = Date.now() + 10 * 60 * 1000
+
+  return resetToken
+}
 
 module.exports = mongoose.model('User', UserSchema)
