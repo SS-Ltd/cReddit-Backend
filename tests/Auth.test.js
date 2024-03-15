@@ -1,8 +1,9 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const { createUser, deleteUser, login, logout, verifyUser } = require('../controllers/Auth')
-const User = require('../models/User')
+const { createUser, deleteUser, login, logout, verifyUser } = require('../src/controllers/Auth')
+const { refreshToken } = require('../src/controllers/JWT')
+const User = require('../src/models/User')
 
 describe('createUser', () => {
   beforeAll(async () => {
@@ -219,7 +220,7 @@ describe('login', () => {
       sameSite: 'None',
       secure: true,
       maxAge: 24 * 60 * 60 * 1000,
-      path: '/refreshToken'
+      path: '/user/refreshToken'
     })
     expect(res.cookie).toHaveBeenCalledWith('accessToken', 'accessToken', {
       httpOnly: true,
@@ -386,4 +387,53 @@ describe('verify', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
+})
+
+describe('refreshToken', () => {
+  test('should throw an error for a non-existing user', async () => {
+    const req = {
+      cookies: {
+        refreshToken: 'refreshToken'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    jwt.verify = jest.fn().mockReturnValue({ username: 'testuser' })
+    jwt.sign = jest.fn().mockReturnValue('newAccessToken')
+
+    await refreshToken(req, res)
+
+    expect(jwt.verify).toHaveBeenCalledWith('refreshToken', process.env.REFRESH_TOKEN_SECRET, expect.any(Function))
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  test('should return access token to user if refresh token is valid', async () => {
+    const req = {
+      cookies: {
+        refreshToken: 'refreshToken'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    jwt.verify = jest.fn().mockReturnValue({ username: 'testuser' })
+    jwt.sign = jest.fn().mockReturnValue('newAccessToken')
+    const user = {
+      username: 'testuser'
+    }
+    User.findOne = jest.fn().mockResolvedValue(user)
+
+    await refreshToken(req, res)
+
+    expect(jwt.verify).toHaveBeenCalledWith('refreshToken', process.env.REFRESH_TOKEN_SECRET, expect.any(Function))
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Token refreshed successfully' })
+  })
+
 })
