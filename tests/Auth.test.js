@@ -32,11 +32,11 @@ describe('createUser', () => {
     }
 
     await createUser(req, res)
-
-    expect(res.status).toHaveBeenCalledWith(201)
+    
     expect(res.json).toHaveBeenCalledWith({
       message: 'User created successfully'
     })
+    expect(res.status).toHaveBeenCalledWith(201)
   })
 
   test('should throw an error when trying to create a user with existing username', async () => {

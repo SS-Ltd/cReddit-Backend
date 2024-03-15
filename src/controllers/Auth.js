@@ -1,7 +1,7 @@
 const User = require('../models/User')
 const bcrypt = require('bcrypt')
 const emailValidator = require('deep-email-validator')
-const SendVerificationEmail = require('../Utils/Email')
+const { SendVerificationEmail } = require('../utils/Email')
 const { generateTokens, decryptToken } = require('./JWT')
 
 const createUser = async (req, res) => {
