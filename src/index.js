@@ -1,5 +1,7 @@
 const express = require('express')
-const connectDB = require('./models/Mongoose')
+const connectDB = require('./models/mongoose')
+const cookies = require('cookie-parser')
+const userRouter = require('./routes/User')
 const dotenv = require('dotenv')
 const userRoutes = require('./routes/User')
 const cors = require('cors')
@@ -15,7 +17,13 @@ app.use(express.urlencoded({ extended: true }))
 app.use(cors())
 app.use(cookies())
 
-const port = process.env.PORT || 3000
+const port = process.env.PORT
+
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(cookies())
+app.use('/user', userRouter)
+
 
 app.use('/user', userRoutes)
 
