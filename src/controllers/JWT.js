@@ -1,5 +1,5 @@
-const dotenv = require('dotenv').config()
-const cookie = require('cookie-parser')
+require('dotenv').config()
+require('cookie-parser')
 const User = require('../models/User')
 const jwt = require('jsonwebtoken')
 
