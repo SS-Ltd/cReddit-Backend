@@ -1,15 +1,19 @@
-const { Router } = require('express')
-const { createUser, deleteUser, login, logout, verifyUser } = require('../controllers/Auth')
+const express = require('express')
+const router = express.Router()
+const user = require('../controllers/User')
 const verifyToken = require('../middlewares/Verify')
 const { refreshToken } = require('../controllers/JWT')
+const { auth } = require('../controllers/Auth')
 
-const userRouter = Router()
+router.route('/follow/:username').post(verifyToken, user.follow).delete(verifyToken, user.unfollow)
+router.route('/block/:username').post(verifyToken, user.block).delete(verifyToken, user.unblock)
+router.get('/is-username-available/:username', user.isUsernameAvailable)
 
-userRouter.post('/', createUser)
-userRouter.delete('/', verifyToken, deleteUser)
-userRouter.post('/login', login)
-userRouter.get('/logout', verifyToken, logout)
-userRouter.get('/verify/:token', verifyUser)
-userRouter.get('/refreshToken', refreshToken)
+router.post('/', auth.createUser)
+router.delete('/', verifyToken, auth.deleteUser)
+router.post('/login', auth.login)
+router.get('/logout', verifyToken, auth.logout)
+router.get('/verify/:token', auth.verifyUser)
+router.get('/refreshToken', auth.refreshToken)
 
-module.exports = userRouter
+module.exports = router
