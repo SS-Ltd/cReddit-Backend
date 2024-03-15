@@ -3,8 +3,10 @@ const Schema = mongoose.Schema
 
 const reportSchema = new Schema({
   user: {
-    type: Schema.Types.ObjectId,
-    ref: 'User'
+    type: String,
+    ref: 'User',
+    refPath: 'username',
+    required: true
   },
   post: {
     type: Schema.Types.ObjectId,

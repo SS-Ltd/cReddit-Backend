@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
-const historySchema = new Schema({
+const HistorySchema = new Schema({
   owner: {
     type: String,
     required: true,
@@ -17,4 +17,4 @@ const historySchema = new Schema({
   timestamps: true
 })
 
-module.exports = mongoose.model('History', historySchema)
+module.exports = mongoose.model('History', HistorySchema)

@@ -3,12 +3,16 @@ const Schema = mongoose.Schema
 
 const MessageSchema = new Schema({
   from: {
-    type: Schema.Types.ObjectId,
-    ref: 'User'
+    type: String,
+    ref: 'User',
+    refPath: 'username',
+    required: true
   },
   to: {
-    type: Schema.Types.ObjectId,
-    ref: 'User'
+    type: String,
+    ref: 'User',
+    refPath: 'username',
+    required: true
   },
   subject: {
     type: String,
@@ -18,7 +22,7 @@ const MessageSchema = new Schema({
     type: String,
     required: true
   },
-  isDead: {
+  isRead: {
     type: Boolean,
     default: false
   },

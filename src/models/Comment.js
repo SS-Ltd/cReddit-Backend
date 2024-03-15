@@ -15,7 +15,6 @@ const CommentSchema = new Schema({
   },
   parentID: {
     type: Schema.Types.ObjectId,
-    required: true,
     ref: 'Comment'
   },
   communityID: {
