@@ -1,4 +1,6 @@
 const dotenv = require('dotenv').config()
+const cookie = require('cookie-parser')
+const User = require('../models/User')
 const jwt = require('jsonwebtoken')
 
 const generateTokens = (payload, res) => {
@@ -29,7 +31,7 @@ const generateTokens = (payload, res) => {
     sameSite: 'None',
     secure: true,
     maxAge: 24 * 60 * 60 * 1000,
-    path: '/refreshToken'
+    path: '/user/refreshToken'
   })
   return { refreshToken }
 }
@@ -43,7 +45,26 @@ const decryptToken = (token, secret) => {
   })
 }
 
+const refreshToken = async (req, res) => {
+  const { refreshToken } = req.cookies
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'Unauthorized' })
+  }
+  try {
+    const { username } = decryptToken(refreshToken, process.env.REFRESH_TOKEN_SECRET)
+    const user = await User.findOne({ username, isDeleted: false })
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+    generateTokens({ username }, res)
+    res.status(200).json({ message: 'Token refreshed successfully' })
+  } catch (error) {
+    res.status(401).json({ message: error.message || 'Unauthorized' })
+  }
+}
+
 module.exports = {
   generateTokens,
-  decryptToken
+  decryptToken,
+  refreshToken
 }
