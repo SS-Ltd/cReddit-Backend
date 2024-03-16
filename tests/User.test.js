@@ -1,6 +1,6 @@
 const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
-const { follow, unfollow, block, unblock, isUsernameAvailable } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView } = require('../src/controllers/User')
 
 dotenv.config()
 
@@ -877,3 +877,412 @@ describe('isUsernameAvailable', () => {
     })
   })
 })
+
+describe('updateSettings', () => {
+  test('should update user preferences successfully when valid preferences are provided', async () => {
+    // Mock the request object
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      body: {
+        preferences: {
+          isNSFW: true,
+          allowFollow: true,
+          autoPlayMedia: false
+        },
+        darkMode: true
+      }
+    }
+
+    // Mock the response object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testuser',
+      displayName: 'Cali',
+      email: 'Emmalee.Walsh@gmail.com',
+      password: 'aJfCrMd5JlSUfCJ',
+      profilePicture: 'https://picsum.photos/seed/jjApQNS/640/480',
+      banner: 'https://loremflickr.com/640/480?lock=7494930922471424',
+      about: 'Fuga cedo taedium absens caste.',
+      gender: 'Woman',
+      country: 'Sao Tome and Principe',
+      preferences: {
+        twitter: '27419035-dbb8-4df2-a5ee-a125767f51e0',
+        apple: '26d759b0-0548-48b9-aba9-1a5d39a52f39',
+        google: 'a2d9c69e-1aad-4d9f-a697-ac3b1b2afc10',
+        isNSFW: false,
+        allowFollow: true,
+        isContentVisible: true,
+        showAdultContent: false,
+        autoPlayMedia: true,
+        communityThemes: true,
+        communityContentSort: 'new',
+        globalContentView: 'classic',
+        openNewTab: false,
+        chatMessages: true,
+        chatRequests: false,
+        followEmail: true,
+        chatEmail: false,
+        inboxMessages: true,
+        mentionsNotifs: true,
+        commentsNotifs: true,
+        postsUpvotesNotifs: true,
+        repliesNotifs: true,
+        newFollowerNotifs: true,
+        postNotifs: true,
+        cakeDayNotifs: true,
+        modNotifs: true,
+        invitaionNotifs: true
+      },
+      isVerified: false,
+      follows: [],
+      followers: [],
+      blockedUsers: [],
+      mutedCommunities: [],
+      communities: [],
+      savedPosts: [],
+      savedComments: [],
+      hiddenPosts: [],
+      upvotedPosts: [],
+      followedPosts: [],
+      approvedInCommunities: [],
+      bannedInCommunities: [],
+      moderatorInCommunities: [],
+      darkMode: true,
+      modMode: false,
+      refreshToken: '47dbdded-0f9e-42cd-a74a-649e767dfc17',
+      isDeleted: false,
+      downvotePosts: [],
+      save: jest.fn()
+    }
+    // Mock the UserModel.findOne method
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(user)
+
+    // Call the function
+    await updateSettings(req, res)
+
+    // Check the response
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Settings updated successfully' })
+  })
+
+  // Return 400 if username is not provided in request
+  test('should return 400 if username is not provided in request', async () => {
+    // Mock the request object
+    const req = {
+      decoded: {},
+      body: {}
+    }
+
+    // Mock the response object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    // Call the function
+    await updateSettings(req, res)
+
+    // Check the response
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error updating settings: Username is required' })
+  })
+
+  // Return 404 if user is not found or is deleted
+  test('should return 404 if user is not found or is deleted', async () => {
+    // Mock the request object
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      body: {}
+    }
+
+    // Mock the response object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    // Mock the UserModel.findOne method
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(null)
+
+    // Call the function
+    await updateSettings(req, res)
+
+    // Check the response
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  // Update user preferences with empty object
+  test('should return an error message when username is not provided', async () => {
+    // Mock the request object
+    const req = {
+      decoded: {},
+      body: {
+        preferences: {}
+      }
+    }
+
+    // Mock the response object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    // Call the function
+    await updateSettings(req, res)
+
+    // Check the response
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error updating settings: Username is required' })
+  })
+
+  // Update user information with empty object
+  test('should return a 400 status code and a message indicating that username is required', async () => {
+    // Mock the request object
+    const req = {
+      decoded: {},
+      body: {}
+    }
+
+    // Mock the response object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    // Call the function
+    await updateSettings(req, res)
+
+    // Check the response
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error updating settings: Username is required' })
+  })
+
+  // Update user preferences with invalid data
+  test('should return an error message when username is missing', async () => {
+    // Mock the request object
+    const req = {
+      decoded: {},
+      body: {
+        preferences: {
+          theme: 'dark',
+          language: 'en'
+        }
+      }
+    }
+
+    // Mock the response object
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    // Call the function
+    await updateSettings(req, res)
+
+    // Check the response
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error updating settings: Username is required' })
+  })
+})
+
+describe('getUserView', () => {
+  // Returns user data when valid username is provided
+  test('should return user data when valid username is provided', async () => {
+    const req = { params: { username: 'validUsername' } }
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+    const user = {
+      username: 'validUsername',
+      displayName: 'John Doe',
+      about: 'Lorem ipsum',
+      email: 'johndoe@example.com',
+      profilePicture: 'profile.jpg',
+      banner: 'banner.jpg',
+      followers: ['follower1', 'follower2'],
+      createdAt: '2022-01-01'
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getUserView(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      username: 'validUsername',
+      displayName: 'John Doe',
+      about: 'Lorem ipsum',
+      email: 'johndoe@example.com',
+      profilePicture: 'profile.jpg',
+      banner: 'banner.jpg',
+      followers: 2,
+      cakeDay: '2022-01-01'
+    })
+  })
+
+  // Returns 400 error when username is not provided
+  test('should return 400 error when username is not provided', async () => {
+    const req = { params: {} }
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+
+    await getUserView(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user view: Username is required' })
+  })
+
+  // Returns 404 error when user is not found or is deleted
+  test('should return 404 error when user is not found or is deleted', async () => {
+    const req = { params: { username: 'nonexistentUser' } }
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+    const user = null
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getUserView(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentUser' })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+})
+
+describe('getSettings', () => {
+  // Returns user settings for a valid username
+  test('should return user settings when a valid username is provided', async () => {
+    const req = {
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      email: 'test@example.com',
+      gender: 'male',
+      preferences: {
+        google: null,
+        socialLinks: [],
+        isNSFW: false,
+        allowFollow: true,
+        isContentVisible: true,
+        showAdultContent: true,
+        autoPlayMedia: false,
+        communityThemes: [],
+        communityContentSort: 'new',
+        globalContentView: true,
+        openNewTab: false,
+        mentionsNotifs: true,
+        commentsNotifs: true,
+        postsUpvotesNotifs: true,
+        repliesNotifs: true,
+        newFollowersNotifs: true,
+        postNotifs: true,
+        cakeDayNotifs: true,
+        modNotifs: true,
+        invitationNotifs: true,
+        followEmail: true,
+        chatEmail: true
+      }
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getSettings(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      account: {
+        email: 'test@example.com',
+        gender: 'male',
+        google: false
+      },
+      profile: {
+        displayName: undefined,
+        about: undefined,
+        socialLinks: [],
+        avatar: undefined,
+        banner: undefined,
+        isNSFW: false,
+        allowFollow: true,
+        isContentVisible: true
+      },
+      safetyAndPrivacy: {
+        blockedUsers: undefined,
+        mutedCommunities: undefined
+      },
+      feedSettings: {
+        showAdultContent: true,
+        autoPlayMedia: false,
+        communityThemes: [],
+        communityContentSort: 'new',
+        globalContentView: true,
+        openNewTab: false
+      },
+      notifications: {
+        mentionsNotifs: true,
+        commentsNotifs: true,
+        postsUpvotesNotifs: true,
+        repliesNotifs: true,
+        newFollowersNotifs: true,
+        postNotifs: true,
+        cakeDayNotifs: true,
+        modNotifs: true,
+        moderatorInCommunities: undefined,
+        invitationNotifs: true
+      },
+      email: {
+        followEmail: true,
+        chatEmail: true
+      }
+    })
+  })
+
+  // Returns 404 error for a deleted user
+  test('should return 404 error for a deleted user', async () => {
+    const req = {
+      decoded: {
+        username: 'deletedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      isDeleted: true
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getSettings(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'deletedUser' })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  // Returns 400 error for missing username
+  test('should return 400 error when username is missing', async () => {
+    const req = {
+      decoded: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getSettings(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting settings: Username is required' })
+  })
+})
+
