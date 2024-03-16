@@ -157,118 +157,70 @@ const UserSchema = new Schema({
     type: Boolean,
     default: false
   },
-  follows: [
-    {
-      username: {
-        type: String
-      }
-    }
-  ],
-  followers: [
-    {
-      username: {
-        type: String
-      }
-    }
-  ],
-  blockedUsers: [
-    {
-      username: {
-        type: String
-      }
-    }
-  ],
-  mutedCommunities: [
-    {
-      name: {
-        type: String
-      }
-    }
-  ],
-  communities: [
-    {
-      name: {
-        type: String,
-        ref: 'Community',
-        refPath: 'name'
-      }
-    }
-  ],
-  savedPosts: [
-    {
-      post_id: {
-        type: Schema.Types.ObjectId,
-        ref: 'Post'
-      }
-    }
-  ],
-  savedComments: [
-    {
-      comment_id: {
-        type: Schema.Types.ObjectId,
-        ref: 'Comment'
-      }
-    }
-  ],
-  hiddenPosts: [
-    {
-      post_id: {
-        type: Schema.Types.ObjectId,
-        ref: 'Post'
-      }
-    }
-  ],
-  upvotedPosts: [
-    {
-      post_id: {
-        type: Schema.Types.ObjectId,
-        ref: 'Post'
-      }
-    }
-  ],
-  downvotePosts: [
-    {
-      post_id: {
-        type: Schema.Types.ObjectId,
-        ref: 'Post'
-      }
-    }
-  ],
-  followedPosts: [
-    {
-      post_id: {
-        type: Schema.Types.ObjectId,
-        ref: 'Post'
-      }
-    }
-  ],
-  approvedInCommunities: [
-    {
-      name: {
-        type: String,
-        ref: 'Community',
-        refPath: 'name'
-      }
-    }
-  ],
-  bannedInCommunities: [
-    {
-      name: {
-        type: String,
-        ref: 'Community',
-        refPath: 'name'
-      }
-    }
-  ],
-  moderatorInCommunities: [
-    {
-      name: {
-        type: String,
-        ref: 'Community',
-        refPath: 'name'
-      }
-    }
-  ],
+  follows: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  followers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  blockedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  mutedCommunities: [{
+    type: String,
+    ref: 'Community',
+    refPath: 'name'
+  }],
+  communities: [{
+    type: String,
+    ref: 'Community',
+    refPath: 'name'
+  }],
+  savedPosts: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Post'
+  }],
+  savedComments: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Comment'
+  }],
+  hiddenPosts: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Post'
+  }],
+  upvotedPosts: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Post'
+  }],
+  downvotePosts: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Post'
+  }],
+  followedPosts: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Post'
+  }],
+  approvedInCommunities: [{
+    type: String,
+    ref: 'Community',
+    refPath: 'name'
+  }],
+  bannedInCommunities: [{
+    type: String,
+    ref: 'Community',
+    refPath: 'name'
+  }],
+  moderatorInCommunities: [{
+    type: String,
+    ref: 'Community',
+    refPath: 'name'
+  }],
   darkMode: {
     type: Boolean,
     default: false
