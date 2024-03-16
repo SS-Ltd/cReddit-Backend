@@ -20,18 +20,16 @@ const PostSchema = new Schema({
   content: {
     type: String
   },
-  pollOptions: [
-    {
-      text: {
-        type: String,
-        required: true
-      },
-      votes: {
-        type: Number,
-        default: 0
-      }
+  pollOptions: [{
+    text: {
+      type: String,
+      required: true
+    },
+    votes: {
+      type: Number,
+      default: 0
     }
-  ],
+  }],
   expirationDate: {
     type: Date
   },
@@ -67,13 +65,11 @@ const PostSchema = new Schema({
     type: Boolean,
     default: false
   },
-  followers: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ]
+  followers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }]
 }, { timestamps: true })
 
 module.exports = mongoose.model('Post', PostSchema)

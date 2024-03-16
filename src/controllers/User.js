@@ -279,7 +279,7 @@ const isUsernameAvailable = async (req, res) => {
   }
 }
 
-const forgetPassword = async (req, res, next) => {
+const forgotPassword = async (req, res, next) => {
   // 1) Check if the user exists with the username and email provided
   const user = await UserModel.findOne({ username: req.body.username, email: req.body.email })
 
@@ -501,7 +501,7 @@ module.exports = {
   block,
   unblock,
   isUsernameAvailable,
-  forgetPassword,
+  forgotPassword,
   resetPassword,
   forgotUsername,
   getUserView,

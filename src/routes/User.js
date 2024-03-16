@@ -15,7 +15,7 @@ router.route('/logout').get(verifyToken, auth.logout)
 router.route('/verify/:token').get(auth.verifyUser)
 router.route('/refreshToken').get(jwt.refreshToken)
 
-router.route('/forgot-password').post(user.forgetPassword)
+router.route('/forgot-password').post(user.forgotPassword)
 router.route('/reset-password/:token').patch(user.resetPassword)
 router.route('/forgot-username').post(user.forgotUsername)
 
