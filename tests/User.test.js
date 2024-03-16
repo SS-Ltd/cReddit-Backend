@@ -1,5 +1,5 @@
 const UserModel = require('../src/models/User')
-const { forgetPassword, resetPassword } = require('../src/controllers/User')
+const { forgetPassword, resetPassword, forgotUsername } = require('../src/controllers/User')
 // jest.mock('../src/utils/Email', () => jest.fn())
 jest.mock('../src/utils/Email', () => {
   return jest.fn()
@@ -396,4 +396,74 @@ test('should return an error message when token is invalid', async () => {
   expect(bcrypt.compare).toHaveBeenCalledWith('invalidToken', 'hashedToken')
   expect(res.status).toHaveBeenCalledWith(400)
   expect(res.json).toHaveBeenCalledWith({ message: 'Token is invalid' })
+})
+
+// ////////////////////////// Forgot username test ////////////////////
+test('should return 404 status and error message when request body is empty', async () => {
+  const req = {
+    body: {}
+  }
+
+  const res = {
+    status: jest.fn().mockReturnThis(),
+    json: jest.fn()
+  }
+
+  const next = jest.fn()
+
+  UserModel.findOne = jest.fn()
+
+  await forgotUsername(req, res, next)
+
+  expect(UserModel.findOne).not.toHaveBeenCalled()
+  expect(res.status).toHaveBeenCalledWith(404)
+  expect(res.json).toHaveBeenCalledWith({ message: 'Email is required' })
+  expect(next).toHaveBeenCalledWith(new Error('Email is required'))
+})
+
+test('should send email to user with their username', async () => {
+  const req = { body: { email: 'test@example.com' } }
+  const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+  const next = jest.fn()
+  const user = { email: 'test@example.com', username: 'testuser' }
+  UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+  sendEmail.mockResolvedValue()
+
+  await forgotUsername(req, res, next)
+
+  expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'test@example.com' })
+  expect(sendEmail).toHaveBeenCalledWith({ email: 'test@example.com', subject: 'So you wanna know your Reddit username, huh?', message: `Hey there,\n\nYou forgot it didn't you? No worries. Here you go:\n\nYour username is: ${user.username}\n\n(Username checks out, nicely done.)\n\nIf you didn't forget your username, please ignore this email!` })
+  expect(res.status).toHaveBeenCalledWith(200)
+  expect(res.json).toHaveBeenCalledWith({ message: 'Username has been sent to the user successfully' })
+})
+
+test('should handle error while sending email to user', async () => {
+  const req = { body: { email: 'test@example.com' } }
+  const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+  const next = jest.fn()
+  const user = { email: 'test@example.com', username: 'testuser' }
+  UserModel.findOne = jest.fn().mockResolvedValue(user)
+  sendEmail.mockRejectedValue(new Error('Failed to send email'))
+
+  await forgotUsername(req, res, next)
+
+  expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'test@example.com' })
+  expect(sendEmail).toHaveBeenCalledWith({ email: 'test@example.com', subject: 'So you wanna know your Reddit username, huh?', message: `Hey there,\n\nYou forgot it didn't you? No worries. Here you go:\n\nYour username is: ${user.username}\n\n(Username checks out, nicely done.)\n\nIf you didn't forget your username, please ignore this email!` })
+  expect(res.status).toHaveBeenCalledWith(500) // Expectation changed to 500 for error case
+  expect(res.json).toHaveBeenCalledWith({ message: 'There was an error sending the email. Try again later' })
+})
+
+test('should return an error message when user does not exist with provided email', async () => {
+  const req = { body: { email: 'nonexistent@example.com' } }
+  const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+  const next = jest.fn()
+  UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+  await forgotUsername(req, res, next)
+
+  expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'nonexistent@example.com' })
+  expect(res.status).toHaveBeenCalledWith(404)
+  expect(res.json).toHaveBeenCalledWith({ message: 'Email not found' })
+  expect(next).toHaveBeenCalledWith(new Error('Email not found'))
 })
