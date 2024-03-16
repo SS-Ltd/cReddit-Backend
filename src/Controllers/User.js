@@ -1,10 +1,10 @@
-const User = require('../models/User')
+const UserModel = require('../models/User')
 const sendEmail = require('../utils/Email')
 const bcrypt = require('bcrypt')
 
 exports.forgetPassword = async (req, res, next) => {
   // 1) Check if the user exists with the username and email provided
-  const user = await User.findOne({ username: req.body.username, email: req.body.email })
+  const user = await UserModel.findOne({ username: req.body.username, email: req.body.email })
 
   if (!user) {
     res.status(404).json({ message: 'Username or Email not found' })
@@ -36,9 +36,14 @@ exports.forgetPassword = async (req, res, next) => {
   }
 }
 
+function validatePassword (password) {
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/
+  return passwordRegex.test(password)
+}
+
 exports.resetPassword = async (req, res, next) => {
   // 1) Get user based on the token but keep in mind that the token is stored in the database as a hashed value
-  const user = await User.findOne({ resetPasswordTokenExpire: { $gt: Date.now() } })
+  const user = await UserModel.findOne({ resetPasswordTokenExpire: { $gt: Date.now() } })
 
   if (!user) {
     res.status(400).json({ message: 'Token has expired' })
@@ -58,6 +63,11 @@ exports.resetPassword = async (req, res, next) => {
     return next(new Error('Passwords do not match'))
   }
 
+  if (!validatePassword(resetPassword)) {
+    res.status(400).json({ message: 'Password must contain at least one lower and upper case letters and at least one digit and must be at least 8 characters' })
+    return next(new Error('Password must contain at least one lower and upper case letters and at least one digit and must be at least 8 characters'))
+  }
+
   const salt = await bcrypt.genSalt(10)
   user.password = await bcrypt.hash(resetPassword, salt)
   user.passwordChangedAt = Date.now()
@@ -71,7 +81,7 @@ exports.resetPassword = async (req, res, next) => {
 
 exports.forgotUsername = async (req, res, next) => {
   // 1) Check if the user exists with the email provided
-  const user = await User.findOne({ email: req.body.email })
+  const user = await UserModel.findOne({ email: req.body.email })
 
   if (!user) {
     res.status(404).json({ message: 'Email not found' })
