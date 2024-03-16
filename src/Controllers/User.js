@@ -4,6 +4,10 @@ const bcrypt = require('bcrypt')
 
 exports.forgetPassword = async (req, res, next) => {
   // 1) Check if the user exists with the username and email provided
+  if (!req.body.username || !req.body.email) {
+    res.status(400).json({ message: 'Username and Email are required' })
+    return next(new Error('Username and Email are required'))
+  }
   const user = await UserModel.findOne({ username: req.body.username, email: req.body.email })
 
   if (!user) {
@@ -81,6 +85,10 @@ exports.resetPassword = async (req, res, next) => {
 
 exports.forgotUsername = async (req, res, next) => {
   // 1) Check if the user exists with the email provided
+  if (!req.body.email) {
+    res.status(404).json({ message: 'Email is required' })
+    return next(new Error('Email is required'))
+  }
   const user = await UserModel.findOne({ email: req.body.email })
 
   if (!user) {
