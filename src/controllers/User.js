@@ -372,6 +372,129 @@ const forgotUsername = async (req, res, next) => {
   }
 }
 
+const getUserView = async (req, res) => {
+  try {
+    if (!req.params.username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: req.params.username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+    res.status(200).json({
+      username: user.username,
+      displayName: user.displayName,
+      about: user.about,
+      email: user.email,
+      profilePicture: user.profilePicture,
+      banner: user.banner,
+      followers: user.followers.length,
+      cakeDay: user.createdAt
+    })
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user view: ' + error.message })
+  }
+}
+
+const getSettings = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    res.status(200).json({
+      account: {
+        email: user.email,
+        gender: user.gender,
+        google: user.preferences.google !== null
+      },
+      profile: {
+        displayName: user.displayName,
+        about: user.about,
+        socialLinks: user.preferences.socialLinks,
+        avatar: user.profilePicture,
+        banner: user.banner,
+        isNSFW: user.preferences.isNSFW,
+        allowFollow: user.preferences.allowFollow,
+        isContentVisible: user.preferences.isContentVisible
+      },
+      safetyAndPrivacy: {
+        blockedUsers: user.blockedUsers,
+        mutedCommunities: user.mutedCommunities
+      },
+      feedSettings: {
+        showAdultContent: user.preferences.showAdultContent,
+        autoPlayMedia: user.preferences.autoPlayMedia,
+        communityThemes: user.preferences.communityThemes,
+        communityContentSort: user.preferences.communityContentSort,
+        globalContentView: user.preferences.globalContentView,
+        openNewTab: user.preferences.openNewTab
+      },
+      notifications: {
+        mentionsNotifs: user.preferences.mentionsNotifs,
+        commentsNotifs: user.preferences.commentsNotifs,
+        postsUpvotesNotifs: user.preferences.postsUpvotesNotifs,
+        repliesNotifs: user.preferences.repliesNotifs,
+        newFollowersNotifs: user.preferences.newFollowersNotifs,
+        postNotifs: user.preferences.postNotifs,
+        cakeDayNotifs: user.preferences.cakeDayNotifs,
+        modNotifs: user.preferences.modNotifs,
+        moderatorInCommunities: user.moderatorInCommunities,
+        invitationNotifs: user.preferences.invitationNotifs
+      },
+      email: {
+        followEmail: user.preferences.followEmail,
+        chatEmail: user.preferences.chatEmail
+      }
+    })
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting settings: ' + error.message })
+  }
+}
+
+const updateSettings = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+
+    const user = await UserModel.findOne({ username: username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    if (req.body.preferences && typeof req.body.preferences === 'object') {
+      if (req.body.preferences.socialLinks && typeof req.body.preferences.socialLinks !== 'object') {
+        throw new Error('Invalid socialLinks type')
+      }
+
+      // Update preferences
+      user.preferences = { ...user.preferences, ...req.body.preferences }
+    }
+
+    // Update other user fields
+    for (const key in req.body) {
+      if (key !== 'preferences') {
+        user[key] = req.body[key]
+      }
+    }
+
+    // Save user changes
+    await user.save()
+
+    res.status(200).json({ message: 'Settings updated successfully'})
+  } catch (error) {
+    console.error('Error updating user settings:', error)
+    res.status(400).json({ message: 'Error updating settings: ' + error.message })
+  }
+}
+
 module.exports = {
   follow,
   unfollow,
@@ -380,5 +503,8 @@ module.exports = {
   isUsernameAvailable,
   forgetPassword,
   resetPassword,
-  forgotUsername
+  forgotUsername,
+  getUserView,
+  getSettings,
+  updateSettings
 }
