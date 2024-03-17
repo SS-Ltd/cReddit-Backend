@@ -360,7 +360,7 @@ const resetPassword = async (req, res) => {
 
 const forgotUsername = async (req, res) => {
   if (!req.body.email) {
-    return res.status(404).json({ message: 'Email is required' })
+    return res.status(400).json({ message: 'Email is required' })
   }
   const user = await UserModel.findOne({ email: req.body.email, isDeleted: false })
 
@@ -437,10 +437,6 @@ const changeEmail = async (req, res) => {
     return this.forgetPassword(req, res)
   } else {
     const { password, newEmail } = req.body
-
-    if (!password || !newEmail) {
-      return res.status(400).json({ message: 'Password and new email are required' })
-    }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password)
     if (!isPasswordCorrect) {

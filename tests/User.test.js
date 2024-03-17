@@ -1257,7 +1257,7 @@ describe('resetPassword', () => {
 })
 // // ////////////////////////// Forgot username test ////////////////////
 describe('forgotUsername', () => {
-  test('should return 404 status and error message when request body is empty', async () => {
+  test('should return 400 status and error message when request body is empty', async () => {
     const req = {
       body: {}
     }
@@ -1272,7 +1272,7 @@ describe('forgotUsername', () => {
     await forgotUsername(req, res)
 
     expect(UserModel.findOne).not.toHaveBeenCalled()
-    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Email is required' })
   })
 
