@@ -2,7 +2,7 @@ const User = require('../models/User')
 const bcrypt = require('bcrypt')
 const emailValidator = require('email-validator')
 const { faker } = require('@faker-js/faker')
-const { SendVerificationEmail } = require('../utils/Email')
+const { sendVerificationEmail } = require('../utils/Email')
 const { generateTokens, decryptToken } = require('./JWT')
 
 const createUser = async (req, res) => {
@@ -54,7 +54,7 @@ const createUser = async (req, res) => {
     })
 
     await newUser.save()
-    await SendVerificationEmail(email, username)
+    await sendVerificationEmail(email, username)
     res.status(201).json({ message: 'User created successfully' })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error creating user' })
@@ -193,7 +193,7 @@ const loginGoogle = async (req, res) => {
     })
 
     await newUser.save()
-    await SendVerificationEmail(email, username)
+    await sendVerificationEmail(email, username)
     res.status(201).json({ message: 'User created successfully' })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error creating user' })

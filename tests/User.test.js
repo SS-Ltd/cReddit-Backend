@@ -1261,7 +1261,7 @@ describe('getSettings', () => {
 })
 
 describe('forgotPassword', () => {
-  const SendEmail = jest.fn().mockResolvedValue()
+  const sendEmail = jest.fn().mockResolvedValue()
   // Successfully find user by username and email, generate reset token, send email, and return success message
   test('should find user by username and email, generate reset token, send email, and return success message', async () => {
     const req = {
@@ -1293,7 +1293,7 @@ describe('forgotPassword', () => {
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
-    expect(SendEmail).toHaveBeenCalledWith('testuser@example.com', 'Ask and you shall receive a password reset', expect.any(String))
+    expect(sendEmail).toHaveBeenCalledWith('testuser@example.com', 'Ask and you shall receive a password reset', expect.any(String))
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Reset password has been sent to the user successfully' })
   })
@@ -1343,14 +1343,14 @@ describe('forgotPassword', () => {
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-    SendEmail.mockRejectedValue(new Error('Failed to send email'))
+    sendEmail.mockRejectedValue(new Error('Failed to send email'))
 
     await forgotPassword(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
-    expect(SendEmail).toHaveBeenCalledWith({
+    expect(sendEmail).toHaveBeenCalledWith({
       email: 'testuser@example.com',
       subject: 'Ask and you shall receive a password reset',
       message: expect.any(String)
@@ -1384,14 +1384,14 @@ describe('forgotPassword', () => {
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-    SendEmail.mockRejectedValue(new Error('Failed to send email'))
+    sendEmail.mockRejectedValue(new Error('Failed to send email'))
 
     await forgotPassword(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
-    expect(SendEmail).toHaveBeenCalledWith({
+    expect(sendEmail).toHaveBeenCalledWith({
       email: 'testuser@example.com',
       subject: 'Ask and you shall receive a password reset',
       message: expect.any(String)
@@ -1425,14 +1425,14 @@ describe('forgotPassword', () => {
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-    SendEmail.mockRejectedValue(new Error('Invalid email address'))
+    sendEmail.mockRejectedValue(new Error('Invalid email address'))
 
     await forgotPassword(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
-    expect(SendEmail).toHaveBeenCalledWith({
+    expect(sendEmail).toHaveBeenCalledWith({
       email: 'testuser@example.com',
       subject: 'Ask and you shall receive a password reset',
       message: expect.any(String)
@@ -1466,14 +1466,14 @@ describe('forgotPassword', () => {
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-    SendEmail.mockResolvedValue()
+    sendEmail.mockResolvedValue()
 
     await forgotPassword(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
-    expect(SendEmail).toHaveBeenCalledWith({
+    expect(sendEmail).toHaveBeenCalledWith({
       email: 'testuser@example.com',
       subject: 'Ask and you shall receive a password reset',
       message: expect.any(String)
@@ -1636,12 +1636,12 @@ describe('forgotUsername', () => {
     const user = { email: 'test@example.com', username: 'testuser' }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-    SendEmail.mockResolvedValue()
+    sendEmail.mockResolvedValue()
 
     await forgotUsername(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'test@example.com', isDeleted: false })
-    expect(SendEmail).toHaveBeenCalledWith({ email: 'test@example.com', subject: 'So you wanna know your Reddit username, huh?', message: `Hey there,\n\nYou forgot it didn't you? No worries. Here you go:\n\nYour username is: ${user.username}\n\n(Username checks out, nicely done.)\n\nIf you didn't forget your username, please ignore this email!` })
+    expect(sendEmail).toHaveBeenCalledWith({ email: 'test@example.com', subject: 'So you wanna know your Reddit username, huh?', message: `Hey there,\n\nYou forgot it didn't you? No worries. Here you go:\n\nYour username is: ${user.username}\n\n(Username checks out, nicely done.)\n\nIf you didn't forget your username, please ignore this email!` })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Username has been sent to the user successfully' })
   })
@@ -1651,12 +1651,12 @@ describe('forgotUsername', () => {
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
     const user = { email: 'test@example.com', username: 'testuser' }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    SendEmail.mockRejectedValue(new Error('Failed to send email'))
+    sendEmail.mockRejectedValue(new Error('Failed to send email'))
 
     await forgotUsername(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'test@example.com', isDeleted: false })
-    expect(SendEmail).toHaveBeenCalledWith({ email: 'test@example.com', subject: 'So you wanna know your Reddit username, huh?', message: `Hey there,\n\nYou forgot it didn't you? No worries. Here you go:\n\nYour username is: ${user.username}\n\n(Username checks out, nicely done.)\n\nIf you didn't forget your username, please ignore this email!` })
+    expect(sendEmail).toHaveBeenCalledWith({ email: 'test@example.com', subject: 'So you wanna know your Reddit username, huh?', message: `Hey there,\n\nYou forgot it didn't you? No worries. Here you go:\n\nYour username is: ${user.username}\n\n(Username checks out, nicely done.)\n\nIf you didn't forget your username, please ignore this email!` })
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: 'There was an error sending the email. Try again later' })
   })
