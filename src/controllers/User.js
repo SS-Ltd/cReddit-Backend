@@ -11,7 +11,6 @@ const follow = async (req, res) => {
 
     if (!username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'Username is required'
       })
     }
@@ -20,7 +19,6 @@ const follow = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        status: 'Not Found',
         message: 'User does not exist'
       })
     }
@@ -28,28 +26,24 @@ const follow = async (req, res) => {
     const userFollowed = await UserModel.findOne({ username, isDeleted: false })
     if (!userFollowed) {
       return res.status(404).json({
-        status: 'Not Found',
         message: 'User to be followed does not exist'
       })
     }
 
     if (user.username === userFollowed.username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'User cannot follow themselves'
       })
     }
 
     if (user.follows.includes(userFollowed.username)) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'User already follows the user'
       })
     }
 
     if (userFollowed.followers.includes(user.username)) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'User already is being followed by the user'
       })
     }
@@ -61,13 +55,11 @@ const follow = async (req, res) => {
     await userFollowed.save()
 
     res.status(200).json({
-      status: 'OK',
       message: 'User followed'
     })
   } catch (error) {
     console.error(error)
     res.status(500).json({
-      status: 'Internal Server Error',
       message: 'An error occurred while following the user'
     })
   }
@@ -79,7 +71,6 @@ const unfollow = async (req, res) => {
 
     if (!username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'Username is required'
       })
     }
@@ -88,7 +79,6 @@ const unfollow = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        status: 'Not Found',
         message: 'User does not exist'
       })
     }
@@ -96,14 +86,12 @@ const unfollow = async (req, res) => {
     const userUnfollowed = await UserModel.findOne({ username, isDeleted: false })
     if (!userUnfollowed) {
       return res.status(404).json({
-        status: 'Not Found',
         message: 'User to be unfollowed does not exist'
       })
     }
 
     if (user.username === userUnfollowed.username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'User cannot unfollow themselves'
       })
     }
@@ -119,13 +107,11 @@ const unfollow = async (req, res) => {
     await userUnfollowed.save()
 
     res.status(200).json({
-      status: 'OK',
       message: 'User unfollowed'
     })
   } catch (error) {
     console.error(error)
     res.status(500).json({
-      status: 'Internal Server Error',
       message: 'An error occurred while unfollowing the user'
     })
   }
@@ -137,7 +123,6 @@ const block = async (req, res) => {
 
     if (!username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'Username is required'
       })
     }
@@ -146,7 +131,6 @@ const block = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        status: 'Not Found',
         message: 'User does not exist'
       })
     }
@@ -154,21 +138,18 @@ const block = async (req, res) => {
     const userBlocked = await UserModel.findOne({ username, isDeleted: false })
     if (!userBlocked) {
       return res.status(404).json({
-        status: 'Not Found',
         message: 'User to be blocked does not exist'
       })
     }
 
     if (user.username === userBlocked.username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'User cannot block themselves'
       })
     }
 
     if (user.blockedUsers.includes(userBlocked.username)) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'User already blocks the user'
       })
     }
@@ -178,13 +159,11 @@ const block = async (req, res) => {
     await user.save()
 
     res.status(200).json({
-      status: 'OK',
       message: 'User blocked'
     })
   } catch (error) {
     console.error(error)
     res.status(500).json({
-      status: 'Internal Server Error',
       message: 'An error occurred while blocking the user'
     })
   }
@@ -196,7 +175,6 @@ const unblock = async (req, res) => {
 
     if (!username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'Username is required'
       })
     }
@@ -205,7 +183,6 @@ const unblock = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        status: 'Not Found',
         message: 'User does not exist'
       })
     }
@@ -213,14 +190,12 @@ const unblock = async (req, res) => {
     const userUnblocked = await UserModel.findOne({ username, isDeleted: false })
     if (!userUnblocked) {
       return res.status(404).json({
-        status: 'Not Found',
         message: 'User to be unblocked does not exist'
       })
     }
 
     if (user.username === userUnblocked.username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'User cannot unblock themselves'
       })
     }
@@ -232,13 +207,11 @@ const unblock = async (req, res) => {
     await user.save()
 
     res.status(200).json({
-      status: 'OK',
       message: 'User unblocked'
     })
   } catch (error) {
     console.error(error)
     res.status(500).json({
-      status: 'Internal Server Error',
       message: 'An error occurred while unblocking the user'
     })
   }
@@ -250,7 +223,6 @@ const isUsernameAvailable = async (req, res) => {
 
     if (!username) {
       return res.status(400).json({
-        status: 'Bad Request',
         message: 'Username is required'
       })
     }
@@ -259,13 +231,11 @@ const isUsernameAvailable = async (req, res) => {
 
     if (!user) {
       return res.status(200).json({
-        status: 'OK',
         message: 'Username is available',
         available: true
       })
     } else {
       return res.status(409).json({
-        status: 'Conflict',
         message: 'Username is not available',
         available: false
       })
@@ -273,7 +243,6 @@ const isUsernameAvailable = async (req, res) => {
   } catch (error) {
     console.error(error)
     res.status(500).json({
-      status: 'Internal Server Error',
       message: 'An error occurred while checking if the username is available'
     })
   }
