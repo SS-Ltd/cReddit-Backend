@@ -2,7 +2,6 @@ const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
 const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword } = require('../src/controllers/User')
-// let { SendEmail } = require('../src/utils/Email')
 dotenv.config()
 
 jest.mock('../src/models/User', () => ({
@@ -1262,7 +1261,7 @@ describe('getSettings', () => {
 })
 
 describe('forgotPassword', () => {
-  const SendEmail = jest.fn()
+  const SendEmail = jest.fn().mockResolvedValue()
   // Successfully find user by username and email, generate reset token, send email, and return success message
   test('should find user by username and email, generate reset token, send email, and return success message', async () => {
     const req = {
@@ -1915,4 +1914,3 @@ describe('changeEmail', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Email has been changed successfully' })
   })
 })
-

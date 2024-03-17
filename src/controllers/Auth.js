@@ -1,6 +1,7 @@
 const User = require('../models/User')
 const bcrypt = require('bcrypt')
 const emailValidator = require('email-validator')
+const { faker } = require('@faker-js/faker')
 const { SendVerificationEmail } = require('../utils/Email')
 const { generateTokens, decryptToken } = require('./JWT')
 
@@ -150,10 +151,60 @@ const verifyUser = async (req, res) => {
   }
 }
 
+const loginGoogle = async (req, res) => {
+  const username = faker.internet.userName()
+  const email = req.decoded.email
+  const gender = 'None'
+  try {
+    if (!username || !email || !gender) {
+      throw new Error('Username, email and gender are required')
+    }
+
+    const existingUser = await User.findOne({ 'preferences.google': req.decoded.id })
+    if (existingUser && !existingUser.isDeleted) {
+      const { refreshToken } = generateTokens({ username }, res)
+      await User.updateOne({ username }, {
+        $set: {
+          refreshToken
+        }
+      })
+      return res.status(200).json({ message: 'User logged in successfully' })
+    }
+
+    if (existingUser && existingUser.isDeleted) {
+      await User.updateOne({ 'preferences.google': req.decoded.id }, {
+        $set: {
+          isDeleted: false
+        }
+      })
+      return res.status(201).json({ message: 'User created successfully' })
+    }
+
+    const { refreshToken } = generateTokens({ username }, res)
+
+    const newUser = new User({
+      username,
+      displayName: username,
+      email,
+      password: '',
+      gender,
+      'preferences.google': req.decoded.id,
+      refreshToken
+    })
+
+    await newUser.save()
+    await SendVerificationEmail(email, username)
+    res.status(201).json({ message: 'User created successfully' })
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error creating user' })
+  }
+}
+
 module.exports = {
   createUser,
   deleteUser,
   login,
   logout,
-  verifyUser
+  verifyUser,
+  loginGoogle
 }
