@@ -11,10 +11,10 @@ const SendVerificationEmail = async (email, username) => {
 
 const SendEmail = (email, subject, body) => {
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    service: process.env.EMAIL_HOST,
     auth: {
-      user: 'eplmanagement03@gmail.com',
-      pass: 'fnlfcqvgxtzbgwey'
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
     },
     tls: {
       rejectUnauthorized: false
@@ -22,7 +22,7 @@ const SendEmail = (email, subject, body) => {
   })
 
   const mailConfigurations = {
-    from: 'eplmanagement03@gmail.com',
+    from: 'cReddit support center <support@cReddit.com>',
     to: email,
     subject,
     text: body
@@ -44,8 +44,7 @@ const SendEmail = (email, subject, body) => {
 const sendEmail = async (options) => {
   // please note that we will be use a services like gmail however for testing purposes we will use mailtrap
   const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
+    service: process.env.EMAIL_HOST,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
@@ -64,5 +63,5 @@ const sendEmail = async (options) => {
 
 module.exports = {
   SendVerificationEmail,
-  sendEmail
+  SendEmail
 }

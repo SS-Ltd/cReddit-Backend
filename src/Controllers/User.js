@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt')
 const UserModel = require('../models/User')
-const sendEmail = require('../utils/Email')
+const { SendEmail } = require('../utils/Email')
 const dotenv = require('dotenv')
 
 dotenv.config()
@@ -261,15 +261,11 @@ const forgotPassword = async (req, res, next) => {
   await user.save()
 
   // 3) Send to user's email the reset token
-  const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
+  const resetURL = `${req.protocol}://${process.env.BASE_URL}/user/reset-password/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
 
   try {
-    await sendEmail({
-      email: user.email,
-      subject: 'Ask and you shall receive a password reset',
-      message
-    })
+    await SendEmail(user.email, 'Ask and you shall receive a password reset', message)
 
     return res.status(200).json({ message: 'Reset password has been sent to the user successfully' })
   } catch (error) {
@@ -328,7 +324,7 @@ const forgotUsername = async (req, res, next) => {
   const message = `Hey there,\n\nYou forgot it didn't you? No worries. Here you go:\n\nYour username is: ${user.username}\n\n(Username checks out, nicely done.)\n\nIf you didn't forget your username, please ignore this email!`
 
   try {
-    await sendEmail({
+    await SendEmail({
       email: user.email,
       subject: 'So you wanna know your Reddit username, huh?',
       message

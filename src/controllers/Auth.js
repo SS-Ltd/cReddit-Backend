@@ -1,6 +1,6 @@
 const User = require('../models/User')
 const bcrypt = require('bcrypt')
-const emailValidator = require('deep-email-validator')
+const emailValidator = require('email-validator')
 const { SendVerificationEmail } = require('../utils/Email')
 const { generateTokens, decryptToken } = require('./JWT')
 
