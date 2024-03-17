@@ -32,7 +32,7 @@ describe('createUser', () => {
     }
 
     await createUser(req, res)
-    
+
     expect(res.json).toHaveBeenCalledWith({
       message: 'User created successfully'
     })
@@ -435,5 +435,4 @@ describe('refreshToken', () => {
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Token refreshed successfully' })
   })
-
 })
