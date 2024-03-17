@@ -31,7 +31,6 @@ const verifyGoogleToken = async (req, res, next) => {
       }
     })
 
-    console.log('Google response: ', response.data)
     req.decoded = response.data
     next()
   } catch (error) {
