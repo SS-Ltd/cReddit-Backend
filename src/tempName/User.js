@@ -525,7 +525,7 @@ const updateSettings = async (req, res) => {
     // Save user changes
     await user.save()
 
-    res.status(200).json({ message: 'Settings updated successfully'})
+    res.status(200).json({ message: 'Settings updated successfully' })
   } catch (error) {
     console.error('Error updating user settings:', error)
     res.status(400).json({ message: 'Error updating settings: ' + error.message })
