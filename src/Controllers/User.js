@@ -1,23 +1,301 @@
 const UserModel = require('../models/User')
 const sendEmail = require('../utils/Email')
 const bcrypt = require('bcrypt')
-const emailValidator = require('deep-email-validator')
+const dotenv = require('dotenv')
 
-exports.forgetPassword = async (req, res) => {
-  // 1) Check if the user exists with the username and email provided
+dotenv.config()
+
+const follow = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User does not exist'
+      })
+    }
+
+    const userFollowed = await UserModel.findOne({ username, isDeleted: false })
+    if (!userFollowed) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User to be followed does not exist'
+      })
+    }
+
+    if (user.username === userFollowed.username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User cannot follow themselves'
+      })
+    }
+
+    if (user.follows.includes(userFollowed.username)) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User already follows the user'
+      })
+    }
+
+    if (userFollowed.followers.includes(user.username)) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User already is being followed by the user'
+      })
+    }
+
+    user.follows.push(userFollowed.username)
+    userFollowed.followers.push(user.username)
+
+    await user.save()
+    await userFollowed.save()
+
+    res.status(200).json({
+      status: 'OK',
+      message: 'User followed'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      status: 'Internal Server Error',
+      message: 'An error occurred while following the user'
+    })
+  }
+}
+
+const unfollow = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User does not exist'
+      })
+    }
+
+    const userUnfollowed = await UserModel.findOne({ username, isDeleted: false })
+    if (!userUnfollowed) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User to be unfollowed does not exist'
+      })
+    }
+
+    if (user.username === userUnfollowed.username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User cannot unfollow themselves'
+      })
+    }
+
+    user.follows = user.follows.filter(
+      (follow) => follow !== userUnfollowed.username
+    )
+    userUnfollowed.followers = userUnfollowed.followers.filter(
+      (follower) => follower !== user.username
+    )
+
+    await user.save()
+    await userUnfollowed.save()
+
+    res.status(200).json({
+      status: 'OK',
+      message: 'User unfollowed'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      status: 'Internal Server Error',
+      message: 'An error occurred while unfollowing the user'
+    })
+  }
+}
+
+const block = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User does not exist'
+      })
+    }
+
+    const userBlocked = await UserModel.findOne({ username, isDeleted: false })
+    if (!userBlocked) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User to be blocked does not exist'
+      })
+    }
+
+    if (user.username === userBlocked.username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User cannot block themselves'
+      })
+    }
+
+    if (user.blockedUsers.includes(userBlocked.username)) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User already blocks the user'
+      })
+    }
+
+    user.blockedUsers.push(userBlocked.username)
+
+    await user.save()
+
+    res.status(200).json({
+      status: 'OK',
+      message: 'User blocked'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      status: 'Internal Server Error',
+      message: 'An error occurred while blocking the user'
+    })
+  }
+}
+
+const unblock = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User does not exist'
+      })
+    }
+
+    const userUnblocked = await UserModel.findOne({ username, isDeleted: false })
+    if (!userUnblocked) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: 'User to be unblocked does not exist'
+      })
+    }
+
+    if (user.username === userUnblocked.username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'User cannot unblock themselves'
+      })
+    }
+
+    user.blockedUsers = user.blockedUsers.filter(
+      (unblock) => unblock !== userUnblocked.username
+    )
+
+    await user.save()
+
+    res.status(200).json({
+      status: 'OK',
+      message: 'User unblocked'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      status: 'Internal Server Error',
+      message: 'An error occurred while unblocking the user'
+    })
+  }
+}
+
+const isUsernameAvailable = async (req, res) => {
+  try {
+    const { username } = req.params
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'Bad Request',
+        message: 'Username is required'
+      })
+    }
+
+    const user = await UserModel.findOne({ username })
+
+    if (!user) {
+      return res.status(200).json({
+        status: 'OK',
+        message: 'Username is available',
+        available: true
+      })
+    } else {
+      return res.status(409).json({
+        status: 'Conflict',
+        message: 'Username is not available',
+        available: false
+      })
+    }
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      status: 'Internal Server Error',
+      message: 'An error occurred while checking if the username is available'
+    })
+  }
+}
+
+const forgotPassword = async (req, res) => {
   if (!req.body.username || !req.body.email) {
     return res.status(400).json({ message: 'Username and Email are required' })
   }
-  const user = await UserModel.findOne({ username: req.body.username, email: req.body.email, isDeleted: false })
+  const user = await UserModel.findOne({
+    username: req.body.username,
+    email: req.body.email,
+    isDeleted: false
+  })
 
   if (!user) {
     return res.status(404).json({ message: 'Username or Email not found' })
   }
-  // 2) Generate reset token
+
   const resetToken = await user.createResetPasswordToken()
   await user.save()
 
-  // 3) Send to user's email the reset token
   const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
 
@@ -30,7 +308,6 @@ exports.forgetPassword = async (req, res) => {
 
     return res.status(200).json({ message: 'Reset password has been sent to the user successfully' })
   } catch (error) {
-    // Deleting the reset token for the user
     user.passwordResetToken = undefined
     user.resetPasswordTokenExpire = undefined
     await user.save()
@@ -43,8 +320,7 @@ function validatePassword (password) {
   return passwordRegex.test(password)
 }
 
-exports.resetPassword = async (req, res) => {
-  // 1) Get user based on the token but keep in mind that the token is stored in the database as a hashed value
+const resetPassword = async (req, res) => {
   const { token } = req.params
   if (!token) {
     return res.status(400).json({ message: 'Token, password, and confirm password are required' })
@@ -82,9 +358,9 @@ exports.resetPassword = async (req, res) => {
   return res.status(200).json({ message: 'Password has been reset successfully' })
 }
 
-exports.forgotUsername = async (req, res) => {
+const forgotUsername = async (req, res) => {
   if (!req.body.email) {
-    return res.status(404).json({ message: 'Email is required' })
+    return res.status(400).json({ message: 'Email is required' })
   }
   const user = await UserModel.findOne({ email: req.body.email, isDeleted: false })
 
@@ -106,7 +382,7 @@ exports.forgotUsername = async (req, res) => {
   }
 }
 
-exports.changePassword = async (req, res) => {
+const changePassword = async (req, res) => {
   const { oldPassword, newPassword, confirmPassword } = req.body
 
   if (!oldPassword || !newPassword || !confirmPassword) {
@@ -146,7 +422,7 @@ function validateEmail (email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email)
 }
-exports.changeEmail = async (req, res) => {
+const changeEmail = async (req, res) => {
   if (!req.body.password || !req.body.newEmail) {
     return res.status(400).json({ message: 'Password and new email are required' })
   }
@@ -161,10 +437,6 @@ exports.changeEmail = async (req, res) => {
     return this.forgetPassword(req, res)
   } else {
     const { password, newEmail } = req.body
-
-    if (!password || !newEmail) {
-      return res.status(400).json({ message: 'Password and new email are required' })
-    }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password)
     if (!isPasswordCorrect) {
@@ -185,4 +457,18 @@ exports.changeEmail = async (req, res) => {
 
     return res.status(200).json({ message: 'Email has been changed successfully' })
   }
+}
+
+module.exports = {
+  follow,
+  unfollow,
+  block,
+  unblock,
+  isUsernameAvailable,
+  forgotPassword,
+  resetPassword,
+  forgotUsername,
+  changePassword,
+  changeEmail
+
 }
