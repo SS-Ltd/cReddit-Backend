@@ -6,6 +6,8 @@ const posts = []
 
 function createRandomPosts () {
   for (let i = 0; i < postIDs.length; i++) {
+    const upvotes = faker.number.int({ min: 10000, max: 100000 })
+    const downvotes = faker.number.int({ min: 0, max: 50000 })
     posts.push({
       _id: postIDs[i],
       username: faker.helpers.arrayElement(usernames),
@@ -14,8 +16,9 @@ function createRandomPosts () {
       content: faker.lorem.paragraph(),
       pollOptions: [],
       expirationDate: null,
-      upvote: faker.number.int(),
-      downvote: faker.number.int(),
+      upvote: upvotes,
+      downvote: downvotes,
+      netVote: upvotes - downvotes,
       isSpoiler: faker.datatype.boolean(0.2),
       isNSFW: faker.datatype.boolean(0.2),
       isLocked: faker.datatype.boolean(0.2),

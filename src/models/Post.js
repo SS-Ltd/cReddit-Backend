@@ -41,6 +41,10 @@ const PostSchema = new Schema({
     type: Number,
     default: 0
   },
+  netVote: {
+    type: Number,
+    default: 0
+  },
   isSpoiler: {
     type: Boolean,
     default: false

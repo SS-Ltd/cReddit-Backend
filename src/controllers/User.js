@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
+const PostModel = require('../models/Post')
 const { sendEmail } = require('../utils/Email')
 const dotenv = require('dotenv')
 
@@ -532,6 +533,54 @@ const updateSettings = async (req, res) => {
   }
 }
 
+const getSortingMethod = (sort) => {
+  switch (sort) {
+    case 'new':
+      return { createdAt: -1, _id: -1 }
+    case 'top':
+      return { netVote: -1, createdAt: -1, _id: -1 }
+    case 'hot':
+      return { hotScore: -1, createdAt: -1, _id: -1 }
+    default:
+      return { createdAt: -1, _id: -1 }
+  }
+}
+
+const getPosts = async (req, res) => {
+  try {
+    const username = req.params.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = getSortingMethod(req.query.sort)
+
+    let posts = await PostModel.find({ username: username, isDeleted: false }).select('-__v -followers')
+      .sort(sort)
+      .skip(page * limit)
+      .limit(limit)
+
+    posts = posts.map(post => post.toObject())
+
+    posts.forEach(post => {
+      post.isUpvoted = user.upvotedPosts.includes(post)
+      post.isDownvoted = user.downvotedPosts.includes(post)
+      post.isSaved = user.savedPosts.includes(post)
+      post.isHidden = user.hiddenPosts.includes(post)
+    })
+
+    res.status(200).json(posts)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user posts: ' + error.message })
+  }
+}
+
 module.exports = {
   follow,
   unfollow,
@@ -545,5 +594,6 @@ module.exports = {
   changeEmail,
   getUserView,
   getSettings,
-  updateSettings
+  updateSettings,
+  getPosts
 }

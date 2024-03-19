@@ -24,4 +24,6 @@ router.route('/:username').get(user.getUserView)
 router.route('/settings').put(verifyToken, user.updateSettings)
 router.route('/settings').get(verifyToken, user.getSettings)
 
+router.route('/:username/posts').get(user.getPosts)
+
 module.exports = router
