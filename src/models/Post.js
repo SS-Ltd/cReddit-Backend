@@ -2,6 +2,11 @@ const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
 const PostSchema = new Schema({
+  type: {
+    type: String,
+    required: true,
+    enum: ['Post', 'Images & Video', 'Link', 'Poll']
+  },
   username: {
     type: String,
     required: true,
