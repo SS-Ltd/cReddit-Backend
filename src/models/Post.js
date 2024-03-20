@@ -41,6 +41,14 @@ const PostSchema = new Schema({
     type: Number,
     default: 0
   },
+  netVote: {
+    type: Number,
+    default: 0
+  },
+  views: {
+    type: Number,
+    default: 0
+  },
   isSpoiler: {
     type: Boolean,
     default: false
@@ -65,11 +73,33 @@ const PostSchema = new Schema({
     type: Boolean,
     default: false
   },
+  isRemoved: {
+    type: Boolean,
+    default: false
+  },
   followers: [{
     type: String,
     ref: 'User',
     refPath: 'username'
-  }]
+  }],
+  actions: [{
+    moderator: {
+      type: String,
+      ref: 'User',
+      refPath: 'username'
+    },
+    action: {
+      type: String,
+      enum: ['remove', 'lock', 'approve']
+    },
+    date: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  mostRecentUpvote: {
+    type: Date
+  }
 }, { timestamps: true })
 
 module.exports = mongoose.model('Post', PostSchema)
