@@ -72,10 +72,10 @@ const getSortedCommunityPosts = async (req, res) => {
     let posts = await PostModel.find({
       communityName: subreddit,
       isDeleted: false,
-      isRemoved: false
+      isRemoved: false,
+      createdAt: filterWithTime(time)
     })
       .select('-__v -followers')
-      .find({ createdAt: filterWithTime(time) })
       .sort(sortMethod)
       .skip(page * limit)
       .limit(limit)
@@ -83,10 +83,10 @@ const getSortedCommunityPosts = async (req, res) => {
     posts = posts.map(post => post.toObject())
 
     posts.forEach(post => {
-      post.isUpvoted = user.upvotedPosts.includes(post)
-      post.isDownvoted = user.downvotedPosts.includes(post)
-      post.isSaved = user.savedPosts.includes(post)
-      post.isHidden = user.hiddenPosts.includes(post)
+      post.isUpvoted = user.upvotedPosts.includes(post._id)
+      post.isDownvoted = user.downvotedPosts.includes(post._id)
+      post.isSaved = user.savedPosts.includes(post._id)
+      post.isHidden = user.hiddenPosts.includes(post._id)
     })
 
     return res.status(200).json({
