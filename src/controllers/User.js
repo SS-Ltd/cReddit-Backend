@@ -533,14 +533,35 @@ const updateSettings = async (req, res) => {
   }
 }
 
-const getSortingMethod = (sort) => {
+const filterWithTime = (time) => {
+  switch (time) {
+    case 'now':
+      return { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+    case 'today':
+      return { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    case 'week':
+      return { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    case 'month':
+      return { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+    case 'year':
+      return { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+    case 'all':
+      return { $gte: new Date(0) }
+    default:
+      return { $gte: new Date(0) }
+  }
+}
+
+const getSortingMethod = (sort, time) => {
   switch (sort) {
     case 'new':
       return { createdAt: -1, _id: -1 }
     case 'top':
       return { netVote: -1, createdAt: -1, _id: -1 }
     case 'hot':
-      return { hotScore: -1, createdAt: -1, _id: -1 }
+      return { views: -1, createdAt: -1, _id: -1 }
+    case 'rising':
+      return { mostRecentUpvote: -1, _id: -1 }
     default:
       return { createdAt: -1, _id: -1 }
   }
@@ -560,8 +581,9 @@ const getPosts = async (req, res) => {
     const page = req.query.page ? parseInt(req.query.page) : 0
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
     const sort = getSortingMethod(req.query.sort)
+    const time = filterWithTime(req.query.time || 'all')
 
-    let posts = await PostModel.find({ username: username, isDeleted: false }).select('-__v -followers')
+    let posts = await PostModel.find({ username: username, isDeleted: false, createdAt: time }).select('-__v -followers')
       .sort(sort)
       .skip(page * limit)
       .limit(limit)
@@ -569,10 +591,10 @@ const getPosts = async (req, res) => {
     posts = posts.map(post => post.toObject())
 
     posts.forEach(post => {
-      post.isUpvoted = user.upvotedPosts.includes(post)
-      post.isDownvoted = user.downvotedPosts.includes(post)
-      post.isSaved = user.savedPosts.includes(post)
-      post.isHidden = user.hiddenPosts.includes(post)
+      post.isUpvoted = user.upvotedPosts.includes(post._id)
+      post.isDownvoted = user.downvotedPosts.includes(post._id)
+      post.isSaved = user.savedPosts.includes(post._id)
+      post.isHidden = user.hiddenPosts.includes(post._id)
     })
 
     res.status(200).json(posts)
