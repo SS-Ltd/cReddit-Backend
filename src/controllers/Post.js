@@ -17,8 +17,9 @@ const createPost = async (req, res) => {
         const b64 = Buffer.from(file.buffer).toString('base64')
         const dataURI = 'data:' + file.mimetype + ';base64,' + b64
         const { secure_url } = await cloudinary.uploader.upload(dataURI, {
-          folder: 'cReddit',
-          allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'svg']
+          resource_type: 'auto',
+          folder: 'cReddit'
+          // allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'svg']
         })
         urls.push(secure_url)
       }
