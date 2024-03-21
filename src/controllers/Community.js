@@ -80,6 +80,14 @@ const getSortedCommunityPosts = async (req, res) => {
       .skip(page * limit)
       .limit(limit)
 
+    if (posts.length === 0) {
+      if (posts.length === 0) {
+        return res.status(404).json({
+          message: 'No posts found for the community'
+        })
+      }
+    }
+
     posts = posts.map(post => post.toObject())
 
     posts.forEach(post => {

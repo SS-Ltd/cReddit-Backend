@@ -562,7 +562,7 @@ describe('getSortedCommunityPosts', () => {
     })
   })
 
-  it('should return an empty list when there are no posts for the specified subreddit', async () => {
+  it('should return 404 when there are no posts to return', async () => {
     req.query = {}
 
     const community = {
@@ -595,9 +595,9 @@ describe('getSortedCommunityPosts', () => {
 
     await getSortedCommunityPosts(req, res)
 
-    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
-      posts: []
+      message: 'No posts found for the community'
     })
   })
 })
