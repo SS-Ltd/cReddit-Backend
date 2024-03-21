@@ -1,7 +1,6 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 const crypto = require('crypto')
-const bcrypt = require('bcrypt')
 
 const UserSchema = new Schema({
   username: {
@@ -183,16 +182,28 @@ const UserSchema = new Schema({
     refPath: 'name'
   }],
   savedPosts: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Post'
+    postId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   savedComments: [{
     type: Schema.Types.ObjectId,
     ref: 'Comment'
   }],
   hiddenPosts: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Post'
+    postId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   upvotedPosts: [{
     type: Schema.Types.ObjectId,
@@ -250,8 +261,7 @@ const UserSchema = new Schema({
 UserSchema.methods.createResetPasswordToken = async function () {
   const resetToken = crypto.randomBytes(32).toString('hex')
 
-  const salt = await bcrypt.genSalt(10)
-  const hashedToken = await bcrypt.hash(resetToken, salt)
+  const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex')
 
   this.resetPasswordToken = hashedToken
   this.resetPasswordTokenExpire = Date.now() + 10 * 60 * 1000

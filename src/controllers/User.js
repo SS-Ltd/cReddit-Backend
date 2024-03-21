@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt')
+const crypto = require('crypto')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
 const { sendEmail } = require('../utils/Email')
@@ -291,15 +292,15 @@ const resetPassword = async (req, res) => {
     return res.status(400).json({ message: 'Token, password, and confirm password are required' })
   }
 
-  const user = await UserModel.findOne({ resetPasswordTokenExpire: { $gt: Date.now() }, isDeleted: false })
+  const encryptedToken = crypto.createHash('sha256').update(token).digest('hex')
+  const user = await UserModel.findOne({ resetPasswordToken: encryptedToken, isDeleted: false })
 
   if (!user) {
-    return res.status(400).json({ message: 'Token has expired' })
+    return res.status(400).json({ message: 'Token is invalid' })
   }
 
-  const isTokenValid = await bcrypt.compare(req.params.token, user.resetPasswordToken)
-  if (!isTokenValid) {
-    return res.status(400).json({ message: 'Token is invalid' })
+  if (user.resetPasswordTokenExpire < Date.now()) {
+    return res.status(400).json({ message: 'Token has expired' })
   }
 
   const { password, confirmPassword } = req.body

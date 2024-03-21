@@ -19,6 +19,8 @@ router.route('/is-username-available/:username').get(user.isUsernameAvailable)
 router.route('/forgot-password').post(user.forgotPassword)
 router.route('/reset-password/:token').patch(user.resetPassword)
 router.route('/forgot-username').post(user.forgotUsername)
+router.route('/change-password').patch(user.changePassword)
+router.route('/change-email').patch(user.changeEmail)
 
 router.route('/:username').get(user.getUserView)
 router.route('/settings').put(verifyToken, user.updateSettings)
