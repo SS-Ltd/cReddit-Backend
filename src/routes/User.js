@@ -23,6 +23,7 @@ router.route('/change-password').patch(user.changePassword)
 router.route('/change-email').patch(user.changeEmail)
 // router.route('/saved-posts').get(verifyToken, user.getSavedPosts)
 router.route('/saved-posts').get(user.getSavedPosts) // this is only for testing purposes
+router.route('/hidden-posts').get(user.getHiddenPosts) // this is only for testing purposes
 
 router.route('/:username').get(user.getUserView)
 router.route('/settings').put(verifyToken, user.updateSettings)
