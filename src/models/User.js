@@ -269,6 +269,13 @@ UserSchema.methods.createResetPasswordToken = async function () {
   return resetToken
 }
 
+// The following function returns posts using aggegation piplining method
+// The function takes an object as an argument with the following properties:
+// username: The username of the user -> ex. 'john_doe'
+// unwind: The field to unwind -> ex. '$savedPosts'
+// localField: The local field in the user model for the lookup -> ex. 'savedPosts.postId'
+// savedAt: The field to sort the posts -> ex. '$savedPosts.savedAt'
+// NOTE: be aware for the '$' sign in the examles above
 UserSchema.methods.getPosts = async function (options) {
   const { username, unwind, localField, savedAt } = options
 
