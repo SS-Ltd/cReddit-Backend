@@ -533,6 +533,32 @@ const updateSettings = async (req, res) => {
   }
 }
 
+const getSavedPosts = async (req, res) => {
+  try {
+    // const username = req.decoded.username
+    const username = 'Magnolia1' // for testing purposes
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const options = {
+      username: username,
+      unwind: '$savedPosts',
+      localField: 'savedPosts.postId',
+      savedAt: '$savedPosts.savedAt'
+    }
+    const result = await user.getPosts(options)
+    res.status(200).json(result)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting saved posts' })
+  }
+}
+
 module.exports = {
   follow,
   unfollow,
@@ -546,5 +572,6 @@ module.exports = {
   changeEmail,
   getUserView,
   getSettings,
-  updateSettings
+  updateSettings,
+  getSavedPosts
 }

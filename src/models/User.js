@@ -269,4 +269,36 @@ UserSchema.methods.createResetPasswordToken = async function () {
   return resetToken
 }
 
+UserSchema.methods.getPosts = async function (options) {
+  const { username, unwind, localField, savedAt } = options
+
+  return await this.model('User').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $unwind: unwind
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: localField,
+        foreignField: '_id',
+        as: 'post'
+      }
+    },
+    {
+      $project: {
+        post: {
+          $arrayElemAt: ['$post', 0]
+        },
+        savedAt: savedAt
+      }
+    },
+    {
+      $sort: { savedAt: -1 }
+    }
+  ])
+}
+
 module.exports = mongoose.model('User', UserSchema)
