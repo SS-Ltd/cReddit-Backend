@@ -5,6 +5,7 @@ const router = express.Router()
 const verify = require('../middlewares/Verify')
 
 router.use(verify.verifyToken)
-router.post('/', multer.uploadMultipleImages, post.createPost)
+router.route('/').post(multer.uploadMultipleImages, post.createPost)
+router.route('/:postId').delete(post.deletePost)
 
 module.exports = router
