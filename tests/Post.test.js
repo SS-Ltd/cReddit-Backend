@@ -4,7 +4,10 @@ const cloudinary = require('../src/utils/Cloudinary')
 
 jest.mock('../src/models/Post', () => {
   return jest.fn().mockImplementation(() => {
-    return { save: jest.fn() }
+    return {
+      save: jest.fn(),
+      deleteOne: jest.fn()
+    }
   })
 })
 
@@ -350,5 +353,162 @@ describe('createPost', () => {
     expect(PostModel).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post type, community name, and title are required' })
+  })
+})
+
+describe('deletePost', () => {
+  test('should delete a post successfully when valid post id and authorized user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      username: 'authorizedUser',
+      type: 'Images & Video',
+      content: 'cReddit/image1.jpg cReddit/video1.mp4',
+      deleteOne: jest.fn()
+    }
+    cloudinary.uploader.destroy = jest.fn()
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.deletePost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post deleted successfully' })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
+    expect(post.deleteOne).toHaveBeenCalled()
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/image1')
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+  })
+
+  test('should not delete a post when unauthorized user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'unauthorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      username: 'authorizedUser',
+      type: 'Images & Video',
+      content: 'cReddit/image1.jpg cReddit/video1.mp4',
+      deleteOne: jest.fn()
+    }
+    cloudinary.uploader.destroy = jest.fn()
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.deletePost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to delete this post' })
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
+    expect(post.deleteOne).not.toHaveBeenCalled()
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+  })
+
+  test('should not delete a post when invalid post id', async () => {
+    const req = {
+      params: {
+        postId: 'InvalidPostId'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: 'InvalidPostId',
+      username: 'authorizedUser',
+      type: 'Images & Video',
+      content: 'cReddit/image1.jpg cReddit/video1.mp4',
+      deleteOne: jest.fn()
+    }
+    cloudinary.uploader.destroy = jest.fn()
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.deletePost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid post id' })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(PostModel.findOne).not.toHaveBeenCalledWith({ _id: 'InvalidPostId' })
+    expect(post.deleteOne).not.toHaveBeenCalled()
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+  })
+
+  test('should not delete a post when non-existing post id', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    cloudinary.uploader.destroy = jest.fn()
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.deletePost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is not found' })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+  })
+
+  test('should not delete a post when invalid image url', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      username: 'authorizedUser',
+      type: 'Images & Video',
+      content: 'cRedditimage1.jpg cReddit/video1.mp4',
+      deleteOne: jest.fn()
+    }
+    cloudinary.uploader.destroy = jest.fn()
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.deletePost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid image or video URLs found in post' })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cRedditimage1')
   })
 })
