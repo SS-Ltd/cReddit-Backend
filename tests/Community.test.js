@@ -126,7 +126,8 @@ describe('getSortedCommunityPosts', () => {
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue(posts.map(post => ({
           ...post,
-          toObject: jest.fn().mockReturnValue(post)
+          toObject: jest.fn().mockReturnValue(post),
+          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }]))
         })))
       }
     })
@@ -201,7 +202,8 @@ describe('getSortedCommunityPosts', () => {
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue(posts.map(post => ({
           ...post,
-          toObject: jest.fn().mockReturnValue(post)
+          toObject: jest.fn().mockReturnValue(post),
+          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }]))
         })))
       }
     })
@@ -271,7 +273,8 @@ describe('getSortedCommunityPosts', () => {
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue(posts.map(post => ({
           ...post,
-          toObject: jest.fn().mockReturnValue(post)
+          toObject: jest.fn().mockReturnValue(post),
+          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }]))
         })))
       }
     })
@@ -291,7 +294,8 @@ describe('getSortedCommunityPosts', () => {
           isUpvoted: false,
           isDownvoted: false,
           isSaved: false,
-          isHidden: false
+          isHidden: false,
+          commentCount: 0
         },
         {
           _id: 'post2',
@@ -303,7 +307,8 @@ describe('getSortedCommunityPosts', () => {
           isUpvoted: false,
           isDownvoted: false,
           isSaved: false,
-          isHidden: false
+          isHidden: false,
+          commentCount: 0
         }
       ]
     })
@@ -356,7 +361,8 @@ describe('getSortedCommunityPosts', () => {
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue(posts.map(post => ({
           ...post,
-          toObject: jest.fn().mockReturnValue(post)
+          toObject: jest.fn().mockReturnValue(post),
+          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }]))
         })))
       }
     })
@@ -376,7 +382,8 @@ describe('getSortedCommunityPosts', () => {
           isUpvoted: false,
           isDownvoted: false,
           isSaved: false,
-          isHidden: false
+          isHidden: false,
+          commentCount: 0
         },
         {
           _id: 'post2',
@@ -388,7 +395,8 @@ describe('getSortedCommunityPosts', () => {
           isUpvoted: false,
           isDownvoted: false,
           isSaved: false,
-          isHidden: false
+          isHidden: false,
+          commentCount: 0
         }
       ]
     })
@@ -441,7 +449,8 @@ describe('getSortedCommunityPosts', () => {
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue(posts.map(post => ({
           ...post,
-          toObject: jest.fn().mockReturnValue(post)
+          toObject: jest.fn().mockReturnValue(post),
+          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }]))
         })))
       }
     })
@@ -461,7 +470,8 @@ describe('getSortedCommunityPosts', () => {
           isUpvoted: false,
           isDownvoted: false,
           isSaved: false,
-          isHidden: false
+          isHidden: false,
+          commentCount: 0
         },
         {
           _id: 'post2',
@@ -473,7 +483,8 @@ describe('getSortedCommunityPosts', () => {
           isUpvoted: false,
           isDownvoted: false,
           isSaved: false,
-          isHidden: false
+          isHidden: false,
+          commentCount: 0
         }
       ]
     })
@@ -524,7 +535,8 @@ describe('getSortedCommunityPosts', () => {
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue(posts.map(post => ({
           ...post,
-          toObject: jest.fn().mockReturnValue(post)
+          toObject: jest.fn().mockReturnValue(post),
+          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }]))
         })))
       }
     })
@@ -544,7 +556,8 @@ describe('getSortedCommunityPosts', () => {
           isUpvoted: true,
           isDownvoted: false,
           isSaved: true,
-          isHidden: false
+          isHidden: false,
+          commentCount: 0
         },
         {
           _id: 'post2',
@@ -556,7 +569,8 @@ describe('getSortedCommunityPosts', () => {
           isUpvoted: false,
           isDownvoted: true,
           isSaved: false,
-          isHidden: true
+          isHidden: true,
+          commentCount: 0
         }
       ]
     })
@@ -588,7 +602,8 @@ describe('getSortedCommunityPosts', () => {
         skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue([].map(post => ({
           ...post,
-          toObject: jest.fn().mockReturnValue([])
+          toObject: jest.fn().mockReturnValue([]),
+          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }]))
         })))
       }
     })
