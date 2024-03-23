@@ -144,9 +144,36 @@ const savePost = async (req, res) => {
   }
 }
 
+const hidePost = async (req, res) => {
+  const postId = req.params.postId
+  const username = req.decoded.username
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: 'Invalid post id' })
+  }
+  try {
+    const post = await Post.findOne({ _id: postId })
+    if (!post) {
+      return res.status(400).json({ message: 'Post is not found' })
+    }
+    const user = await User.findOne({ username })
+    if (!user) {
+      return res.status(400).json({ message: 'User is not found' })
+    }
+    if (user.hiddenPosts.includes(postId)) {
+      return res.status(400).json({ message: 'Post is already hidden' })
+    }
+    user.hiddenPosts.push(postId)
+    await user.save()
+    res.status(200).json({ message: 'Post hidden successfully' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error saving post' })
+  }
+}
+
 module.exports = {
   createPost,
   deletePost,
   editPost,
-  savePost
+  savePost,
+  hidePost
 }
