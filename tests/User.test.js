@@ -1,6 +1,7 @@
 const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
+const crypto = require('crypto')
 const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSavedPosts, getHiddenPosts } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
@@ -1448,131 +1449,124 @@ describe('forgotPassword', () => {
 })
 
 // // ////////////////////////// Reset password test ////////////////////
-// describe('resetPassword', () => {
-//   test('should retrieve user based on valid token and reset password successfully', async () => {
-//     const req = {
-//       params: {
-//         token: 'validToken'
-//       },
-//       body: {
-//         password: 'newPassword1',
-//         confirmPassword: 'newPassword1'
-//       }
-//     }
+describe('resetPassword', () => {
+  // Reset password with valid token and matching passwords
+  it('should reset password when valid token and matching passwords are provided', async () => {
+    const req = {
+      params: {
+        token: 'validToken'
+      },
+      body: {
+        password: 'newPassword1',
+        confirmPassword: 'newPassword1'
+      }
+    }
 
-//     const res = {
-//       status: jest.fn().mockReturnThis(),
-//       json: jest.fn()
-//     }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
 
-//     const user = {
-//       resetPasswordTokenExpire: Date.now() + 3600000,
-//       resetPasswordToken: 'hashedToken',
-//       save: jest.fn()
-//     }
+    const user = {
+      resetPasswordToken: crypto.createHash('sha256').update(req.params.token).digest('hex'),
+      isDeleted: false,
+      resetPasswordTokenExpire: Date.now() + 3600000,
+      save: jest.fn()
+    }
 
-//     UserModel.findOne = jest.fn().mockResolvedValue(user)
-//     bcrypt.compare = jest.fn().mockResolvedValue(true)
-//     bcrypt.hash = jest.fn().mockResolvedValue('hashedPassword')
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    bcrypt.genSalt = jest.fn().mockResolvedValue('salt')
+    bcrypt.hash = jest.fn().mockResolvedValue('hashedPassword')
 
-//     await resetPassword(req, res)
+    await resetPassword(req, res)
 
-//     expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordTokenExpire: { $gt: expect.any(Number) }, isDeleted: false })
-//     expect(bcrypt.compare).toHaveBeenCalledWith('validToken', 'hashedToken')
-//     expect(user.password).toBe('hashedPassword')
-//     expect(user.passwordChangedAt).toBeTruthy()
-//     expect(user.resetPasswordToken).toBeUndefined()
-//     expect(user.resetPasswordTokenExpire).toBeUndefined()
-//     expect(user.save).toHaveBeenCalled()
-//     expect(res.status).toHaveBeenCalledWith(200)
-//     expect(res.json).toHaveBeenCalledWith({ message: 'Password has been reset successfully' })
-//   })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordToken: expect.any(String), isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Password has been reset successfully' })
+    expect(user.password).toBe('hashedPassword')
+    expect(user.passwordChangedAt).toBeDefined()
+    expect(user.resetPasswordToken).toBeUndefined()
+    expect(user.resetPasswordTokenExpire).toBeUndefined()
+    expect(user.save).toHaveBeenCalled()
+  })
+  test('should return an error message when token has expired', async () => {
+    const req = {
+      params: {
+        token: 'expiredToken'
+      }
+    }
 
-//   test('should return an error message when token has expired', async () => {
-//     const req = {
-//       params: {
-//         token: 'expiredToken'
-//       }
-//     }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
 
-//     const res = {
-//       status: jest.fn().mockReturnThis(),
-//       json: jest.fn()
-//     }
+    const user = {
+      resetPasswordTokenExpire: Date.now() - 3600000,
+      resetPasswordToken: 'hashedToken',
+      save: jest.fn()
+    }
 
-//     UserModel.findOne = jest.fn().mockResolvedValue(null)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-//     await resetPassword(req, res)
+    await resetPassword(req, res)
 
-//     expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordTokenExpire: { $gt: expect.any(Number) }, isDeleted: false })
-//     expect(res.status).toHaveBeenCalledWith(400)
-//     expect(res.json).toHaveBeenCalledWith({ message: 'Token has expired' })
-//   })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordToken: expect.any(String), isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Token has expired' })
+  })
 
-//   test('should return error message when passwords do not match', async () => {
-//     const req = {
-//       params: {
-//         token: 'validToken'
-//       },
-//       body: {
-//         password: 'newPassword',
-//         confirmPassword: 'differentPassword'
-//       }
-//     }
+  test('should return error message when passwords do not match', async () => {
+    const req = {
+      params: {
+        token: 'validToken'
+      },
+      body: {
+        password: 'newPassword',
+        confirmPassword: 'differentPassword'
+      }
+    }
 
-//     const res = {
-//       status: jest.fn().mockReturnThis(),
-//       json: jest.fn()
-//     }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
 
-//     const user = {
-//       resetPasswordTokenExpire: Date.now() + 3600000,
-//       resetPasswordToken: 'hashedToken',
-//       save: jest.fn()
-//     }
+    const user = {
+      resetPasswordTokenExpire: Date.now() + 3600000,
+      resetPasswordToken: 'hashedToken',
+      save: jest.fn()
+    }
 
-//     UserModel.findOne = jest.fn().mockResolvedValue(user)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-//     await resetPassword(req, res)
+    await resetPassword(req, res)
 
-//     expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordTokenExpire: { $gt: expect.any(Number) }, isDeleted: false })
-//     expect(res.status).toHaveBeenCalledWith(400)
-//     expect(res.json).toHaveBeenCalledWith({ message: 'Passwords do not match' })
-//   })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordToken: expect.any(String), isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Passwords do not match' })
+  })
 
-//   test('should return an error message when token is invalid', async () => {
-//     const req = {
-//       params: {
-//         token: 'invalidToken'
-//       },
-//       body: {
-//         password: 'newPassword',
-//         confirmPassword: 'newPassword'
-//       }
-//     }
+  // Reset password with invalid token
+  test('should return an error message when given an invalid token', async () => {
+    const req = {
+      params: {
+        token: 'invalidToken'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
 
-//     const res = {
-//       status: jest.fn().mockReturnThis(),
-//       json: jest.fn()
-//     }
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
 
-//     const user = {
-//       resetPasswordTokenExpire: Date.now() + 3600000,
-//       resetPasswordToken: 'hashedToken',
-//       save: jest.fn()
-//     }
+    await resetPassword(req, res)
 
-//     UserModel.findOne = jest.fn().mockResolvedValue(user)
-//     bcrypt.compare = jest.fn().mockResolvedValue(false)
-
-//     await resetPassword(req, res)
-
-//     expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordTokenExpire: { $gt: expect.any(Number) }, isDeleted: false })
-//     expect(bcrypt.compare).toHaveBeenCalledWith('invalidToken', 'hashedToken')
-//     expect(res.status).toHaveBeenCalledWith(400)
-//     expect(res.json).toHaveBeenCalledWith({ message: 'Token is invalid' })
-//   })
-// })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Token is invalid' })
+  })
+})
 // // ////////////////////////// Forgot username test ////////////////////
 describe('forgotUsername', () => {
   test('should return 400 status and error message when request body is empty', async () => {
