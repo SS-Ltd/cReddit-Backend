@@ -87,7 +87,38 @@ const deletePost = async (req, res) => {
   }
 }
 
+const editPost = async (req, res) => {
+  const postId = req.params.postId
+  const { newContent } = req.body
+  const username = req.decoded.username
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: 'Invalid post id' })
+  }
+  if (!newContent) {
+    return res.status(400).json({ message: 'No content to update' })
+  }
+  try {
+    const post = await Post.findOne({ _id: postId })
+    if (!post) {
+      return res.status(400).json({ message: 'Post is not found' })
+    }
+    if (post.username !== username) {
+      return res.status(403).json({ message: 'You are not authorized to edit this post' })
+    }
+    if (post.type !== 'Post' && post.type !== 'Poll') {
+      return res.status(400).json({ message: 'You cannot edit this post type' })
+    }
+    post.content = newContent
+    post.isEdited = true
+    await post.save()
+    res.status(200).json({ message: 'Post edited successfully' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error editing post' })
+  }
+}
+
 module.exports = {
   createPost,
-  deletePost
+  deletePost,
+  editPost
 }
