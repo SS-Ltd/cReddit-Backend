@@ -1,7 +1,7 @@
 const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSavedPosts } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSavedPosts, getHiddenPosts } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
@@ -1943,5 +1943,50 @@ describe('getSavedPosts', () => {
     await getSavedPosts(req, res)
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: 'Error getting saved posts' })
+  })
+})
+
+// ///////////////////////////////////////// Get hidden posts //////////////////////////
+describe('getHiddenPosts', () => {
+  test('should retrieve hidden posts for a valid user with at least one hidden post', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      getPosts: jest.fn().mockResolvedValue('hidden posts')
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getHiddenPosts(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith('hidden posts')
+  })
+
+  // Throw an error if UserModel.findOne() throws an error
+  test('should throw an error if UserModel.findOne() throws an error', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('UserModel.findOne error'))
+
+    await getHiddenPosts(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting hidden posts' })
   })
 })
