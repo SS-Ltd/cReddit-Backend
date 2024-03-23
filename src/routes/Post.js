@@ -7,5 +7,6 @@ const verify = require('../middlewares/Verify')
 router.use(verify.verifyToken)
 router.route('/').post(multer.uploadMultipleImages, post.createPost)
 router.route('/:postId').delete(post.deletePost).patch(post.editPost)
+router.route('/:postId/save').patch(post.savePost)
 
 module.exports = router
