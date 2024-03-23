@@ -295,6 +295,11 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
+      $match: {
+        'post.isDeleted': false
+      }
+    },
+    {
       $project: {
         post: {
           $arrayElemAt: ['$post', 0]

@@ -21,9 +21,8 @@ router.route('/reset-password/:token').patch(user.resetPassword)
 router.route('/forgot-username').post(user.forgotUsername)
 router.route('/change-password').patch(user.changePassword)
 router.route('/change-email').patch(user.changeEmail)
-// router.route('/saved-posts').get(verifyToken, user.getSavedPosts)
-router.route('/saved-posts').get(user.getSavedPosts) // this is only for testing purposes
-router.route('/hidden-posts').get(user.getHiddenPosts) // this is only for testing purposes
+router.route('/saved-posts').get(verifyToken, user.getSavedPosts)
+router.route('/hidden-posts').get(verifyToken, user.getHiddenPosts)
 
 router.route('/settings').put(verifyToken, user.updateSettings)
 router.route('/settings').get(verifyToken, user.getSettings)
