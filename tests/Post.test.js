@@ -512,3 +512,168 @@ describe('deletePost', () => {
     expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cRedditimage1')
   })
 })
+
+describe('editPost', () => {
+  test('should edit post successfully when given valid post ID, new content, and authorized user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      body: {
+        newContent: 'new content'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      username: 'authorizedUser',
+      type: 'Post',
+      content: 'old content',
+      isEdited: false,
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.editPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post edited successfully' })
+    expect(post.content).toBe('new content')
+    expect(post.isEdited).toBe(true)
+    expect(post.save).toHaveBeenCalled()
+  })
+
+  test('should return an error message when the post is not found', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      body: {
+        newContent: 'new content'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = null
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.editPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is not found' })
+  })
+
+  test('should return an error message when editing a post with valid post ID, new content, but unauthorized user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      body: {
+        newContent: 'new content'
+      },
+      decoded: {
+        username: 'unauthorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      username: 'authorizedUser',
+      type: 'Post',
+      content: 'old content',
+      isEdited: false,
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.editPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to edit this post' })
+    expect(post.content).toBe('old content')
+    expect(post.isEdited).toBe(false)
+    expect(post.save).not.toHaveBeenCalled()
+  })
+
+  test('should return an error message when editing a post of uneditable type', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      body: {
+        newContent: 'new content'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      username: 'authorizedUser',
+      type: 'Images & Video',
+      content: 'old content',
+      isEdited: false,
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.editPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You cannot edit this post type' })
+    expect(post.content).toBe('old content')
+    expect(post.isEdited).toBe(false)
+    expect(post.save).not.toHaveBeenCalled()
+  })
+
+  test('should return 400 status and error message when no new content is provided', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      body: {},
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      username: 'authorizedUser',
+      type: 'Post',
+      content: 'old content',
+      isEdited: false,
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.editPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'No content to update' })
+    expect(post.content).toBe('old content')
+    expect(post.isEdited).toBe(false)
+    expect(post.save).not.toHaveBeenCalled()
+  })
+})
