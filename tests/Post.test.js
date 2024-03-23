@@ -758,3 +758,83 @@ describe('savePost', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is already saved' })
   })
 })
+
+describe('hidePost', () => {
+  test('should hide a post successfully for a valid post ID and existing user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'existingUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0'
+    }
+    const user = {
+      hiddenPosts: [],
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.hidePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post hidden successfully' })
+    expect(user.hiddenPosts).toContain('65fcc9307932c5551dfd88e0')
+    expect(user.save).toHaveBeenCalled()
+  })
+
+  test('should return an error message for a user with an invalid username', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = null
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.hidePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User is not found' })
+  })
+
+  test('should return an error message for an already hidden post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      hiddenPosts: ['65fcc9307932c5551dfd88e0'],
+      save: jest.fn()
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.hidePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is already hidden' })
+  })
+})
