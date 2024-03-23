@@ -86,4 +86,43 @@ const CommunitySchema = new Schema({
   timestamps: true
 })
 
+CommunitySchema.methods.getEditedPosts = async function () {
+  return await this.model('Community').aggregate([
+    {
+      $match: {
+        name: this.name
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'name',
+        foreignField: 'communityName',
+        as: 'post'
+      }
+    },
+    {
+      $project: {
+        post: 1
+      }
+    },
+    {
+      $unwind: {
+        path: '$post'
+      }
+    },
+    {
+      $match: {
+        'post.isEdited': true,
+        'post.isDeleted': false
+      }
+    },
+    {
+      $sort: {
+        'post.createdAt': -1
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('Community', CommunitySchema)
