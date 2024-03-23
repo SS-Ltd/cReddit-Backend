@@ -25,8 +25,8 @@ router.route('/change-email').patch(user.changeEmail)
 router.route('/saved-posts').get(user.getSavedPosts) // this is only for testing purposes
 router.route('/hidden-posts').get(user.getHiddenPosts) // this is only for testing purposes
 
-router.route('/:username').get(user.getUserView)
 router.route('/settings').put(verifyToken, user.updateSettings)
 router.route('/settings').get(verifyToken, user.getSettings)
+router.route('/:username').get(user.getUserView)
 
 module.exports = router
