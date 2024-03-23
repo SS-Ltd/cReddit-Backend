@@ -304,6 +304,22 @@ UserSchema.methods.getPosts = async function (options) {
     },
     {
       $sort: { savedAt: -1 }
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        localField: 'post._id',
+        foreignField: 'postID',
+        as: 'comments'
+      }
+    },
+    {
+      $project: {
+        post: 1,
+        commentCount: {
+          $size: '$comments'
+        }
+      }
     }
   ])
 }
