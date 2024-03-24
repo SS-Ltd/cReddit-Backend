@@ -1,4 +1,5 @@
 const PostController = require('../src/controllers/Post')
+const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
 const cloudinary = require('../src/utils/Cloudinary')
@@ -1021,7 +1022,7 @@ describe('hidePost', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is already hidden' })
   })
-  
+
   test('should return an error message for an already visible post', async () => {
     const req = {
       params: {
@@ -1048,5 +1049,246 @@ describe('hidePost', () => {
 
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is not hidden' })
+  })
+})
+
+describe('lockPost', () => {
+  test('should lock a post successfully for a valid post ID and authorized user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      },
+      body: {
+        isLocked: true
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      communityName: 'Test Community',
+      save: jest.fn()
+    }
+    const community = {
+      communityName: 'Test Community',
+      moderators: ['authorizedUser']
+    }
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post locked successfully' })
+    expect(post.isLocked).toBe(true)
+    expect(post.save).toHaveBeenCalled()
+  })
+
+  test('should lock a post successfully for a valid post ID and authorized user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      },
+      body: {
+        isLocked: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      communityName: 'Test Community',
+      save: jest.fn()
+    }
+    const community = {
+      communityName: 'Test Community',
+      moderators: ['authorizedUser']
+    }
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post unlocked successfully' })
+    expect(post.isLocked).toBe(false)
+    expect(post.save).toHaveBeenCalled()
+  })
+
+  test('should lock a post successfully for a personal post ID and authorized user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      },
+      body: {
+        isLocked: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      username: 'authorizedUser',
+      _id: '65fcc9307932c5551dfd88e0',
+      communityName: null,
+      isLocked: true,
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post unlocked successfully' })
+    expect(post.isLocked).toBe(false)
+    expect(post.save).toHaveBeenCalled()
+  })
+
+  test('should return an error message when action is not specified', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'existingUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      communityName: 'Test Community',
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'isLocked field is required' })
+    expect(post.save).not.toHaveBeenCalled()
+  })
+
+  test('should return an error message for a user with an unauthorized username', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'unauthorizedUser'
+      },
+      body: {
+        isLocked: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0',
+      communityName: 'Test Community',
+      save: jest.fn()
+    }
+    const community = {
+      communityName: 'Test Community',
+      moderators: ['authorizedUser']
+    }
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to lock this post' })
+    expect(post.save).not.toHaveBeenCalled()
+  })
+
+  test('should return an error message for an already locked post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      },
+      body: {
+        isLocked: true
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      username: 'author',
+      _id: '65fcc9307932c5551dfd88e0',
+      isLocked: true,
+      communityName: 'Test Community',
+      save: jest.fn()
+    }
+    const community = {
+      communityName: 'Test Community',
+      moderators: ['authorizedUser']
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is already locked' })
+  })
+
+  test('should return an error message for an already locked post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      },
+      body: {
+        isLocked: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      username: 'author',
+      _id: '65fcc9307932c5551dfd88e0',
+      isLocked: false,
+      communityName: 'Test Community',
+      save: jest.fn()
+    }
+    const community = {
+      communityName: 'Test Community',
+      moderators: ['authorizedUser']
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is already unlocked' })
   })
 })
