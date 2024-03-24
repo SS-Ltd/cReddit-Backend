@@ -1663,7 +1663,6 @@ describe('changePassword', () => {
     const hashMock = jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashedPassword')
 
     await changePassword(req, res)
-
     expect(findOneMock).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
     expect(compareMock).toHaveBeenCalledWith('oldPassword', 'oldPassword')
     expect(hashMock).toHaveBeenCalledWith('newPassword1', expect.any(String))
@@ -1880,7 +1879,8 @@ describe('getSavedPosts', () => {
     const req = {
       decoded: {
         username: 'testUser'
-      }
+      },
+      query: {}
     }
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -1898,7 +1898,9 @@ describe('getSavedPosts', () => {
       username: 'testUser',
       unwind: '$savedPosts',
       localField: 'savedPosts.postId',
-      savedAt: '$savedPosts.savedAt'
+      savedAt: '$savedPosts.savedAt',
+      page: 1,
+      limit: 10
     })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(['post1', 'post2'])
@@ -1942,10 +1944,14 @@ describe('getSavedPosts', () => {
 
 // ///////////////////////////////////////// Get hidden posts //////////////////////////
 describe('getHiddenPosts', () => {
-  test('should retrieve hidden posts for a valid user with at least one hidden post', async () => {
+  test('should retrieve hidden posts for a valid user with saved posts', async () => {
     const req = {
       decoded: {
         username: 'testUser'
+      },
+      query: {
+        page: 2,
+        limit: 5
       }
     }
     const res = {
@@ -1953,15 +1959,23 @@ describe('getHiddenPosts', () => {
       json: jest.fn()
     }
     const user = {
-      getPosts: jest.fn().mockResolvedValue('hidden posts')
+      getPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
     await getHiddenPosts(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(user.getPosts).toHaveBeenCalledWith({
+      username: 'testUser',
+      unwind: '$hiddenPosts',
+      localField: 'hiddenPosts.postId',
+      savedAt: '$hiddenPosts.savedAt',
+      page: 2,
+      limit: 5
+    })
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith('hidden posts')
+    expect(res.json).toHaveBeenCalledWith(['post1', 'post2'])
   })
 
   // Throw an error if UserModel.findOne() throws an error
