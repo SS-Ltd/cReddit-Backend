@@ -275,9 +275,11 @@ UserSchema.methods.createResetPasswordToken = async function () {
 // unwind: The field to unwind -> ex. '$savedPosts'
 // localField: The local field in the user model for the lookup -> ex. 'savedPosts.postId'
 // savedAt: The field to sort the posts -> ex. '$savedPosts.savedAt'
+// page: The page number -> ex. 1  "for PAGANATION"
+// limit: The limit of posts per page -> ex. 10 "for PAGANATION"
 // NOTE: be aware for the '$' sign in the examles above
 UserSchema.methods.getPosts = async function (options) {
-  const { username, unwind, localField, savedAt } = options
+  const { username, unwind, localField, savedAt, page, limit } = options
 
   return await this.model('User').aggregate([
     {
@@ -309,6 +311,12 @@ UserSchema.methods.getPosts = async function (options) {
     },
     {
       $sort: { savedAt: -1 }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
     },
     {
       $lookup: {

@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt')
 const crypto = require('crypto')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
-const { sendEmail } = require('../utils/Email')
+const { sendEmail, sendVerificationEmail } = require('../utils/Email')
 const dotenv = require('dotenv')
 
 dotenv.config()
@@ -349,7 +349,7 @@ const forgotUsername = async (req, res) => {
 
 const changePassword = async (req, res) => {
   const { oldPassword, newPassword, confirmPassword } = req.body
-
+  console.log('hi')
   if (!oldPassword || !newPassword || !confirmPassword) {
     return res.status(400).json({ message: 'Old password, new password and confirm password are required' })
   }
@@ -372,6 +372,10 @@ const changePassword = async (req, res) => {
 
   if (!validatePassword(newPassword)) {
     return res.status(400).json({ message: 'Password must contain at least one lower and upper case letters and at least one digit and must be at least 8 characters' })
+  }
+
+  if (newPassword === oldPassword) {
+    return res.status(400).json({ message: 'New password must be different from the old password' })
   }
 
   const salt = await bcrypt.genSalt(10)
@@ -406,8 +410,14 @@ const changeEmail = async (req, res) => {
       return res.status(400).json({ message: 'Email is invalid' })
     }
 
+    if (user.email === newEmail) {
+      return res.status(400).json({ message: 'New email must be different from the old email' })
+    }
+
     user.email = newEmail
     await user.save()
+
+    await sendVerificationEmail(newEmail, user.username)
 
     return res.status(200).json({ message: 'Email has been changed successfully' })
   }
@@ -548,11 +558,16 @@ const getSavedPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
     const options = {
       username: username,
       unwind: '$savedPosts',
       localField: 'savedPosts.postId',
-      savedAt: '$savedPosts.savedAt'
+      savedAt: '$savedPosts.savedAt',
+      page: page,
+      limit: limit
     }
     const result = await user.getPosts(options)
     res.status(200).json(result)
@@ -573,11 +588,16 @@ const getHiddenPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
     const options = {
-      username: 'Cleo.Altenwerth',
+      username: username,
       unwind: '$hiddenPosts',
       localField: 'hiddenPosts.postId',
-      savedAt: '$hiddenPosts.savedAt'
+      savedAt: '$hiddenPosts.savedAt',
+      page: page,
+      limit: limit
     }
 
     const result = await user.getPosts(options)
