@@ -46,7 +46,7 @@ describe('getTopCommunities', () => {
 describe('getEditedPosts', () => {
 // Returns edited posts for a valid community name
   test('should return edited posts when a valid community name is provided', async () => {
-    const req = { params: { communityName: 'validCommunity' } }
+    const req = { params: { communityName: 'validCommunity' }, query: {} }
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
     const community = { getEditedPosts: jest.fn().mockResolvedValue(['post1', 'post2']) }
     CommunityModel.findOne.mockResolvedValue(community)
