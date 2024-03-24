@@ -349,7 +349,7 @@ const forgotUsername = async (req, res) => {
 
 const changePassword = async (req, res) => {
   const { oldPassword, newPassword, confirmPassword } = req.body
-  console.log('hi')
+
   if (!oldPassword || !newPassword || !confirmPassword) {
     return res.status(400).json({ message: 'Old password, new password and confirm password are required' })
   }
