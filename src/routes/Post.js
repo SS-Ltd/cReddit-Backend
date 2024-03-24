@@ -9,5 +9,6 @@ router.route('/').post(multer.uploadMultipleImages, post.createPost)
 router.route('/:postId').delete(post.deletePost).patch(post.editPost)
 router.route('/:postId/save').patch(post.savePost)
 router.route('/:postId/hidden').patch(post.hidePost)
+router.route('/:postId/lock').patch(post.lockPost)
 
 module.exports = router

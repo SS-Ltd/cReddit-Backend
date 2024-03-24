@@ -1,5 +1,6 @@
 const Post = require('../models/Post')
 const User = require('../models/User')
+const Community = require('../models/Community')
 const mongoose = require('mongoose')
 const cloudinary = require('../utils/Cloudinary')
 const PostUtils = require('../utils/Post')
@@ -192,10 +193,44 @@ const hidePost = async (req, res) => {
   }
 }
 
+const lockPost = async (req, res) => {
+  const postId = req.params.postId
+  const username = req.decoded.username
+  const isLocked = req.body?.isLocked
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: 'Invalid post id' })
+  }
+  if (isLocked === undefined) {
+    return res.status(400).json({ message: 'isLocked field is required' })
+  }
+  try {
+    const post = await Post.findOne({ _id: postId })
+    if (!post) {
+      return res.status(400).json({ message: 'Post is not found' })
+    }
+    let community = null
+    if (post.communityName) {
+      community = await Community.findOne({ name: post.communityName })
+    }
+    if ((community === null && post.username !== username) || (community !== null && !community.moderators.includes(username))) {
+      return res.status(403).json({ message: 'You are not authorized to lock this post' })
+    }
+    if (post.isLocked === isLocked) {
+      return res.status(400).json({ message: 'Post is already ' + (isLocked ? 'locked' : 'unlocked') })
+    }
+    post.isLocked = isLocked
+    await post.save()
+    res.status(200).json({ message: ('Post ' + (isLocked ? 'locked' : 'unlocked') + ' successfully') })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error locking post' })
+  }
+}
+
 module.exports = {
   createPost,
   deletePost,
   editPost,
   savePost,
-  hidePost
+  hidePost,
+  lockPost
 }
