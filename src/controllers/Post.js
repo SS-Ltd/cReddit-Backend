@@ -121,8 +121,12 @@ const editPost = async (req, res) => {
 const savePost = async (req, res) => {
   const postId = req.params.postId
   const username = req.decoded.username
+  const isSaved = req.body?.isSaved
   if (!mongoose.Types.ObjectId.isValid(postId)) {
     return res.status(400).json({ message: 'Invalid post id' })
+  }
+  if (isSaved === undefined) {
+    return res.status(400).json({ message: 'isSaved field is required' })
   }
   try {
     const post = await Post.findOne({ _id: postId })
@@ -133,12 +137,19 @@ const savePost = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: 'User is not found' })
     }
-    if (user.savedPosts.includes(postId)) {
+    if (isSaved && user.savedPosts.includes(postId)) {
       return res.status(400).json({ message: 'Post is already saved' })
     }
-    user.savedPosts.push(postId)
+    if (!isSaved && !user.savedPosts.includes(postId)) {
+      return res.status(400).json({ message: 'Post is not saved' })
+    }
+    if (isSaved) {
+      user.savedPosts.push(postId)
+    } else {
+      user.savedPosts = user.savedPosts.filter(id => id !== postId)
+    }
     await user.save()
-    res.status(200).json({ message: 'Post saved successfully' })
+    res.status(200).json({ message: ('Post ' + (isSaved ? 'saved' : 'unsaved') + ' successfully') })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error saving post' })
   }
