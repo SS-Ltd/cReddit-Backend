@@ -687,6 +687,9 @@ describe('savePost', () => {
       },
       decoded: {
         username: 'existingUser'
+      },
+      body: {
+        isSaved: true
       }
     }
     const res = {
@@ -711,6 +714,71 @@ describe('savePost', () => {
     expect(user.save).toHaveBeenCalled()
   })
 
+  test('should unsave a post successfully for a valid post ID and existing user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'existingUser'
+      },
+      body: {
+        isSaved: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0'
+    }
+    const user = {
+      savedPosts: ['65fcc9307932c5551dfd88e0'],
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.savePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post unsaved successfully' })
+    expect(user.savedPosts).not.toContain('65fcc9307932c5551dfd88e0')
+    expect(user.save).toHaveBeenCalled()
+  })
+
+  test('should return an error message when action is not specified', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'existingUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0'
+    }
+    const user = {
+      savedPosts: [],
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.savePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'isSaved field is required' })
+    expect(user.savedPosts).not.toContain('65fcc9307932c5551dfd88e0')
+    expect(user.save).not.toHaveBeenCalled()
+  })
+
   test('should return an error message for a user with an invalid username', async () => {
     const req = {
       params: {
@@ -718,6 +786,9 @@ describe('savePost', () => {
       },
       decoded: {
         username: 'invalidUser'
+      },
+      body: {
+        isSaved: false
       }
     }
     const res = {
@@ -740,7 +811,13 @@ describe('savePost', () => {
       },
       decoded: {
         username: 'invalidUser'
+      },
+      body: {
+        isSaved: true
       }
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0'
     }
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -750,12 +827,45 @@ describe('savePost', () => {
       savedPosts: ['65fcc9307932c5551dfd88e0'],
       save: jest.fn()
     }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is already saved' })
+  })
+
+  test('should return an error message for an already unsaved post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isSaved: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0'
+    }
+    const user = {
+      savedPosts: [],
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.savePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is not saved' })
   })
 })
 
