@@ -877,6 +877,9 @@ describe('hidePost', () => {
       },
       decoded: {
         username: 'existingUser'
+      },
+      body: {
+        isHidden: true
       }
     }
     const res = {
@@ -896,9 +899,74 @@ describe('hidePost', () => {
     await PostController.hidePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post hidden successfully' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post visibility changed successfully' })
     expect(user.hiddenPosts).toContain('65fcc9307932c5551dfd88e0')
     expect(user.save).toHaveBeenCalled()
+  })
+
+  test('should unhide a post successfully for a valid post ID and existing user', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'existingUser'
+      },
+      body: {
+        isHidden: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0'
+    }
+    const user = {
+      hiddenPosts: ['65fcc9307932c5551dfd88e0'],
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.hidePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post visibility changed successfully' })
+    expect(user.hiddenPosts).not.toContain('65fcc9307932c5551dfd88e0')
+    expect(user.save).toHaveBeenCalled()
+  })
+
+  test('should return an error message when action is not specified', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'existingUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const post = {
+      _id: '65fcc9307932c5551dfd88e0'
+    }
+    const user = {
+      hiddenPosts: [],
+      save: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.hidePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'isHidden field is required' })
+    expect(user.hiddenPosts).not.toContain('65fcc9307932c5551dfd88e0')
+    expect(user.save).not.toHaveBeenCalled()
   })
 
   test('should return an error message for a user with an invalid username', async () => {
@@ -908,6 +976,9 @@ describe('hidePost', () => {
       },
       decoded: {
         username: 'invalidUser'
+      },
+      body: {
+        isHidden: false
       }
     }
     const res = {
@@ -930,6 +1001,9 @@ describe('hidePost', () => {
       },
       decoded: {
         username: 'invalidUser'
+      },
+      body: {
+        isHidden: true
       }
     }
     const res = {
@@ -946,5 +1020,33 @@ describe('hidePost', () => {
 
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is already hidden' })
+  })
+  
+  test('should return an error message for an already visible post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isHidden: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      hiddenPosts: [],
+      save: jest.fn()
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await PostController.hidePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is not hidden' })
   })
 })
