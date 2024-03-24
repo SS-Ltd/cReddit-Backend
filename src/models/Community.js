@@ -86,7 +86,8 @@ const CommunitySchema = new Schema({
   timestamps: true
 })
 
-CommunitySchema.methods.getEditedPosts = async function () {
+CommunitySchema.methods.getEditedPosts = async function (options) {
+  const { page, limit } = options
   return await this.model('Community').aggregate([
     {
       $match: {
@@ -121,6 +122,12 @@ CommunitySchema.methods.getEditedPosts = async function () {
       $sort: {
         'post.createdAt': -1
       }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
     }
   ])
 }

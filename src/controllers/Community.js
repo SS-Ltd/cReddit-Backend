@@ -24,7 +24,15 @@ const getEditedPosts = async (req, res) => {
       res.status(404).json({ message: 'Community not found' })
     }
 
-    const editedPosts = await community.getEditedPosts()
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
+    const options = {
+      page,
+      limit
+    }
+
+    const editedPosts = await community.getEditedPosts(options)
     res.status(200).json(editedPosts)
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error getting edited posts' })

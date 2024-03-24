@@ -3,7 +3,6 @@ const CommunityModel = require('../models/Community')
 const isModerator = async (req, res, next) => {
   const { communityName } = req.params
   const username = req.decoded.username
-  console.log('username', username)
   try {
     const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
     if (!community) {
