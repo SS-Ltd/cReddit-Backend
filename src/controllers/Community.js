@@ -21,7 +21,7 @@ const filterWithTime = (time) => {
   }
 }
 
-const getSortingMethod = (sort, time) => {
+const getSortingMethod = (sort) => {
   switch (sort) {
     case 'new':
       return { createdAt: -1, _id: -1 }

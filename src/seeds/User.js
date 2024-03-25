@@ -60,6 +60,8 @@ function createRandomUsers () {
       communities: [],
       savedPosts: [],
       savedComments: [],
+      upvotedComments: [],
+      downvotedComments: [],
       hiddenPosts: [],
       upvotedPosts: [],
       downvotedPosts: [],

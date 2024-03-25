@@ -2,6 +2,11 @@ const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
 const PostSchema = new Schema({
+  type: {
+    type: String,
+    required: true,
+    enum: ['Post', 'Image & Video', 'Link', 'Poll']
+  },
   username: {
     type: String,
     required: true,
@@ -119,6 +124,68 @@ PostSchema.methods.getCommentCount = async function () {
     {
       $project: {
         commentCount: { $size: '$comments' }
+      }
+    }
+  ])
+}
+
+PostSchema.methods.getComments = async function (options) {
+  const { random, sort, limit } = options
+  const postId = this._id
+  if (random) {
+    return await this.model('Post').aggregate([
+      {
+        $match: { _id: postId }
+      },
+      {
+        $lookup: {
+          from: 'comments',
+          let: { postId: '$_id' },
+          pipeline: [
+            {
+              $match: { $expr: { $eq: ['$postID', '$$postId'] } }
+            },
+            {
+              $sample: { size: limit }
+            }
+          ],
+          as: 'comments'
+        }
+      },
+      {
+        $project: {
+          comments: 1
+        }
+      }
+    ]
+    )
+  }
+
+  return await this.model('Post').aggregate([
+    {
+      $match: { _id: postId }
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: { $expr: { $eq: ['$postID', '$$postId'] } }
+          },
+          {
+            $sort: sort
+          },
+          {
+            $limit: limit
+          }
+        ],
+        as: 'comments'
+      }
+    },
+    {
+      $project: {
+        comments: 1
       }
     }
   ])
