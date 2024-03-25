@@ -34,6 +34,10 @@ const CommentSchema = new Schema({
     type: Number,
     default: 0
   },
+  netVote: {
+    type: Number,
+    default: 0
+  },
   isEdited: {
     type: Boolean,
     default: false
@@ -50,6 +54,6 @@ const CommentSchema = new Schema({
     type: Boolean,
     default: false
   }
-})
+}, { timestamps: true })
 
 module.exports = mongoose.model('Comment', CommentSchema)
