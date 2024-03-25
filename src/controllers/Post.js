@@ -29,6 +29,11 @@ const createPost = async (req, res) => {
       post.content = urls.join(' ')
     }
 
+    const community = await Community.findOne({ name: post.communityName })
+    if (!community) {
+      throw new Error('Community not found')
+    }
+
     const createdPost = new Post({
       type: post.type,
       username: req.decoded.username,
