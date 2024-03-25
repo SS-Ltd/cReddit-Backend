@@ -54,12 +54,17 @@ const getSortedCommunityPosts = async (req, res) => {
       })
     }
 
-    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    const decoded = req.decoded
+    let user = null
 
-    if (!user) {
-      return res.status(404).json({
-        message: 'User does not exist'
-      })
+    if (decoded) {
+      user = await UserModel.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
     }
 
     const page = req.query.page ? parseInt(req.query.page) - 1 : 0
@@ -97,10 +102,12 @@ const getSortedCommunityPosts = async (req, res) => {
     posts = posts.map(post => post.toObject())
     let count = 0
     posts.forEach(post => {
-      post.isUpvoted = user.upvotedPosts.includes(post._id)
-      post.isDownvoted = user.downvotedPosts.includes(post._id)
-      post.isSaved = user.savedPosts.includes(post._id)
-      post.isHidden = user.hiddenPosts.includes(post._id)
+      if (user) {
+        post.isUpvoted = user.upvotedPosts.includes(post._id)
+        post.isDownvoted = user.downvotedPosts.includes(post._id)
+        post.isSaved = user.savedPosts.includes(post._id)
+        post.isHidden = user.hiddenPosts.includes(post._id)
+      }
       post.commentCount = commentCounts[count][0].commentCount
       count++
     })
