@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
 const { sendEmail } = require('../utils/Email')
+const { faker } = require('@faker-js/faker')
 const dotenv = require('dotenv')
 
 dotenv.config()
@@ -251,6 +252,31 @@ const isUsernameAvailable = async (req, res) => {
     console.error(error)
     res.status(500).json({
       message: 'An error occurred while checking if the username is available'
+    })
+  }
+}
+
+const generateUsername = async (req, res) => {
+  try {
+    let username = faker.internet.userName()
+    let user = await UserModel.findOne({ username })
+
+    while (user) {
+      username = faker.internet.userName()
+      user = await UserModel.findOne({ username })
+    }
+
+    if (!user) {
+      return res.status(200).json({
+        message: 'Username generated',
+        username: username
+      })
+    }
+    throw new Error('Unable to generate username')
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: error
     })
   }
 }
@@ -544,6 +570,7 @@ module.exports = {
   block,
   unblock,
   isUsernameAvailable,
+  generateUsername,
   forgotPassword,
   resetPassword,
   forgotUsername,
