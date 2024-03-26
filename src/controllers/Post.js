@@ -58,6 +58,7 @@ const getPost = async (req, res) => {
 
     let comments = await post.getComments(options)
     const commentCount = await post.getCommentCount()
+    const userProfilePicture = await post.getUserProfilePicture()
     comments = comments[0].comments
 
     post = post.toObject()
@@ -93,11 +94,12 @@ const getPost = async (req, res) => {
 
     post.comments = comments
     post.commentCount = commentCount[0].commentCount
+    post.profilePicture = userProfilePicture[0].profilePicture[0]
 
     return res.status(200).json(post)
   } catch (error) {
     return res.status(500).json({
-      message: error.message
+      message: 'An error occurred while getting post'
     })
   }
 }

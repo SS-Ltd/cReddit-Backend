@@ -129,6 +129,28 @@ PostSchema.methods.getCommentCount = async function () {
   ])
 }
 
+PostSchema.methods.getUserProfilePicture = async function () {
+  const username = this.username
+  return await this.model('Post').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $project: {
+        profilePicture: '$user.profilePicture'
+      }
+    }
+  ])
+}
+
 PostSchema.methods.getComments = async function (options) {
   const { random, sort, limit } = options
   const postId = this._id

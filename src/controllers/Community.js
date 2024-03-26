@@ -98,6 +98,7 @@ const getSortedCommunityPosts = async (req, res) => {
     }
 
     const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
+    const userProfilePictures = await Promise.all(posts.map(post => post.getUserProfilePicture()))
 
     posts = posts.map(post => post.toObject())
     let count = 0
@@ -109,12 +110,11 @@ const getSortedCommunityPosts = async (req, res) => {
         post.isHidden = user.hiddenPosts.includes(post._id)
       }
       post.commentCount = commentCounts[count][0].commentCount
+      post.profilePicture = userProfilePictures[count][0].profilePicture[0]
       count++
     })
 
-    return res.status(200).json({
-      posts
-    })
+    return res.status(200).json(posts)
   } catch (error) {
     console.log(error)
     return res.status(500).json({

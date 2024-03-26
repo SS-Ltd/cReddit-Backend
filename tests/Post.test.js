@@ -73,10 +73,17 @@ describe('getPost', () => {
       }
     ]
 
+    const userProfilePicture = [
+      {
+        profilePicture: ['profile.jpg']
+      }
+    ]
+
     PostModel.findOne.mockResolvedValue(post)
     CommunityModel.findOne.mockResolvedValue(community)
     post.getComments = jest.fn().mockResolvedValue(comments)
     post.getCommentCount = jest.fn().mockResolvedValue(commentCount)
+    post.getUserProfilePicture = jest.fn().mockResolvedValue(userProfilePicture)
 
     await getPost(req, res)
 
@@ -85,6 +92,7 @@ describe('getPost', () => {
     expect(post.save).toHaveBeenCalled()
     expect(post.getComments).toHaveBeenCalledWith({ sort: { createdAt: -1, _id: -1 }, random: false, limit: 10 })
     expect(post.getCommentCount).toHaveBeenCalled()
+    expect(post.getUserProfilePicture).toHaveBeenCalled()
     expect(UserModel.findOne).not.toHaveBeenCalled()
     expect(HistoryModel.create).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
@@ -94,7 +102,8 @@ describe('getPost', () => {
       communityName: 'community1',
       views: 1,
       comments: [],
-      commentCount: 0
+      commentCount: 0,
+      profilePicture: 'profile.jpg'
     })
   })
 
@@ -150,6 +159,12 @@ describe('getPost', () => {
       }
     ]
 
+    const userProfilePicture = [
+      {
+        profilePicture: ['profile.jpg']
+      }
+    ]
+
     const user = {
       username: 'user1',
       isDeleted: false,
@@ -166,6 +181,7 @@ describe('getPost', () => {
     CommunityModel.findOne.mockResolvedValue(community)
     post.getComments = jest.fn().mockResolvedValue(comments)
     post.getCommentCount = jest.fn().mockResolvedValue(commentCount)
+    post.getUserProfilePicture = jest.fn().mockResolvedValue(userProfilePicture)
     UserModel.findOne.mockResolvedValue(user)
 
     await getPost(req, res)
@@ -175,6 +191,7 @@ describe('getPost', () => {
     expect(post.save).toHaveBeenCalled()
     expect(post.getComments).toHaveBeenCalledWith({ sort: { createdAt: -1, _id: -1 }, random: false, limit: 10 })
     expect(post.getCommentCount).toHaveBeenCalled()
+    expect(post.getUserProfilePicture).toHaveBeenCalled()
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
     expect(HistoryModel.create).toHaveBeenCalledWith({ owner: 'user1', post: '12345' })
     expect(res.status).toHaveBeenCalledWith(200)
@@ -195,7 +212,8 @@ describe('getPost', () => {
           isSaved: false
         }
       ],
-      commentCount: 1
+      commentCount: 1,
+      profilePicture: 'profile.jpg'
     })
   })
 
@@ -353,12 +371,19 @@ describe('getPost', () => {
       }
     ]
 
+    const userProfilePicture = [
+      {
+        profilePicture: ['profile.jpg']
+      }
+    ]
+
     const user = null
 
     PostModel.findOne.mockResolvedValue(post)
     CommunityModel.findOne.mockResolvedValue(community)
     post.getComments = jest.fn().mockResolvedValue(comments)
     post.getCommentCount = jest.fn().mockResolvedValue(commentCount)
+    post.getUserProfilePicture = jest.fn().mockResolvedValue(userProfilePicture)
     UserModel.findOne.mockResolvedValue(user)
 
     await getPost(req, res)
