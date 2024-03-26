@@ -1,7 +1,7 @@
 const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, generateUsername } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
@@ -1451,7 +1451,6 @@ describe('forgotPassword', () => {
   })
 })
 
-// // ////////////////////////// Reset password test ////////////////////
 describe('resetPassword', () => {
   test('should retrieve user based on valid token and reset password successfully', async () => {
     const req = {
@@ -1577,7 +1576,7 @@ describe('resetPassword', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Token is invalid' })
   })
 })
-// // ////////////////////////// Forgot username test ////////////////////
+
 describe('forgotUsername', () => {
   test('should return 400 status and error message when request body is empty', async () => {
     const req = {
@@ -1642,7 +1641,6 @@ describe('forgotUsername', () => {
   })
 })
 
-// ///////////////////////////////////////// Change password test //////////////////////////
 describe('changePassword', () => {
   test('should change password when all inputs are valid', async () => {
     const req = {
@@ -1788,7 +1786,6 @@ describe('changePassword', () => {
   })
 })
 
-// ///////////////////////////////////////// Change email test //////////////////////////
 describe('changeEmail', () => {
   test('should change email successfully when valid password and new email are provided', async () => {
     const req = {
@@ -1880,5 +1877,22 @@ describe('changeEmail', () => {
     expect(user.save).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Email has been changed successfully' })
+  })
+})
+
+describe('generateUsername', () => {
+  test('should generate a valid username', async () => {
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = null
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    await generateUsername({}, res)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Username generated', username: expect.any(String) })
   })
 })
