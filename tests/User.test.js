@@ -453,11 +453,13 @@ describe('block', () => {
     const user = {
       username: 'user1',
       blockedUsers: [],
+      follows: ['user2'],
       save: jest.fn()
     }
 
     const userBlocked = {
-      username: 'user2'
+      username: 'user2',
+      followers: ['user1']
     }
 
     UserModel.findOne.mockResolvedValueOnce(user)
@@ -469,6 +471,8 @@ describe('block', () => {
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user2', isDeleted: false })
     expect(user.blockedUsers).toContain('user2')
+    expect(user.follows).not.toContain('user2')
+    expect(userBlocked.followers).not.toContain('user1')
     expect(user.save).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({
