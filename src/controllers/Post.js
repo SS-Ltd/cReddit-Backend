@@ -1,0 +1,241 @@
+const Post = require('../models/Post')
+const User = require('../models/User')
+const Community = require('../models/Community')
+const mongoose = require('mongoose')
+const cloudinary = require('../utils/Cloudinary')
+const PostUtils = require('../utils/Post')
+
+const createPost = async (req, res) => {
+  const post = req.body
+  post.files = req.files
+  post.username = req.decoded.username
+
+  try {
+    PostUtils.validatePost(post)
+
+    if (post.type === 'Images & Video') {
+      const urls = []
+
+      for (const file of req.files) {
+        const b64 = Buffer.from(file.buffer).toString('base64')
+        const dataURI = 'data:' + file.mimetype + ';base64,' + b64
+        const { secure_url } = await cloudinary.uploader.upload(dataURI, {
+          resource_type: 'auto',
+          folder: 'cReddit',
+          allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'svg']
+        })
+        urls.push(secure_url)
+      }
+      post.content = urls.join(' ')
+    }
+
+    const community = await Community.findOne({ name: post.communityName })
+    if (!community) {
+      throw new Error('Community not found')
+    }
+
+    const createdPost = new Post({
+      type: post.type,
+      username: req.decoded.username,
+      communityName: post.communityName,
+      title: post.title,
+      content: post.content || '',
+      pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
+      expirationDate: post.expirationDate || null,
+      isSpoiler: post.isSpoiler || false,
+      isNSFW: post.isNSFW || false
+    })
+
+    await createdPost.save()
+    res.status(201).json({ message: 'Post created successfully' + (post.unusedData ? ' while ignoring additional fields' : '') })
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+}
+
+const deletePost = async (req, res) => {
+  const postId = req.params.postId
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: 'Invalid post id' })
+    }
+    const post = await Post.findOne({ _id: postId })
+    if (!post) {
+      return res.status(400).json({ message: 'Post is not found' })
+    }
+    if (post.username !== req.decoded.username) {
+      return res.status(403).json({ message: 'You are not authorized to delete this post' })
+    }
+    if (post.type === 'Images & Video') {
+      const publicIDs = post.content.split(' ').map(url => {
+        const matches = url.match(/(cReddit\/.+)\.(.+)/)
+        if (!matches) {
+          return null
+        } else {
+          return matches
+        }
+      })
+      if (publicIDs.includes(null)) {
+        throw new Error('Invalid image or video URLs found in post')
+      }
+      for (const publicID of publicIDs) {
+        if (publicID[2] === 'mp4') {
+          await cloudinary.uploader.destroy(publicID[1], { resource_type: 'video' })
+        } else {
+          await cloudinary.uploader.destroy(publicID[1])
+        }
+      }
+    }
+    await post.deleteOne()
+    res.status(200).json({ message: 'Post deleted successfully' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error deleting post' })
+  }
+}
+
+const editPost = async (req, res) => {
+  const postId = req.params.postId
+  const { newContent } = req.body
+  const username = req.decoded.username
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: 'Invalid post id' })
+  }
+  if (!newContent) {
+    return res.status(400).json({ message: 'No content to update' })
+  }
+  try {
+    const post = await Post.findOne({ _id: postId })
+    if (!post) {
+      return res.status(400).json({ message: 'Post is not found' })
+    }
+    if (post.username !== username) {
+      return res.status(403).json({ message: 'You are not authorized to edit this post' })
+    }
+    if (post.type !== 'Post' && post.type !== 'Poll') {
+      return res.status(400).json({ message: 'You cannot edit this post type' })
+    }
+    post.content = newContent
+    post.isEdited = true
+    await post.save()
+    res.status(200).json({ message: 'Post edited successfully' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error editing post' })
+  }
+}
+
+const savePost = async (req, res) => {
+  const postId = req.params.postId
+  const username = req.decoded.username
+  const isSaved = req.body?.isSaved
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: 'Invalid post id' })
+  }
+  if (isSaved === undefined) {
+    return res.status(400).json({ message: 'isSaved field is required' })
+  }
+  try {
+    const post = await Post.findOne({ _id: postId })
+    if (!post) {
+      return res.status(400).json({ message: 'Post is not found' })
+    }
+    const user = await User.findOne({ username })
+    if (!user) {
+      return res.status(400).json({ message: 'User is not found' })
+    }
+    if (isSaved && user.savedPosts.includes(postId)) {
+      return res.status(400).json({ message: 'Post is already saved' })
+    }
+    if (!isSaved && !user.savedPosts.includes(postId)) {
+      return res.status(400).json({ message: 'Post is not saved' })
+    }
+    if (isSaved) {
+      user.savedPosts.push(postId)
+    } else {
+      user.savedPosts = user.savedPosts.filter(id => id !== postId)
+    }
+    await user.save()
+    res.status(200).json({ message: ('Post ' + (isSaved ? 'saved' : 'unsaved') + ' successfully') })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error saving post' })
+  }
+}
+
+const hidePost = async (req, res) => {
+  const postId = req.params.postId
+  const username = req.decoded.username
+  const isHidden = req.body?.isHidden
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: 'Invalid post id' })
+  }
+  if (isHidden === undefined) {
+    return res.status(400).json({ message: 'isHidden field is required' })
+  }
+  try {
+    const post = await Post.findOne({ _id: postId })
+    if (!post) {
+      return res.status(400).json({ message: 'Post is not found' })
+    }
+    const user = await User.findOne({ username })
+    if (!user) {
+      return res.status(400).json({ message: 'User is not found' })
+    }
+    if (isHidden && user.hiddenPosts.includes(postId)) {
+      return res.status(400).json({ message: 'Post is already hidden' })
+    }
+    if (!isHidden && !user.hiddenPosts.includes(postId)) {
+      return res.status(400).json({ message: 'Post is not hidden' })
+    }
+    if (isHidden) {
+      user.hiddenPosts.push(postId)
+    } else {
+      user.hiddenPosts = user.hiddenPosts.filter(id => id !== postId)
+    }
+    await user.save()
+    res.status(200).json({ message: ('Post visibility changed successfully') })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error saving post' })
+  }
+}
+
+const lockPost = async (req, res) => {
+  const postId = req.params.postId
+  const username = req.decoded.username
+  const isLocked = req.body?.isLocked
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: 'Invalid post id' })
+  }
+  if (isLocked === undefined) {
+    return res.status(400).json({ message: 'isLocked field is required' })
+  }
+  try {
+    const post = await Post.findOne({ _id: postId })
+    if (!post) {
+      return res.status(400).json({ message: 'Post is not found' })
+    }
+    let community = null
+    if (post.communityName) {
+      community = await Community.findOne({ name: post.communityName })
+    }
+    if ((community === null && post.username !== username) || (community !== null && !community.moderators.includes(username))) {
+      return res.status(403).json({ message: 'You are not authorized to lock this post' })
+    }
+    if (post.isLocked === isLocked) {
+      return res.status(400).json({ message: 'Post is already ' + (isLocked ? 'locked' : 'unlocked') })
+    }
+    post.isLocked = isLocked
+    await post.save()
+    res.status(200).json({ message: ('Post ' + (isLocked ? 'locked' : 'unlocked') + ' successfully') })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error locking post' })
+  }
+}
+
+module.exports = {
+  createPost,
+  deletePost,
+  editPost,
+  savePost,
+  hidePost,
+  lockPost
+}

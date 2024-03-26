@@ -11,6 +11,7 @@ function createRandomPosts () {
 
     posts.push({
       _id: postIDs[i],
+      type: 'Post',
       username: faker.helpers.arrayElement(usernames),
       communityName: faker.helpers.arrayElement(communityNames),
       title: faker.lorem.sentence(),
