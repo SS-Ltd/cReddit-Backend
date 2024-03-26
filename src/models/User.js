@@ -244,6 +244,18 @@ const UserSchema = new Schema({
   isDeleted: {
     type: Boolean,
     default: false
+  },
+  savedAt: {
+    type: Date,
+    default: Date.now
+  },
+  upvotedAt: {
+    type: Date,
+    default: Date.now
+  },
+  downvotedAt: {
+    type: Date,
+    default: Date.now
   }
 }, { timestamps: true })
 
@@ -257,6 +269,39 @@ UserSchema.methods.createResetPasswordToken = async function () {
   this.resetPasswordTokenExpire = Date.now() + 10 * 60 * 1000
 
   return resetToken
+}
+
+// TODO: Get comment count
+UserSchema.methods.getPosts = async function (options) {
+  const { username, unwind, localField, savedAt } = options
+
+  return await this.model('User').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $unwind: unwind
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: localField,
+        foreignField: '_id',
+        as: 'post'
+      }
+    },
+    {
+      $project: {
+        post: {
+          $arrayElemAt: ['$post', 0]
+        },
+        savedAt: savedAt
+      }
+    },
+    {
+      $sort: { savedAt: -1 }
+    }
+  ])
 }
 
 module.exports = mongoose.model('User', UserSchema)

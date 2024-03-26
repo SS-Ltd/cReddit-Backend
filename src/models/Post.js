@@ -76,4 +76,26 @@ const PostSchema = new Schema({
   }]
 }, { timestamps: true })
 
+PostSchema.methods.getCommentCount = async function () {
+  const postId = this._id
+  return await this.model('Post').aggregate([
+    {
+      $match: { _id: postId }
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        localField: '_id',
+        foreignField: 'postID',
+        as: 'comments'
+      }
+    },
+    {
+      $project: {
+        commentCount: { $size: '$comments' }
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('Post', PostSchema)

@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
 const PostModel = require('../models/Post')
+const CommentModel = require('../models/Comment')
 const { sendEmail } = require('../utils/Email')
 const dotenv = require('dotenv')
 
@@ -387,7 +388,6 @@ const changeEmail = async (req, res) => {
   const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
 
   if (user.password === null || user.password === '') {
-    // we will send an email to the user to reset the password according to reddit's policy
     req.body.email = user.email
     req.body.username = user.username
     return this.forgetPassword(req, res)
@@ -560,8 +560,6 @@ const getSortingMethod = (sort, time) => {
       return { netVote: -1, createdAt: -1, _id: -1 }
     case 'hot':
       return { views: -1, createdAt: -1, _id: -1 }
-    case 'rising':
-      return { mostRecentUpvote: -1, _id: -1 }
     default:
       return { createdAt: -1, _id: -1 }
   }
@@ -588,18 +586,74 @@ const getPosts = async (req, res) => {
       .skip(page * limit)
       .limit(limit)
 
-    posts = posts.map(post => post.toObject())
+    const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
 
+    posts = posts.map(post => post.toObject())
+    let count = 0
     posts.forEach(post => {
       post.isUpvoted = user.upvotedPosts.includes(post._id)
       post.isDownvoted = user.downvotedPosts.includes(post._id)
       post.isSaved = user.savedPosts.includes(post._id)
       post.isHidden = user.hiddenPosts.includes(post._id)
+      post.commentCount = commentCounts[count][0].commentCount
+      count++
     })
 
     res.status(200).json(posts)
   } catch (error) {
     res.status(400).json({ message: 'Error getting user posts: ' + error.message })
+  }
+}
+
+const getUpvotedPosts = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const options = {
+      username: username,
+      unwind: '$upvotedPosts',
+      localField: 'upvotedPosts.postId',
+      savedAt: '$upvotedPosts.savedAt'
+    }
+
+    const result = await user.getPosts(options)
+    res.status(200).json(result)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting upvoted posts' })
+  }
+}
+
+const getDownvotedPosts = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const options = {
+      username: username,
+      unwind: '$downvotedPosts',
+      localField: 'downvotedPosts.postId',
+      savedAt: '$downvotedPosts.savedAt'
+    }
+
+    const result = await user.getPosts(options)
+    res.status(200).json(result)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting downvoted posts' })
   }
 }
 
@@ -617,5 +671,7 @@ module.exports = {
   getUserView,
   getSettings,
   updateSettings,
-  getPosts
+  getPosts,
+  getUpvotedPosts,
+  getDownvotedPosts
 }

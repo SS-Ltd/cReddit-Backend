@@ -22,6 +22,8 @@ router.route('/forgot-username').post(user.forgotUsername)
 
 router.route('/settings').put(verifyToken, user.updateSettings).get(verifyToken, user.getSettings)
 router.route('/:username/posts').get(user.getPosts)
+router.route('/upvoted').get(verifyToken, user.getUpvotedPosts)
+router.route('/downvoted').get(verifyToken, user.getDownvotedPosts)
 
 router.route('/:username').get(user.getUserView)
 
