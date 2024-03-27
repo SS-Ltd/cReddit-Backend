@@ -156,6 +156,12 @@ const block = async (req, res) => {
     }
 
     user.blockedUsers.push(userBlocked.username)
+    user.follows = user.follows.filter(
+      (follow) => follow !== userBlocked.username
+    )
+    userBlocked.followers = userBlocked.followers.filter(
+      (follower) => follower !== user.username
+    )
 
     await user.save()
 
