@@ -165,18 +165,60 @@ PostSchema.methods.getComments = async function (options) {
           let: { postId: '$_id' },
           pipeline: [
             {
-              $match: { $expr: { $eq: ['$postID', '$$postId'] } }
+              $match: { postID: postId, isDeleted: false }
             },
             {
-              $sample: { size: limit }
+              $sample: { size: 5 }
             }
           ],
           as: 'comments'
         }
       },
+      { $unwind: '$comments' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'comments.username',
+          foreignField: 'username',
+          as: 'user'
+        }
+      },
+      { $unwind: '$user' },
+      {
+        $group: {
+          _id: '$_id',
+          post: { $first: '$$ROOT' },
+          comments: {
+            $push: {
+              _id: '$comments._id',
+              postID: '$comments.postID',
+              username: '$comments.username',
+              parentID: '$comments.parentID',
+              communityID: '$comments.communityID',
+              content: '$comments.content',
+              upvote: '$comments.upvote',
+              downvote: '$comments.downvote',
+              netvote: '$comments.netVote',
+              isEdited: '$comments.isEdited',
+              isLocked: '$comments.isLocked',
+              isApproved: '$comments.isApproved',
+              isDeleted: '$comments.isDeleted',
+              profilePicture: '$user.profilePicture',
+              createdAt: '$comments.createdAt'
+            }
+          }
+        }
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: ['$post', { comments: '$comments' }]
+          }
+        }
+      },
       {
         $project: {
-          comments: 1
+          user: 0
         }
       }
     ]
@@ -193,7 +235,7 @@ PostSchema.methods.getComments = async function (options) {
         let: { postId: '$_id' },
         pipeline: [
           {
-            $match: { $expr: { $eq: ['$postID', '$$postId'] } }
+            $match: { postID: postId, isDeleted: false }
           },
           {
             $sort: sort
@@ -205,9 +247,51 @@ PostSchema.methods.getComments = async function (options) {
         as: 'comments'
       }
     },
+    { $unwind: '$comments' },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'comments.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    { $unwind: '$user' },
+    {
+      $group: {
+        _id: '$_id',
+        post: { $first: '$$ROOT' },
+        comments: {
+          $push: {
+            _id: '$comments._id',
+            postID: '$comments.postID',
+            username: '$comments.username',
+            parentID: '$comments.parentID',
+            communityID: '$comments.communityID',
+            content: '$comments.content',
+            upvote: '$comments.upvote',
+            downvote: '$comments.downvote',
+            netvote: '$comments.netVote',
+            isEdited: '$comments.isEdited',
+            isLocked: '$comments.isLocked',
+            isApproved: '$comments.isApproved',
+            isDeleted: '$comments.isDeleted',
+            profilePicture: '$user.profilePicture',
+            createdAt: '$comments.createdAt'
+          }
+        }
+      }
+    },
+    {
+      $replaceRoot: {
+        newRoot: {
+          $mergeObjects: ['$post', { comments: '$comments' }]
+        }
+      }
+    },
     {
       $project: {
-        comments: 1
+        user: 0
       }
     }
   ])
