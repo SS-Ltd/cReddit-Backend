@@ -34,6 +34,8 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
+
     await PostController.createPost(req, res)
 
     expect(PostModel).toHaveBeenCalledWith({
@@ -56,7 +58,7 @@ describe('createPost', () => {
       decoded: { username: 'Test User' },
       body: {
         type: 'Images & Video',
-        communityName: 'Test Community',
+        communityName: null,
         title: 'Test Title'
       },
       files: [
@@ -81,7 +83,7 @@ describe('createPost', () => {
     expect(PostModel).toHaveBeenCalledWith({
       type: 'Images & Video',
       username: 'Test User',
-      communityName: 'Test Community',
+      communityName: null,
       title: 'Test Title',
       content: 'secure_url secure_url secure_url secure_url secure_url',
       pollOptions: [],
@@ -98,7 +100,7 @@ describe('createPost', () => {
       decoded: { username: 'Test User' },
       body: {
         type: 'Link',
-        communityName: 'Test Community',
+        communityName: null,
         title: 'Test Title',
         content: 'https://www.example.com',
         isSpoiler: true
@@ -116,7 +118,7 @@ describe('createPost', () => {
     expect(PostModel).toHaveBeenCalledWith({
       type: 'Link',
       username: 'Test User',
-      communityName: 'Test Community',
+      communityName: null,
       title: 'Test Title',
       content: 'https://www.example.com',
       pollOptions: [],
@@ -147,6 +149,8 @@ describe('createPost', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
 
     await PostController.createPost(req, res)
 
@@ -183,6 +187,8 @@ describe('createPost', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
 
     await PostController.createPost(req, res)
 
@@ -354,7 +360,35 @@ describe('createPost', () => {
 
     expect(PostModel).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post type, community name, and title are required' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post type and title are required' })
+  })
+
+  test('should not create a post of non existing community', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        type: 'Post',
+        communityName: 'Non Existing Community',
+        title: 'Test Title',
+        content: 'https://www.example.com',
+        expirationDate: '2022-12-31T23:59:59.999Z',
+        isNSFW: true
+      },
+      files: []
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.createPost(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community does not exist' })
   })
 })
 
