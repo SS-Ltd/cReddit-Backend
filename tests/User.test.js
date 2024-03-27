@@ -2,7 +2,7 @@ const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
 const crypto = require('crypto')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSavedPosts, getHiddenPosts } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
@@ -1887,11 +1887,12 @@ describe('getSavedPosts', () => {
       json: jest.fn()
     }
     const user = {
-      getPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
+      getPosts: jest.fn().mockResolvedValue([{ postId: 'post1', savedAt: '2022-01-01' }, { postId: 'post2', savedAt: '2022-01-02' }]),
+      getSavedComments: jest.fn().mockResolvedValue([{ commentId: 'comment1', savedAt: '2022-01-03' }, { commentId: 'comment2', savedAt: '2022-01-04' }])
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-    await getSavedPosts(req, res)
+    await getSaved(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
     expect(user.getPosts).toHaveBeenCalledWith({
@@ -1902,8 +1903,14 @@ describe('getSavedPosts', () => {
       page: 1,
       limit: 10
     })
+    expect(user.getSavedComments).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(['post1', 'post2'])
+    expect(res.json).toHaveBeenCalledWith([
+      { commentId: 'comment2', savedAt: '2022-01-04' },
+      { commentId: 'comment1', savedAt: '2022-01-03' },
+      { postId: 'post2', savedAt: '2022-01-02' },
+      { postId: 'post1', savedAt: '2022-01-01' }
+    ])
   })
 
   // Returns a 404 response if the user is not found
@@ -1918,7 +1925,7 @@ describe('getSavedPosts', () => {
       json: jest.fn()
     }
     UserModel.findOne = jest.fn().mockResolvedValue(null)
-    await getSavedPosts(req, res)
+    await getSaved(req, res)
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
@@ -1936,7 +1943,7 @@ describe('getSavedPosts', () => {
       json: jest.fn()
     }
     UserModel.findOne = jest.fn().mockRejectedValue(new Error('Error getting user'))
-    await getSavedPosts(req, res)
+    await getSaved(req, res)
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: 'Error getting saved posts' })
   })
