@@ -29,9 +29,11 @@ const createPost = async (req, res) => {
       post.content = urls.join(' ')
     }
 
-    const community = await Community.findOne({ name: post.communityName })
-    if (!community) {
-      throw new Error('Community not found')
+    if (post.communityName) {
+      const community = await Community.findOne({ name: post.communityName })
+      if (!community) {
+        throw new Error('Community does not exist')
+      }
     }
 
     const createdPost = new Post({
@@ -152,7 +154,7 @@ const savePost = async (req, res) => {
     if (isSaved) {
       user.savedPosts.push(postId)
     } else {
-      user.savedPosts = user.savedPosts.filter(id => id !== postId)
+      user.savedPosts = user.savedPosts.filter(id => id.toString() !== postId)
     }
     await user.save()
     res.status(200).json({ message: ('Post ' + (isSaved ? 'saved' : 'unsaved') + ' successfully') })
@@ -189,7 +191,7 @@ const hidePost = async (req, res) => {
     if (isHidden) {
       user.hiddenPosts.push(postId)
     } else {
-      user.hiddenPosts = user.hiddenPosts.filter(id => id !== postId)
+      user.hiddenPosts = user.hiddenPosts.filter(id => id.toString() !== postId)
     }
     await user.save()
     res.status(200).json({ message: ('Post visibility changed successfully') })

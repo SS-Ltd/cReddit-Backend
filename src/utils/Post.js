@@ -10,8 +10,8 @@ function isValidUrl (string) {
 }
 
 const validatePost = (post) => {
-  if (!post.type || !post.communityName || !post.title) {
-    throw new Error('Post type, community name, and title are required')
+  if (!post.type || !post.title) {
+    throw new Error('Post type and title are required')
   }
 
   if (!['Post', 'Images & Video', 'Link', 'Poll'].includes(post.type)) {
