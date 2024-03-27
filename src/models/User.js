@@ -192,8 +192,14 @@ const UserSchema = new Schema({
     }
   }],
   savedComments: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Comment'
+    commenId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   hiddenPosts: [{
     postId: {
@@ -302,23 +308,6 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
-      $project: {
-        post: {
-          $arrayElemAt: ['$post', 0]
-        },
-        savedAt: savedAt
-      }
-    },
-    {
-      $sort: { savedAt: -1 }
-    },
-    {
-      $skip: (page - 1) * limit
-    },
-    {
-      $limit: limit
-    },
-    {
       $lookup: {
         from: 'comments',
         localField: 'post._id',
@@ -327,11 +316,71 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'post.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
       $project: {
-        post: 1,
+        post: {
+          $arrayElemAt: ['$post', 0]
+        },
         commentCount: {
           $size: '$comments'
-        }
+        },
+        userPic: {
+          $arrayElemAt: ['$user.profilePicture', 0]
+        },
+        savedAt: savedAt
+      }
+    }
+  ])
+}
+
+UserSchema.methods.getSavedComments = async function (options) {
+  return await this.model('User').aggregate([
+    {
+      $match: { username: this.username }
+    },
+    {
+      $unwind: '$savedComments'
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        localField: 'savedComments.commentId',
+        foreignField: '_id',
+        as: 'commentSaved'
+      }
+    },
+    {
+      $match: {
+        'commentSaved.isDeleted': false
+      }
+    },
+    {
+      $sort: { 'savedComments.savedAt': -1 }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'commentSaved.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $project: {
+        commentSaved: {
+          $arrayElemAt: ['$commentSaved', 0]
+        },
+        profilePic: {
+          $arrayElemAt: ['$user.profilePicture', 0]
+        },
+        savedAt: '$savedComments.savedAt'
       }
     }
   ])

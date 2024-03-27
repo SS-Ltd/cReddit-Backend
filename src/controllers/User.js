@@ -546,7 +546,7 @@ const updateSettings = async (req, res) => {
   }
 }
 
-const getSavedPosts = async (req, res) => {
+const getSaved = async (req, res) => {
   try {
     const username = req.decoded.username
     if (!username) {
@@ -569,8 +569,16 @@ const getSavedPosts = async (req, res) => {
       page: page,
       limit: limit
     }
-    const result = await user.getPosts(options)
-    res.status(200).json(result)
+
+    const savedPosts = await user.getPosts(options)
+    const savedComments = await user.getSavedComments()
+    const sortedArray = [...savedPosts, ...savedComments].sort((a, b) => {
+      return new Date(b.savedAt) - new Date(a.savedAt)
+    })
+
+    const paginatedArray = sortedArray.slice((page - 1) * limit, page * limit)
+
+    res.status(200).json(paginatedArray)
   } catch (error) {
     res.status(500).json({ message: 'Error getting saved posts' })
   }
@@ -621,6 +629,6 @@ module.exports = {
   getUserView,
   getSettings,
   updateSettings,
-  getSavedPosts,
+  getSaved,
   getHiddenPosts
 }
