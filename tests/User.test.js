@@ -1282,7 +1282,6 @@ describe('forgotPassword', () => {
 
     const user = {
       username: 'testuser',
-      email: 'testuser@example.com',
       isDeleted: false,
       createResetPasswordToken: jest.fn().mockReturnValue('resetToken'),
       save: jest.fn()
@@ -1296,7 +1295,6 @@ describe('forgotPassword', () => {
 
     expect(UserModel.findOne).toHaveBeenCalledWith({
       username: 'testuser',
-      email: 'testuser@example.com',
       isDeleted: false
     })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
@@ -1308,7 +1306,6 @@ describe('forgotPassword', () => {
   test('should return error message and error object when user is not found', async () => {
     const req = {
       body: {
-        username: 'testuser',
         email: 'testuser@example.com'
       }
     }
@@ -1321,8 +1318,7 @@ describe('forgotPassword', () => {
     UserModel.findOne = jest.fn().mockResolvedValue(null)
 
     await forgotPassword(req, res)
-
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'testuser@example.com', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'Username or Email not found' })
   })
@@ -1343,6 +1339,7 @@ describe('forgotPassword', () => {
     }
 
     const user = {
+      email: 'testuser@example.com',
       createResetPasswordToken: jest.fn().mockReturnValue('resetToken'),
       save: jest.fn()
     }
@@ -1353,11 +1350,11 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
-      'testuser@example.com',
+      user.email,
       'Ask and you shall receive a password reset',
       expect.any(String)
     )
@@ -1384,6 +1381,7 @@ describe('forgotPassword', () => {
     }
 
     const user = {
+      email: 'testuser@example.com',
       createResetPasswordToken: jest.fn().mockReturnValue('resetToken'),
       save: jest.fn()
     }
@@ -1394,11 +1392,11 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
-      'testuser@example.com',
+      user.email,
       'Ask and you shall receive a password reset',
       expect.any(String)
     )
@@ -1425,6 +1423,7 @@ describe('forgotPassword', () => {
     }
 
     const user = {
+      email: 'testuser@example.com',
       createResetPasswordToken: jest.fn().mockReturnValue('resetToken'),
       save: jest.fn()
     }
@@ -1435,11 +1434,11 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
-      'testuser@example.com',
+      user.email,
       'Ask and you shall receive a password reset',
       expect.any(String)
     )
