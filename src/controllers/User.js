@@ -11,7 +11,7 @@ const getUser = async (req, res) => {
   try {
     const username = req.decoded.username
     if (!username) {
-      throw new Error('Username is required')
+      return res.status(401).json({ message: 'Unauthorized, user must be logged in' })
     }
 
     const user = await UserModel.findOne(username)

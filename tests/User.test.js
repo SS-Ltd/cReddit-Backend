@@ -1949,7 +1949,7 @@ describe('getUser', () => {
 
     await getUser(req, res)
 
-    expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user: Username is required' })
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Unauthorized, user must be logged in' })
   })
 })
