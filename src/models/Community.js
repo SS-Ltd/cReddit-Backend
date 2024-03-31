@@ -103,11 +103,6 @@ CommunitySchema.methods.getEditedPosts = async function (options) {
       }
     },
     {
-      $project: {
-        post: 1
-      }
-    },
-    {
       $unwind: {
         path: '$post'
       }
@@ -128,6 +123,33 @@ CommunitySchema.methods.getEditedPosts = async function (options) {
     },
     {
       $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        localField: 'post._id',
+        foreignField: 'postID',
+        as: 'comments'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'post.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $project: {
+        post: 1,
+        commentCount: {
+          $size: '$comments'
+        },
+        userPic: {
+          $arrayElemAt: ['$user.profilePicture', 0]
+        }
+      }
     }
   ])
 }
