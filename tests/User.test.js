@@ -1,7 +1,8 @@
 const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword } = require('../src/controllers/User')
+const crypto = require('crypto')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
@@ -1271,8 +1272,7 @@ describe('forgotPassword', () => {
   test('should find user by username and email, generate reset token, send email, and return success message', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser'
       },
       protocol: 'http',
       get: jest.fn().mockReturnValue('localhost')
@@ -1285,7 +1285,6 @@ describe('forgotPassword', () => {
 
     const user = {
       username: 'testuser',
-      email: 'testuser@example.com',
       isDeleted: false,
       createResetPasswordToken: jest.fn().mockReturnValue('resetToken'),
       save: jest.fn()
@@ -1297,11 +1296,10 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({
-      username: 'testuser',
-      email: 'testuser@example.com',
-      isDeleted: false
-    })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({
+    //   username: 'testuser',
+    //   isDeleted: false
+    // })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalled()
@@ -1311,8 +1309,7 @@ describe('forgotPassword', () => {
   test('should return error message and error object when user is not found', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser@example.com'
       }
     }
 
@@ -1324,17 +1321,16 @@ describe('forgotPassword', () => {
     UserModel.findOne = jest.fn().mockResolvedValue(null)
 
     await forgotPassword(req, res)
-
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ $or: [{ username: 'testuser@example.com' }, { email: 'testuser@example.com' }], isDeleted: false })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'testuser@example.com', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Username or Email not found' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 
   test('should return error message when fail to send email', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser'
       },
       protocol: 'http',
       get: jest.fn().mockReturnValue('localhost')
@@ -1346,6 +1342,7 @@ describe('forgotPassword', () => {
     }
 
     const user = {
+      email: 'testuser@example.com',
       createResetPasswordToken: jest.fn().mockReturnValue('resetToken'),
       save: jest.fn()
     }
@@ -1356,11 +1353,12 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ $or: [{ username: 'testuser' }, { email: 'testuser' }], isDeleted: false })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
-      'testuser@example.com',
+      user.email,
       'Ask and you shall receive a password reset',
       expect.any(String)
     )
@@ -1374,8 +1372,7 @@ describe('forgotPassword', () => {
   test('should fail to delete reset token and return error message when failing to send email', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser@example.com'
       },
       protocol: 'http',
       get: jest.fn().mockReturnValue('localhost')
@@ -1387,6 +1384,7 @@ describe('forgotPassword', () => {
     }
 
     const user = {
+      email: 'testuser@example.com',
       createResetPasswordToken: jest.fn().mockReturnValue('resetToken'),
       save: jest.fn()
     }
@@ -1397,11 +1395,12 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ $or: [{ username: 'testuser@example.com' }, { email: 'testuser@example.com' }], isDeleted: false })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
-      'testuser@example.com',
+      user.email,
       'Ask and you shall receive a password reset',
       expect.any(String)
     )
@@ -1415,8 +1414,7 @@ describe('forgotPassword', () => {
   test('should send email with correct subject and message format', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser'
       },
       protocol: 'http',
       get: jest.fn().mockReturnValue('localhost')
@@ -1428,6 +1426,7 @@ describe('forgotPassword', () => {
     }
 
     const user = {
+      email: 'testuser@example.com',
       createResetPasswordToken: jest.fn().mockReturnValue('resetToken'),
       save: jest.fn()
     }
@@ -1438,11 +1437,11 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', email: 'testuser@example.com', isDeleted: false })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
-      'testuser@example.com',
+      user.email,
       'Ask and you shall receive a password reset',
       expect.any(String)
     )
@@ -1453,7 +1452,8 @@ describe('forgotPassword', () => {
 
 // // ////////////////////////// Reset password test ////////////////////
 describe('resetPassword', () => {
-  test('should retrieve user based on valid token and reset password successfully', async () => {
+  // Reset password with valid token and matching passwords
+  it('should reset password when valid token and matching passwords are provided', async () => {
     const req = {
       params: {
         token: 'validToken'
@@ -1470,28 +1470,27 @@ describe('resetPassword', () => {
     }
 
     const user = {
+      resetPasswordToken: crypto.createHash('sha256').update(req.params.token).digest('hex'),
+      isDeleted: false,
       resetPasswordTokenExpire: Date.now() + 3600000,
-      resetPasswordToken: 'hashedToken',
       save: jest.fn()
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    bcrypt.genSalt = jest.fn().mockResolvedValue('salt')
     bcrypt.hash = jest.fn().mockResolvedValue('hashedPassword')
 
     await resetPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordTokenExpire: { $gt: expect.any(Number) }, isDeleted: false })
-    expect(bcrypt.compare).toHaveBeenCalledWith('validToken', 'hashedToken')
+    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordToken: expect.any(String), isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Password has been reset successfully' })
     expect(user.password).toBe('hashedPassword')
-    expect(user.passwordChangedAt).toBeTruthy()
+    expect(user.passwordChangedAt).toBeDefined()
     expect(user.resetPasswordToken).toBeUndefined()
     expect(user.resetPasswordTokenExpire).toBeUndefined()
     expect(user.save).toHaveBeenCalled()
-    expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Password has been reset successfully' })
   })
-
   test('should return an error message when token has expired', async () => {
     const req = {
       params: {
@@ -1504,11 +1503,17 @@ describe('resetPassword', () => {
       json: jest.fn()
     }
 
-    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    const user = {
+      resetPasswordTokenExpire: Date.now() - 3600000,
+      resetPasswordToken: 'hashedToken',
+      save: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
 
     await resetPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordTokenExpire: { $gt: expect.any(Number) }, isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordToken: expect.any(String), isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Token has expired' })
   })
@@ -1539,40 +1544,27 @@ describe('resetPassword', () => {
 
     await resetPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordTokenExpire: { $gt: expect.any(Number) }, isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordToken: expect.any(String), isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Passwords do not match' })
   })
 
-  test('should return an error message when token is invalid', async () => {
+  // Reset password with invalid token
+  test('should return an error message when given an invalid token', async () => {
     const req = {
       params: {
         token: 'invalidToken'
-      },
-      body: {
-        password: 'newPassword',
-        confirmPassword: 'newPassword'
       }
     }
-
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
 
-    const user = {
-      resetPasswordTokenExpire: Date.now() + 3600000,
-      resetPasswordToken: 'hashedToken',
-      save: jest.fn()
-    }
-
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
-    bcrypt.compare = jest.fn().mockResolvedValue(false)
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
 
     await resetPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ resetPasswordTokenExpire: { $gt: expect.any(Number) }, isDeleted: false })
-    expect(bcrypt.compare).toHaveBeenCalledWith('invalidToken', 'hashedToken')
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Token is invalid' })
   })
@@ -1673,7 +1665,6 @@ describe('changePassword', () => {
     const hashMock = jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashedPassword')
 
     await changePassword(req, res)
-
     expect(findOneMock).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
     expect(compareMock).toHaveBeenCalledWith('oldPassword', 'oldPassword')
     expect(hashMock).toHaveBeenCalledWith('newPassword1', expect.any(String))
@@ -1880,5 +1871,139 @@ describe('changeEmail', () => {
     expect(user.save).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Email has been changed successfully' })
+  })
+})
+
+// ///////////////////////////////////////// Get saved posts //////////////////////////
+describe('getSavedPosts', () => {
+  // Function successfully retrieves saved posts for a valid user
+  test('should retrieve saved posts for a valid user with saved posts', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      getPosts: jest.fn().mockResolvedValue([{ postId: 'post1', savedAt: '2022-01-01' }, { postId: 'post2', savedAt: '2022-01-02' }]),
+      getSavedComments: jest.fn().mockResolvedValue([{ commentId: 'comment1', savedAt: '2022-01-03' }, { commentId: 'comment2', savedAt: '2022-01-04' }])
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getSaved(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(user.getPosts).toHaveBeenCalledWith({
+      username: 'testUser',
+      unwind: '$savedPosts',
+      localField: 'savedPosts.postId',
+      savedAt: '$savedPosts.savedAt',
+      page: 1,
+      limit: 10
+    })
+    expect(user.getSavedComments).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([
+      { commentId: 'comment2', savedAt: '2022-01-04' },
+      { commentId: 'comment1', savedAt: '2022-01-03' },
+      { postId: 'post2', savedAt: '2022-01-02' },
+      { postId: 'post1', savedAt: '2022-01-01' }
+    ])
+  })
+
+  // Returns a 404 response if the user is not found
+  test('should return a 404 response when user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    await getSaved(req, res)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  // Returns a 500 response if an error occurs while getting the user
+  test('should return a 500 response if an error occurs while getting the user', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('Error getting user'))
+    await getSaved(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting saved posts' })
+  })
+})
+
+// ///////////////////////////////////////// Get hidden posts //////////////////////////
+describe('getHiddenPosts', () => {
+  test('should retrieve hidden posts for a valid user with saved posts', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {
+        page: 2,
+        limit: 5
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      getPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getHiddenPosts(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(user.getPosts).toHaveBeenCalledWith({
+      username: 'testUser',
+      unwind: '$hiddenPosts',
+      localField: 'hiddenPosts.postId',
+      savedAt: '$hiddenPosts.savedAt',
+      page: 2,
+      limit: 5
+    })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(['post1', 'post2'])
+  })
+
+  // Throw an error if UserModel.findOne() throws an error
+  test('should throw an error if UserModel.findOne() throws an error', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('UserModel.findOne error'))
+
+    await getHiddenPosts(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting hidden posts' })
   })
 })

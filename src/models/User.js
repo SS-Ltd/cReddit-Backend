@@ -1,7 +1,6 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 const crypto = require('crypto')
-const bcrypt = require('bcrypt')
 
 const UserSchema = new Schema({
   username: {
@@ -183,16 +182,34 @@ const UserSchema = new Schema({
     refPath: 'name'
   }],
   savedPosts: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Post'
+    postId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   savedComments: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Comment'
+    commenId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   hiddenPosts: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Post'
+    postId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   upvotedPosts: [{
     type: Schema.Types.ObjectId,
@@ -250,13 +267,123 @@ const UserSchema = new Schema({
 UserSchema.methods.createResetPasswordToken = async function () {
   const resetToken = crypto.randomBytes(32).toString('hex')
 
-  const salt = await bcrypt.genSalt(10)
-  const hashedToken = await bcrypt.hash(resetToken, salt)
+  const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex')
 
   this.resetPasswordToken = hashedToken
   this.resetPasswordTokenExpire = Date.now() + 10 * 60 * 1000
 
   return resetToken
+}
+
+// The following function returns posts using aggegation piplining method
+// The function takes an object as an argument with the following properties:
+// username: The username of the user -> ex. 'john_doe'
+// unwind: The field to unwind -> ex. '$savedPosts'
+// localField: The local field in the user model for the lookup -> ex. 'savedPosts.postId'
+// savedAt: The field to sort the posts -> ex. '$savedPosts.savedAt'
+// page: The page number -> ex. 1  "for PAGANATION"
+// limit: The limit of posts per page -> ex. 10 "for PAGANATION"
+// NOTE: be aware for the '$' sign in the examles above
+UserSchema.methods.getPosts = async function (options) {
+  const { username, unwind, localField, savedAt, page, limit } = options
+
+  return await this.model('User').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $unwind: unwind
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: localField,
+        foreignField: '_id',
+        as: 'post'
+      }
+    },
+    {
+      $match: {
+        'post.isDeleted': false
+      }
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        localField: 'post._id',
+        foreignField: 'postID',
+        as: 'comments'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'post.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $project: {
+        post: {
+          $arrayElemAt: ['$post', 0]
+        },
+        commentCount: {
+          $size: '$comments'
+        },
+        userPic: {
+          $arrayElemAt: ['$user.profilePicture', 0]
+        },
+        savedAt: savedAt
+      }
+    }
+  ])
+}
+
+UserSchema.methods.getSavedComments = async function (options) {
+  return await this.model('User').aggregate([
+    {
+      $match: { username: this.username }
+    },
+    {
+      $unwind: '$savedComments'
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        localField: 'savedComments.commentId',
+        foreignField: '_id',
+        as: 'commentSaved'
+      }
+    },
+    {
+      $match: {
+        'commentSaved.isDeleted': false
+      }
+    },
+    {
+      $sort: { 'savedComments.savedAt': -1 }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'commentSaved.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $project: {
+        commentSaved: {
+          $arrayElemAt: ['$commentSaved', 0]
+        },
+        profilePic: {
+          $arrayElemAt: ['$user.profilePicture', 0]
+        },
+        savedAt: '$savedComments.savedAt'
+      }
+    }
+  ])
 }
 
 module.exports = mongoose.model('User', UserSchema)

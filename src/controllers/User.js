@@ -1,7 +1,8 @@
 const bcrypt = require('bcrypt')
+const crypto = require('crypto')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
-const { sendEmail } = require('../utils/Email')
+const { sendEmail, sendVerificationEmail } = require('../utils/Email')
 const dotenv = require('dotenv')
 
 dotenv.config()
@@ -256,17 +257,14 @@ const isUsernameAvailable = async (req, res) => {
 }
 
 const forgotPassword = async (req, res) => {
-  if (!req.body.username || !req.body.email) {
-    return res.status(400).json({ message: 'Username and Email are required' })
+  const { info } = req.body
+  if (!info) {
+    return res.status(400).json({ message: 'Username or Email is required' })
   }
-  const user = await UserModel.findOne({
-    username: req.body.username,
-    email: req.body.email,
-    isDeleted: false
-  })
 
+  const user = await UserModel.findOne({ $or: [{ username: info }, { email: info }], isDeleted: false })
   if (!user) {
-    return res.status(404).json({ message: 'Username or Email not found' })
+    return res.status(404).json({ message: 'User not found' })
   }
 
   const resetToken = await user.createResetPasswordToken()
@@ -297,18 +295,21 @@ const resetPassword = async (req, res) => {
     return res.status(400).json({ message: 'Token, password, and confirm password are required' })
   }
 
-  const user = await UserModel.findOne({ resetPasswordTokenExpire: { $gt: Date.now() }, isDeleted: false })
+  const encryptedToken = crypto.createHash('sha256').update(token).digest('hex')
+  const user = await UserModel.findOne({ resetPasswordToken: encryptedToken, isDeleted: false })
 
   if (!user) {
-    return res.status(400).json({ message: 'Token has expired' })
-  }
-
-  const isTokenValid = await bcrypt.compare(req.params.token, user.resetPasswordToken)
-  if (!isTokenValid) {
     return res.status(400).json({ message: 'Token is invalid' })
   }
 
+  if (user.resetPasswordTokenExpire < Date.now()) {
+    return res.status(400).json({ message: 'Token has expired' })
+  }
+
   const { password, confirmPassword } = req.body
+  if (!password || !confirmPassword) {
+    return res.status(400).json({ message: 'Please provide all inputs required' })
+  }
 
   if (password !== confirmPassword) {
     return res.status(400).json({ message: 'Passwords do not match' })
@@ -376,6 +377,10 @@ const changePassword = async (req, res) => {
     return res.status(400).json({ message: 'Password must contain at least one lower and upper case letters and at least one digit and must be at least 8 characters' })
   }
 
+  if (newPassword === oldPassword) {
+    return res.status(400).json({ message: 'New password must be different from the old password' })
+  }
+
   const salt = await bcrypt.genSalt(10)
   user.password = await bcrypt.hash(newPassword, salt)
   user.passwordChangedAt = Date.now()
@@ -408,8 +413,14 @@ const changeEmail = async (req, res) => {
       return res.status(400).json({ message: 'Email is invalid' })
     }
 
+    if (user.email === newEmail) {
+      return res.status(400).json({ message: 'New email must be different from the old email' })
+    }
+
     user.email = newEmail
     await user.save()
+
+    await sendVerificationEmail(newEmail, user.username)
 
     return res.status(200).json({ message: 'Email has been changed successfully' })
   }
@@ -538,6 +549,75 @@ const updateSettings = async (req, res) => {
   }
 }
 
+const getSaved = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
+    const options = {
+      username: username,
+      unwind: '$savedPosts',
+      localField: 'savedPosts.postId',
+      savedAt: '$savedPosts.savedAt',
+      page: page,
+      limit: limit
+    }
+
+    const savedPosts = await user.getPosts(options)
+    const savedComments = await user.getSavedComments()
+    const sortedArray = [...savedPosts, ...savedComments].sort((a, b) => {
+      return new Date(b.savedAt) - new Date(a.savedAt)
+    })
+
+    const paginatedArray = sortedArray.slice((page - 1) * limit, page * limit)
+
+    res.status(200).json(paginatedArray)
+  } catch (error) {
+    res.status(500).json({ message: 'Error getting saved posts' })
+  }
+}
+
+const getHiddenPosts = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
+    const options = {
+      username: username,
+      unwind: '$hiddenPosts',
+      localField: 'hiddenPosts.postId',
+      savedAt: '$hiddenPosts.savedAt',
+      page: page,
+      limit: limit
+    }
+
+    const result = await user.getPosts(options)
+    res.status(200).json(result)
+  } catch (error) {
+    res.status(500).json({ message: 'Error getting hidden posts' })
+  }
+}
+
 module.exports = {
   follow,
   unfollow,
@@ -551,5 +631,7 @@ module.exports = {
   changeEmail,
   getUserView,
   getSettings,
-  updateSettings
+  updateSettings,
+  getSaved,
+  getHiddenPosts
 }

@@ -19,9 +19,13 @@ router.route('/is-username-available/:username').get(user.isUsernameAvailable)
 router.route('/forgot-password').post(user.forgotPassword)
 router.route('/reset-password/:token').patch(user.resetPassword)
 router.route('/forgot-username').post(user.forgotUsername)
+router.route('/change-password').patch(verifyToken, user.changePassword)
+router.route('/change-email').patch(verifyToken, user.changeEmail)
+router.route('/saved').get(verifyToken, user.getSaved)
+router.route('/hidden-posts').get(verifyToken, user.getHiddenPosts)
 
-router.route('/:username').get(user.getUserView)
 router.route('/settings').put(verifyToken, user.updateSettings)
 router.route('/settings').get(verifyToken, user.getSettings)
+router.route('/:username').get(user.getUserView)
 
 module.exports = router
