@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
+const CommunityModel = require('../models/Community')
 const { sendEmail } = require('../utils/Email')
 const { faker } = require('@faker-js/faker')
 const dotenv = require('dotenv')
@@ -476,6 +477,24 @@ const getSettings = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const blocked = []
+    for (const blockedUser of user.blockedUsers) {
+      const pfp = await UserModel.findOne({ username: blockedUser })
+      blocked.push({
+        username: blockedUser,
+        profilePicture: pfp.profilePicture
+      })
+    }
+
+    const muted = []
+    for (const mutedCommunity of user.mutedCommunities) {
+      const pfp = await CommunityModel.findOne({ name: mutedCommunity })
+      muted.push({
+        name: mutedCommunity,
+        profilePicture: pfp.icon
+      })
+    }
+
     res.status(200).json({
       account: {
         email: user.email,
@@ -493,8 +512,8 @@ const getSettings = async (req, res) => {
         isContentVisible: user.preferences.isContentVisible
       },
       safetyAndPrivacy: {
-        blockedUsers: user.blockedUsers,
-        mutedCommunities: user.mutedCommunities
+        blockedUsers: blocked,
+        mutedCommunities: muted
       },
       feedSettings: {
         showAdultContent: user.preferences.showAdultContent,
@@ -533,31 +552,159 @@ const updateSettings = async (req, res) => {
       throw new Error('Username is required')
     }
 
-    const user = await UserModel.findOne({ username: username })
+    let user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    if (req.body.preferences && typeof req.body.preferences === 'object') {
-      if (req.body.preferences.socialLinks && typeof req.body.preferences.socialLinks !== 'object') {
-        throw new Error('Invalid socialLinks type')
-      }
-
-      // Update preferences
-      user.preferences = { ...user.preferences, ...req.body.preferences }
+    // Update preferences
+    if (req.body.account) {
+      const { gender } = req.body.account
+      if (gender) user.gender = gender
     }
 
-    // Update other user fields
-    for (const key in req.body) {
-      if (key !== 'preferences') {
-        user[key] = req.body[key]
+    const blocked = [{}]
+
+    user.blockedUsers.forEach(async (blockedUser) => {
+      const pfp = await UserModel.findOne({ username: blockedUser })
+      blocked.push({
+        username: blockedUser,
+        profilePicture: pfp.profilePicture
+      })
+    })
+
+    const muted = [{}]
+
+    user.mutedCommunities.forEach(async (mutedCommunity) => {
+      const pfp = await CommunityModel.findOne({ name: mutedCommunity })
+      muted.push({
+        name: mutedCommunity,
+        banner: pfp.banner
+      })
+    })
+
+    if (req.body.profile) {
+      const {
+        displayName,
+        about,
+        socialLinks,
+        avatar,
+        banner,
+        isNSFW,
+        allowFollow,
+        isContentVisible
+      } = req.body.profile
+      if (displayName) user.displayName = displayName
+      if (about) user.about = about
+      if (socialLinks) user.preferences.socialLinks = socialLinks
+      if (avatar) {
+        // TODO: @MahmoudSamy1452: Implement avatar upload
       }
+      if (banner) {
+        // TODO: @MahmoudSamy1452: Implement banner upload
+      }
+      if (isNSFW !== undefined) user.preferences.isNSFW = isNSFW
+      if (allowFollow !== undefined) user.preferences.allowFollow = allowFollow
+      if (isContentVisible !== undefined) user.preferences.isContentVisible = isContentVisible
+    }
+
+    if (req.body.feedSettings) {
+      const {
+        showAdultContent,
+        autoPlayMedia,
+        communityThemes,
+        communityContentSort,
+        globalContentView,
+        openNewTab
+      } = req.body.feedSettings
+      if (showAdultContent !== undefined) user.preferences.showAdultContent = showAdultContent
+      if (autoPlayMedia !== undefined) user.preferences.autoPlayMedia = autoPlayMedia
+      if (communityThemes !== undefined) user.preferences.communityThemes = communityThemes
+      if (communityContentSort) user.preferences.communityContentSort = communityContentSort
+      if (globalContentView) user.preferences.globalContentView = globalContentView
+      if (openNewTab !== undefined) user.preferences.openNewTab = openNewTab
+    }
+
+    if (req.body.notifications) {
+      const {
+        mentionsNotifs,
+        commentsNotifs,
+        postsUpvotesNotifs,
+        repliesNotifs,
+        newFollowersNotifs,
+        postNotifs,
+        cakeDayNotifs,
+        modNotifs,
+        moderatorInCommunities,
+        invitationNotifs
+      } = req.body.notifications
+      if (mentionsNotifs !== undefined) user.preferences.mentionsNotifs = mentionsNotifs
+      if (commentsNotifs !== undefined) user.preferences.commentsNotifs = commentsNotifs
+      if (postsUpvotesNotifs !== undefined) user.preferences.postsUpvotesNotifs = postsUpvotesNotifs
+      if (repliesNotifs !== undefined) user.preferences.repliesNotifs = repliesNotifs
+      if (newFollowersNotifs !== undefined) user.preferences.newFollowersNotifs = newFollowersNotifs
+      if (postNotifs !== undefined) user.preferences.postNotifs = postNotifs
+      if (cakeDayNotifs !== undefined) user.preferences.cakeDayNotifs = cakeDayNotifs
+      if (modNotifs !== undefined) user.preferences.modNotifs = modNotifs
+      if (moderatorInCommunities) user.moderatorInCommunities = moderatorInCommunities
+      if (invitationNotifs !== undefined) user.preferences.invitationNotifs = invitationNotifs
+    }
+
+    if (req.body.email) {
+      const { followEmail, chatEmail } = req.body.email
+      if (followEmail !== undefined) user.preferences.followEmail = followEmail
+      if (chatEmail !== undefined) user.preferences.chatEmail = chatEmail
     }
 
     // Save user changes
     await user.save()
+    user = await UserModel.findOne({ username: username })
 
-    res.status(200).json({ message: 'Settings updated successfully' })
+    res.status(200).json({
+      account: {
+        email: user.email,
+        gender: user.gender,
+        google: user.preferences.google !== null
+      },
+      profile: {
+        displayName: user.displayName,
+        about: user.about,
+        socialLinks: user.preferences.socialLinks,
+        avatar: user.profilePicture,
+        banner: user.banner,
+        isNSFW: user.preferences.isNSFW,
+        allowFollow: user.preferences.allowFollow,
+        isContentVisible: user.preferences.isContentVisible
+      },
+      safetyAndPrivacy: {
+        blockedUsers: blocked,
+        mutedCommunities: muted
+      },
+      feedSettings: {
+        showAdultContent: user.preferences.showAdultContent,
+        autoPlayMedia: user.preferences.autoPlayMedia,
+        communityThemes: user.preferences.communityThemes,
+        communityContentSort: user.preferences.communityContentSort,
+        globalContentView: user.preferences.globalContentView,
+        openNewTab: user.preferences.openNewTab
+      },
+      notifications: {
+        mentionsNotifs: user.preferences.mentionsNotifs,
+        commentsNotifs: user.preferences.commentsNotifs,
+        postsUpvotesNotifs: user.preferences.postsUpvotesNotifs,
+        repliesNotifs: user.preferences.repliesNotifs,
+        newFollowersNotifs: user.preferences.newFollowersNotifs,
+        postNotifs: user.preferences.postNotifs,
+        cakeDayNotifs: user.preferences.cakeDayNotifs,
+        modNotifs: user.preferences.modNotifs,
+        moderatorInCommunities: user.moderatorInCommunities,
+        invitationNotifs: user.preferences.invitationNotifs
+      },
+      email: {
+        followEmail: user.preferences.followEmail,
+        chatEmail: user.preferences.chatEmail
+      }
+    })
   } catch (error) {
     console.error('Error updating user settings:', error)
     res.status(400).json({ message: 'Error updating settings: ' + error.message })
