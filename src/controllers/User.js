@@ -270,6 +270,7 @@ const forgotPassword = async (req, res) => {
 
   const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
+  console.log(resetToken)
 
   try {
     await sendEmail(user.email, 'Ask and you shall receive a password reset', message)
@@ -624,7 +625,13 @@ const getUpvotedPosts = async (req, res) => {
       savedAt: '$upvotedPosts.savedAt'
     }
 
+    const page = req.query.page ? parseInt(req.query.page) : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = getSortingMethod(req.query.sort)
+
+    //TODO: fix sorting and pagination
     const result = await user.getPosts(options)
+
     res.status(200).json(result)
   } catch (error) {
     res.status(400).json({ message: 'Error getting upvoted posts' })
@@ -650,7 +657,14 @@ const getDownvotedPosts = async (req, res) => {
       savedAt: '$downvotedPosts.savedAt'
     }
 
-    const result = await user.getPosts(options)
+    const page = req.query.page ? parseInt(req.query.page) : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = getSortingMethod(req.query.sort)
+
+    const result = await user.getPosts(options).select('-__v -followers')
+      .sort(sort)
+      .skip(page * limit)
+      .limit(limit)
     res.status(200).json(result)
   } catch (error) {
     res.status(400).json({ message: 'Error getting downvoted posts' })
