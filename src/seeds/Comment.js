@@ -6,6 +6,9 @@ const comments = []
 
 function createRandomComments () {
   for (let i = 0; i < commentIDs.length; i++) {
+    const upvotes = faker.number.int({ min: 10000, max: 100000 })
+    const downvotes = faker.number.int({ min: 0, max: 50000 })
+
     comments.push({
       _id: commentIDs[i],
       postID: faker.helpers.arrayElement(postIDs),
@@ -13,8 +16,9 @@ function createRandomComments () {
       parentID: faker.helpers.arrayElement([...commentIDs.slice(0, i - 1), null]),
       communityID: faker.helpers.arrayElement(communityIDs),
       content: faker.lorem.paragraph(),
-      upvote: faker.number.int(),
-      downvote: faker.number.int(),
+      upvote: upvotes,
+      downvote: downvotes,
+      netVote: upvotes - downvotes,
       isEdited: faker.datatype.boolean(),
       isLocked: faker.datatype.boolean(),
       isApproved: faker.datatype.boolean(),

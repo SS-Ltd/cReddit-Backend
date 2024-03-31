@@ -15,6 +15,7 @@ router.route('/refresh-token').get(jwt.refreshToken)
 router.route('/follow/:username').post(verifyToken, user.follow).delete(verifyToken, user.unfollow)
 router.route('/block/:username').post(verifyToken, user.block).delete(verifyToken, user.unblock)
 router.route('/is-username-available/:username').get(user.isUsernameAvailable)
+router.route('/generate-username').get(user.generateUsername)
 
 router.route('/forgot-password').post(user.forgotPassword)
 router.route('/reset-password/:token').patch(user.resetPassword)

@@ -201,6 +201,14 @@ const UserSchema = new Schema({
       default: Date.now
     }
   }],
+  upvotedComments: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Comment'
+  }],
+  downvotedComments: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Comment'
+  }],
   hiddenPosts: [{
     postId: {
       type: Schema.Types.ObjectId,

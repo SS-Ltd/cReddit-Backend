@@ -11,7 +11,6 @@ function createRandomPosts () {
 
     posts.push({
       _id: postIDs[i],
-      type: 'Post',
       username: faker.helpers.arrayElement(usernames),
       communityName: faker.helpers.arrayElement(communityNames),
       title: faker.lorem.sentence(),
@@ -30,7 +29,8 @@ function createRandomPosts () {
       isEdited: faker.datatype.boolean(0.1),
       isRemoved: faker.datatype.boolean(0.05),
       followers: [],
-      mostRecentUpvote: faker.date.recent()
+      mostRecentUpvote: faker.date.recent(),
+      type: faker.helpers.arrayElement(['Post', 'Image & Video', 'Link', 'Poll'])
     })
   }
 }

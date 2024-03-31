@@ -4,6 +4,7 @@ const cookies = require('cookie-parser')
 const userRouter = require('./routes/User')
 const postRouter = require('./routes/Post')
 const communityRouter = require('./routes/Community')
+const postRouter = require('./routes/Post')
 const dotenv = require('dotenv')
 const cors = require('cors')
 
@@ -25,6 +26,7 @@ app.use(cookies())
 app.use('/user', userRouter)
 app.use('/post', postRouter)
 app.use('/subreddit', communityRouter)
+app.use('/post', postRouter)
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
