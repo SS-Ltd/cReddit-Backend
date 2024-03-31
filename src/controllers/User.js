@@ -283,24 +283,14 @@ const generateUsername = async (req, res) => {
 }
 
 const forgotPassword = async (req, res) => {
-  const { username, email } = req.body
-  if (!username && !email) {
+  const { info } = req.body
+  if (!info) {
     return res.status(400).json({ message: 'Username or Email is required' })
   }
-  let user = null
 
-  if (username) {
-    user = await UserModel.findOne({ username: username, isDeleted: false })
-  } else if (email) {
-    if (!emailValidator.validate(email)) {
-      return res.status(400).json({ message: 'Email is invalid' })
-    }
-
-    user = await UserModel.findOne({ email: email, isDeleted: false })
-  }
-
+  const user = await UserModel.findOne({ $or: [{ username: info }, { email: info }], isDeleted: false })
   if (!user) {
-    return res.status(404).json({ message: 'Username or Email not found' })
+    return res.status(404).json({ message: 'User not found' })
   }
 
   const resetToken = await user.createResetPasswordToken()

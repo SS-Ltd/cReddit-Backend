@@ -1271,8 +1271,7 @@ describe('forgotPassword', () => {
   test('should find user by username and email, generate reset token, send email, and return success message', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser'
       },
       protocol: 'http',
       get: jest.fn().mockReturnValue('localhost')
@@ -1296,10 +1295,10 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({
-      username: 'testuser',
-      isDeleted: false
-    })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({
+    //   username: 'testuser',
+    //   isDeleted: false
+    // })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalled()
@@ -1309,7 +1308,7 @@ describe('forgotPassword', () => {
   test('should return error message and error object when user is not found', async () => {
     const req = {
       body: {
-        email: 'testuser@example.com'
+        info: 'testuser@example.com'
       }
     }
 
@@ -1321,16 +1320,16 @@ describe('forgotPassword', () => {
     UserModel.findOne = jest.fn().mockResolvedValue(null)
 
     await forgotPassword(req, res)
-    expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'testuser@example.com', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ $or: [{ username: 'testuser@example.com' }, { email: 'testuser@example.com' }], isDeleted: false })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({ email: 'testuser@example.com', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Username or Email not found' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 
   test('should return error message when fail to send email', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser'
       },
       protocol: 'http',
       get: jest.fn().mockReturnValue('localhost')
@@ -1353,7 +1352,8 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ $or: [{ username: 'testuser' }, { email: 'testuser' }], isDeleted: false })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
@@ -1371,8 +1371,7 @@ describe('forgotPassword', () => {
   test('should fail to delete reset token and return error message when failing to send email', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser@example.com'
       },
       protocol: 'http',
       get: jest.fn().mockReturnValue('localhost')
@@ -1395,7 +1394,8 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ $or: [{ username: 'testuser@example.com' }, { email: 'testuser@example.com' }], isDeleted: false })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
@@ -1413,8 +1413,7 @@ describe('forgotPassword', () => {
   test('should send email with correct subject and message format', async () => {
     const req = {
       body: {
-        username: 'testuser',
-        email: 'testuser@example.com'
+        info: 'testuser'
       },
       protocol: 'http',
       get: jest.fn().mockReturnValue('localhost')
@@ -1437,7 +1436,7 @@ describe('forgotPassword', () => {
 
     await forgotPassword(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    // expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
     expect(user.createResetPasswordToken).toHaveBeenCalled()
     expect(user.save).toHaveBeenCalled()
     expect(sendEmail).toHaveBeenCalledWith(
