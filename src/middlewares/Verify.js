@@ -1,5 +1,14 @@
 const jwt = require('jsonwebtoken')
 const axios = require('axios')
+require('cookie-parser')
+
+const isLoggedIn = (req, res, next) => {
+  if (req.cookies.accessToken) {
+    verifyToken(req, res, next)
+  } else {
+    next()
+  }
+}
 
 const verifyToken = (req, res, next) => {
   const token = req.cookies.accessToken
@@ -40,6 +49,7 @@ const verifyGoogleToken = async (req, res, next) => {
 }
 
 module.exports = {
+  isLoggedIn,
   verifyToken,
   verifyGoogleToken
 }
