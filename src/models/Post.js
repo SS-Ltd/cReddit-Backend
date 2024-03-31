@@ -2,6 +2,11 @@ const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
 const PostSchema = new Schema({
+  type: {
+    type: String,
+    required: true,
+    enum: ['Post', 'Images & Video', 'Link', 'Poll']
+  },
   username: {
     type: String,
     required: true,
@@ -41,6 +46,14 @@ const PostSchema = new Schema({
     type: Number,
     default: 0
   },
+  netVote: {
+    type: Number,
+    default: 0
+  },
+  views: {
+    type: Number,
+    default: 0
+  },
   isSpoiler: {
     type: Boolean,
     default: false
@@ -65,11 +78,55 @@ const PostSchema = new Schema({
     type: Boolean,
     default: false
   },
+  isRemoved: {
+    type: Boolean,
+    default: false
+  },
   followers: [{
     type: String,
     ref: 'User',
     refPath: 'username'
-  }]
+  }],
+  actions: [{
+    moderator: {
+      type: String,
+      ref: 'User',
+      refPath: 'username'
+    },
+    action: {
+      type: String,
+      enum: ['remove', 'lock', 'approve']
+    },
+    date: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  mostRecentUpvote: {
+    type: Date
+  }
 }, { timestamps: true })
+
+PostSchema.methods.getCommentCount = async function () {
+  const postId = this._id
+  return await this.model('Post').aggregate([
+    {
+      $match: { _id: postId }
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        localField: '_id',
+        foreignField: 'postID',
+        as: 'comments'
+      }
+    },
+    {
+      $project: {
+        commentCount: { $size: '$comments' }
+      }
+    }
+  ])
+}
 
 module.exports = mongoose.model('Post', PostSchema)

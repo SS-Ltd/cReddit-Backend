@@ -7,4 +7,6 @@ const { isModerator } = require('../middlewares/VerifyModerator')
 router.route('/top').get(verifyToken, community.getTopCommunities)
 router.route('/about/edited/:communityName').get(verifyToken, isModerator, community.getEditedPosts)
 
+router.route('/:subreddit').get(verifyToken, community.getSortedCommunityPosts)
+
 module.exports = router

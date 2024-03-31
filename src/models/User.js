@@ -215,7 +215,7 @@ const UserSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Post'
   }],
-  downvotePosts: [{
+  downvotedPosts: [{
     type: Schema.Types.ObjectId,
     ref: 'Post'
   }],
