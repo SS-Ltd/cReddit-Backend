@@ -41,7 +41,6 @@ const getEditedPosts = async (req, res) => {
   }
 }
 
-
 const filterWithTime = (time) => {
   switch (time) {
     case 'now':
@@ -61,7 +60,7 @@ const filterWithTime = (time) => {
   }
 }
 
-const getSortingMethod = (sort, time) => {
+const getSortingMethod = (sort) => {
   switch (sort) {
     case 'new':
       return { createdAt: -1, _id: -1 }
@@ -94,12 +93,17 @@ const getSortedCommunityPosts = async (req, res) => {
       })
     }
 
-    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    const decoded = req.decoded
+    let user = null
 
-    if (!user) {
-      return res.status(404).json({
-        message: 'User does not exist'
-      })
+    if (decoded) {
+      user = await UserModel.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
     }
 
     const page = req.query.page ? parseInt(req.query.page) - 1 : 0
@@ -133,21 +137,23 @@ const getSortedCommunityPosts = async (req, res) => {
     }
 
     const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
+    const userProfilePictures = await Promise.all(posts.map(post => post.getUserProfilePicture()))
 
     posts = posts.map(post => post.toObject())
     let count = 0
     posts.forEach(post => {
-      post.isUpvoted = user.upvotedPosts.includes(post._id)
-      post.isDownvoted = user.downvotedPosts.includes(post._id)
-      post.isSaved = user.savedPosts.includes(post._id)
-      post.isHidden = user.hiddenPosts.includes(post._id)
+      if (user) {
+        post.isUpvoted = user.upvotedPosts.includes(post._id)
+        post.isDownvoted = user.downvotedPosts.includes(post._id)
+        post.isSaved = user.savedPosts.includes(post._id)
+        post.isHidden = user.hiddenPosts.includes(post._id)
+      }
       post.commentCount = commentCounts[count][0].commentCount
+      post.profilePicture = userProfilePictures[count][0].profilePicture[0]
       count++
     })
 
-    return res.status(200).json({
-      posts
-    })
+    return res.status(200).json(posts)
   } catch (error) {
     console.log(error)
     return res.status(500).json({
