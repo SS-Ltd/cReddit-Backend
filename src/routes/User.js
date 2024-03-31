@@ -5,7 +5,7 @@ const jwt = require('../controllers/JWT')
 const auth = require('../controllers/Auth')
 const router = express.Router()
 
-router.route('/').post(auth.createUser).delete(verifyToken, auth.deleteUser)
+router.route('/').post(auth.createUser).delete(verifyToken, auth.deleteUser).get(verifyToken, user.getUser)
 router.route('/login').post(auth.login)
 router.route('/auth/google').post(verifyGoogleToken, auth.loginGoogle)
 router.route('/logout').get(verifyToken, auth.logout)
@@ -21,8 +21,8 @@ router.route('/forgot-password').post(user.forgotPassword)
 router.route('/reset-password/:token').patch(user.resetPassword)
 router.route('/forgot-username').post(user.forgotUsername)
 
-router.route('/:username').get(user.getUserView)
 router.route('/settings').put(verifyToken, user.updateSettings)
 router.route('/settings').get(verifyToken, user.getSettings)
+router.route('/:username').get(user.getUserView)
 
 module.exports = router

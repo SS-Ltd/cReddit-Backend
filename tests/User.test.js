@@ -1,7 +1,7 @@
 const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, generateUsername, getUser } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
@@ -1451,7 +1451,6 @@ describe('forgotPassword', () => {
   })
 })
 
-// // ////////////////////////// Reset password test ////////////////////
 describe('resetPassword', () => {
   test('should retrieve user based on valid token and reset password successfully', async () => {
     const req = {
@@ -1577,7 +1576,7 @@ describe('resetPassword', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Token is invalid' })
   })
 })
-// // ////////////////////////// Forgot username test ////////////////////
+
 describe('forgotUsername', () => {
   test('should return 400 status and error message when request body is empty', async () => {
     const req = {
@@ -1642,7 +1641,6 @@ describe('forgotUsername', () => {
   })
 })
 
-// ///////////////////////////////////////// Change password test //////////////////////////
 describe('changePassword', () => {
   test('should change password when all inputs are valid', async () => {
     const req = {
@@ -1788,7 +1786,6 @@ describe('changePassword', () => {
   })
 })
 
-// ///////////////////////////////////////// Change email test //////////////////////////
 describe('changeEmail', () => {
   test('should change email successfully when valid password and new email are provided', async () => {
     const req = {
@@ -1880,5 +1877,79 @@ describe('changeEmail', () => {
     expect(user.save).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Email has been changed successfully' })
+  })
+})
+
+describe('generateUsername', () => {
+  test('should generate a valid username', async () => {
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = null
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    await generateUsername({}, res)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Username generated', username: expect.any(String) })
+  })
+})
+
+describe('getUser', () => {
+  // Returns user data when valid username is provided
+  it('should return user data when valid username is provided', async () => {
+    const req = {
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      username: 'validUsername',
+      displayName: 'John Doe',
+      about: 'Lorem ipsum',
+      email: 'johndoe@example.com',
+      profilePicture: 'profile.jpg',
+      banner: 'banner.jpg',
+      followers: ['follower1', 'follower2'],
+      createdAt: '2022-01-01'
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getUser(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith('validUsername')
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      username: 'validUsername',
+      displayName: 'John Doe',
+      about: 'Lorem ipsum',
+      email: 'johndoe@example.com',
+      profilePicture: 'profile.jpg',
+      banner: 'banner.jpg',
+      followers: 2,
+      cakeDay: '2022-01-01'
+    })
+  })
+
+  // Throws error when username is not provided
+  it('should throw error when username is not provided', async () => {
+    const req = {
+      decoded: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getUser(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user: Username is required' })
   })
 })

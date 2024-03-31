@@ -7,6 +7,32 @@ const dotenv = require('dotenv')
 
 dotenv.config()
 
+const getUser = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+
+    const user = await UserModel.findOne(username)
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+    res.status(200).json({
+      username: user.username,
+      displayName: user.displayName,
+      about: user.about,
+      email: user.email,
+      profilePicture: user.profilePicture,
+      banner: user.banner,
+      followers: user.followers.length,
+      cakeDay: user.createdAt
+    })
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user: ' + error.message })
+  }
+}
+
 const follow = async (req, res) => {
   try {
     const { username } = req.params
@@ -565,6 +591,7 @@ const updateSettings = async (req, res) => {
 }
 
 module.exports = {
+  getUser,
   follow,
   unfollow,
   block,
