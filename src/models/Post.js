@@ -5,7 +5,12 @@ const PostSchema = new Schema({
   type: {
     type: String,
     required: true,
-    enum: ['Post', 'Images & Video', 'Link', 'Poll']
+    enum: ['Post', 'Images & Video', 'Link', 'Poll', 'Comment']
+  },
+  child: {
+    type: String,
+    ref: 'Post',
+    refPath: 'type'
   },
   username: {
     type: String,
@@ -30,9 +35,10 @@ const PostSchema = new Schema({
       type: String,
       required: true
     },
-    votes: {
-      type: Number,
-      default: 0
+    voters: {
+      type: String,
+      ref: 'User',
+      refPath: 'username'
     }
   }],
   expirationDate: {
@@ -53,6 +59,10 @@ const PostSchema = new Schema({
   views: {
     type: Number,
     default: 0
+  },
+  isImage: {
+    type: Boolean,
+    default: false
   },
   isSpoiler: {
     type: Boolean,
@@ -146,174 +156,6 @@ PostSchema.methods.getCommentCount = async function () {
     {
       $project: {
         commentCount: { $size: '$comments' }
-      }
-    }
-  ])
-}
-
-PostSchema.methods.getUserProfilePicture = async function () {
-  const username = this.username
-  return await this.model('Post').aggregate([
-    {
-      $match: { username: username }
-    },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'username',
-        foreignField: 'username',
-        as: 'user'
-      }
-    },
-    {
-      $project: {
-        profilePicture: '$user.profilePicture'
-      }
-    }
-  ])
-}
-
-PostSchema.methods.getComments = async function (options) {
-  const { random, sort, limit } = options
-  const postId = this._id
-  if (random) {
-    return await this.model('Post').aggregate([
-      {
-        $match: { _id: postId }
-      },
-      {
-        $lookup: {
-          from: 'comments',
-          let: { postId: '$_id' },
-          pipeline: [
-            {
-              $match: { postID: postId, isDeleted: false }
-            },
-            {
-              $sample: { size: 5 }
-            }
-          ],
-          as: 'comments'
-        }
-      },
-      { $unwind: '$comments' },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'comments.username',
-          foreignField: 'username',
-          as: 'user'
-        }
-      },
-      { $unwind: '$user' },
-      {
-        $group: {
-          _id: '$_id',
-          post: { $first: '$$ROOT' },
-          comments: {
-            $push: {
-              _id: '$comments._id',
-              postID: '$comments.postID',
-              username: '$comments.username',
-              parentID: '$comments.parentID',
-              communityID: '$comments.communityID',
-              content: '$comments.content',
-              upvote: '$comments.upvote',
-              downvote: '$comments.downvote',
-              netvote: '$comments.netVote',
-              isEdited: '$comments.isEdited',
-              isLocked: '$comments.isLocked',
-              isApproved: '$comments.isApproved',
-              isDeleted: '$comments.isDeleted',
-              profilePicture: '$user.profilePicture',
-              createdAt: '$comments.createdAt'
-            }
-          }
-        }
-      },
-      {
-        $replaceRoot: {
-          newRoot: {
-            $mergeObjects: ['$post', { comments: '$comments' }]
-          }
-        }
-      },
-      {
-        $project: {
-          user: 0
-        }
-      }
-    ]
-    )
-  }
-
-  return await this.model('Post').aggregate([
-    {
-      $match: { _id: postId }
-    },
-    {
-      $lookup: {
-        from: 'comments',
-        let: { postId: '$_id' },
-        pipeline: [
-          {
-            $match: { postID: postId, isDeleted: false }
-          },
-          {
-            $sort: sort
-          },
-          {
-            $limit: limit
-          }
-        ],
-        as: 'comments'
-      }
-    },
-    { $unwind: '$comments' },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'comments.username',
-        foreignField: 'username',
-        as: 'user'
-      }
-    },
-    { $unwind: '$user' },
-    {
-      $group: {
-        _id: '$_id',
-        post: { $first: '$$ROOT' },
-        comments: {
-          $push: {
-            _id: '$comments._id',
-            postID: '$comments.postID',
-            username: '$comments.username',
-            parentID: '$comments.parentID',
-            communityID: '$comments.communityID',
-            content: '$comments.content',
-            upvote: '$comments.upvote',
-            downvote: '$comments.downvote',
-            netvote: '$comments.netVote',
-            isEdited: '$comments.isEdited',
-            isLocked: '$comments.isLocked',
-            isApproved: '$comments.isApproved',
-            isDeleted: '$comments.isDeleted',
-            profilePicture: '$user.profilePicture',
-            createdAt: '$comments.createdAt'
-          }
-        }
-      }
-    },
-    {
-      $replaceRoot: {
-        newRoot: {
-          $mergeObjects: ['$post', { comments: '$comments' }]
-        }
-      }
-    },
-    {
-      $project: {
-        user: 0
       }
     }
   ])
