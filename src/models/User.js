@@ -212,12 +212,24 @@ const UserSchema = new Schema({
     }
   }],
   upvotedPosts: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Post'
+    postId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   downvotedPosts: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Post'
+    postId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
   }],
   followedPosts: [{
     type: Schema.Types.ObjectId,

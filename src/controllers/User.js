@@ -2,6 +2,8 @@ const bcrypt = require('bcrypt')
 const crypto = require('crypto')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
+const PostModel = require('../models/Post')
+const CommentModel = require('../models/Comment')
 const { sendEmail, sendVerificationEmail } = require('../utils/Email')
 const dotenv = require('dotenv')
 
@@ -272,6 +274,7 @@ const forgotPassword = async (req, res) => {
 
   const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
+  console.log(resetToken)
 
   try {
     await sendEmail(user.email, 'Ask and you shall receive a password reset', message)
@@ -397,7 +400,6 @@ const changeEmail = async (req, res) => {
   const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
 
   if (user.password === null || user.password === '') {
-    // we will send an email to the user to reset the password according to reddit's policy
     req.body.email = user.email
     req.body.username = user.username
     return this.forgetPassword(req, res)
@@ -618,6 +620,143 @@ const getHiddenPosts = async (req, res) => {
   }
 }
 
+const filterWithTime = (time) => {
+  switch (time) {
+    case 'now':
+      return { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+    case 'today':
+      return { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    case 'week':
+      return { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    case 'month':
+      return { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+    case 'year':
+      return { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+    case 'all':
+      return { $gte: new Date(0) }
+    default:
+      return { $gte: new Date(0) }
+  }
+}
+
+const getSortingMethod = (sort, time) => {
+  switch (sort) {
+    case 'new':
+      return { createdAt: -1, _id: -1 }
+    case 'top':
+      return { netVote: -1, createdAt: -1, _id: -1 }
+    case 'hot':
+      return { views: -1, createdAt: -1, _id: -1 }
+    default:
+      return { createdAt: -1, _id: -1 }
+  }
+}
+
+const getPosts = async (req, res) => {
+  try {
+    const username = req.params.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = getSortingMethod(req.query.sort)
+    const time = filterWithTime(req.query.time || 'all')
+
+    let posts = await PostModel.find({ username: username, isDeleted: false, createdAt: time }).select('-__v -followers')
+      .sort(sort)
+      .skip(page * limit)
+      .limit(limit)
+
+    const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
+
+    posts = posts.map(post => post.toObject())
+    let count = 0
+    posts.forEach(post => {
+      post.isUpvoted = user.upvotedPosts.includes(post._id)
+      post.isDownvoted = user.downvotedPosts.includes(post._id)
+      post.isSaved = user.savedPosts.includes(post._id)
+      post.isHidden = user.hiddenPosts.includes(post._id)
+      post.commentCount = commentCounts[count][0].commentCount
+      count++
+    })
+
+    res.status(200).json(posts)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user posts: ' + error.message })
+  }
+}
+
+const getUpvotedPosts = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const options = {
+      username: username,
+      unwind: '$upvotedPosts',
+      localField: 'upvotedPosts.postId',
+      savedAt: '$upvotedPosts.savedAt'
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = getSortingMethod(req.query.sort)
+
+    // TODO: fix sorting and pagination
+    const result = await user.getPosts(options)
+
+    res.status(200).json(result)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting upvoted posts' })
+  }
+}
+
+const getDownvotedPosts = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const options = {
+      username: username,
+      unwind: '$downvotedPosts',
+      localField: 'downvotedPosts.postId',
+      savedAt: '$downvotedPosts.savedAt'
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = getSortingMethod(req.query.sort)
+
+    const result = await user.getPosts(options).select('-__v -followers')
+      .sort(sort)
+      .skip(page * limit)
+      .limit(limit)
+    res.status(200).json(result)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting downvoted posts' })
+  }
+}
+
 module.exports = {
   follow,
   unfollow,
@@ -633,5 +772,8 @@ module.exports = {
   getSettings,
   updateSettings,
   getSaved,
-  getHiddenPosts
+  getHiddenPosts,
+  getPosts,
+  getUpvotedPosts,
+  getDownvotedPosts
 }

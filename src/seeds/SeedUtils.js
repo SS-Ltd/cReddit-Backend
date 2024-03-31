@@ -8,6 +8,7 @@ const communityIDs = []
 const commentIDs = []
 const chatRooms = []
 const messageIDs = []
+const posts = []
 
 function createRandomEntities () {
   for (let i = 0; i < USERS; i++) {
@@ -25,6 +26,10 @@ function createRandomEntities () {
 
   for (let i = 0; i < POSTS; i++) {
     postIDs.push(faker.database.mongodbObjectId())
+    posts.push({
+      postId: postIDs[i],
+      savedAt: faker.date.recent()
+    })
   }
 
   for (let i = 0; i < COMMENTS; i++) {
@@ -48,4 +53,4 @@ function createRandomEntities () {
   }
 }
 
-module.exports = { usernames, postIDs, communityNames, communityIDs, commentIDs, chatRooms, messageIDs, createRandomEntities }
+module.exports = { usernames, postIDs, communityNames, communityIDs, commentIDs, chatRooms, messageIDs, posts, createRandomEntities }
