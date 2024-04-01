@@ -60,7 +60,17 @@ const createUser = async (req, res) => {
 
     await newUser.save()
     await sendVerificationEmail(email, username)
-    res.status(201).json({ message: 'User created successfully' })
+    res.status(201).json({
+      message: 'User created successfully',
+      username: newUser.username,
+      displayName: newUser.displayName,
+      about: newUser.about,
+      email: newUser.email,
+      profilePicture: newUser.profilePicture,
+      banner: newUser.banner,
+      followers: newUser.followers.length,
+      cakeDay: newUser.createdAt
+    })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error creating user' })
   }
@@ -111,7 +121,17 @@ const login = async (req, res) => {
         refreshToken
       }
     })
-    res.status(200).json({ message: 'User logged in successfully' })
+    res.status(200).json({
+      message: 'User logged in successfully',
+      username: user.username,
+      displayName: user.displayName,
+      about: user.about,
+      email: user.email,
+      profilePicture: user.profilePicture,
+      banner: user.banner,
+      followers: user.followers.length,
+      cakeDay: user.createdAt
+    })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error logging in' })
   }
@@ -173,7 +193,17 @@ const loginGoogle = async (req, res) => {
           refreshToken
         }
       })
-      return res.status(200).json({ message: 'User logged in successfully' })
+      return res.status(200).json({
+        message: 'User logged in successfully',
+        username: existingUser.username,
+        displayName: existingUser.displayName,
+        about: existingUser.about,
+        email: existingUser.email,
+        profilePicture: existingUser.profilePicture,
+        banner: existingUser.banner,
+        followers: existingUser.followers.length,
+        cakeDay: existingUser.createdAt
+      })
     }
 
     if (existingUser && existingUser.isDeleted) {
@@ -182,7 +212,17 @@ const loginGoogle = async (req, res) => {
           isDeleted: false
         }
       })
-      return res.status(201).json({ message: 'User created successfully' })
+      return res.status(201).json({
+        message: 'User created successfully',
+        username: existingUser.username,
+        displayName: existingUser.displayName,
+        about: existingUser.about,
+        email: existingUser.email,
+        profilePicture: existingUser.profilePicture,
+        banner: existingUser.banner,
+        followers: existingUser.followers.length,
+        cakeDay: existingUser.createdAt
+      })
     }
 
     const { refreshToken } = generateTokens({ username }, res)
@@ -199,7 +239,17 @@ const loginGoogle = async (req, res) => {
 
     await newUser.save()
     await sendVerificationEmail(email, username)
-    res.status(201).json({ message: 'User created successfully' })
+    res.status(201).json({
+      message: 'User created successfully',
+      username: newUser.username,
+      displayName: newUser.displayName,
+      about: newUser.about,
+      email: newUser.email,
+      profilePicture: newUser.profilePicture,
+      banner: newUser.banner,
+      followers: newUser.followers.length,
+      cakeDay: newUser.createdAt
+    })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error creating user' })
   }
