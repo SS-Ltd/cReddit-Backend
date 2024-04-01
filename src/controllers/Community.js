@@ -2,6 +2,92 @@ const CommunityModel = require('../models/Community')
 const PostModel = require('../models/Post')
 const UserModel = require('../models/User')
 
+const createCommunity = async (req, res) => {
+  const owner = req.decoded.username
+  const { name, isNSFW } = req.body
+
+  try {
+    if (!name || isNSFW == null) {
+      return res.status(400).json({ message: 'Name and isNSFW are required' })
+    }
+
+    const repeated = await CommunityModel.findOne({ name })
+    if (repeated) {
+      return res.status(400).json({ message: 'Community already exists' })
+    }
+
+    const community = new CommunityModel({
+      owner: owner,
+      name: name,
+      isNSFW: isNSFW
+    })
+
+    await community.save()
+
+    res.status(201).json({
+      message: 'Community created successfully',
+      owner: community.owner,
+      name: community.name,
+      isNSFW: community.isNSFW
+    })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error creating community' })
+  }
+}
+
+const isNameAvailable = async (req, res) => {
+  try {
+    const { name } = req.params
+
+    if (!name) {
+      return res.status(400).json({
+        message: 'Name is required'
+      })
+    }
+
+    const user = await CommunityModel.findOne({ name })
+
+    if (!user) {
+      return res.status(200).json({
+        message: 'Name is available',
+        available: true
+      })
+    } else {
+      return res.status(409).json({
+        message: 'Name is not available',
+        available: false
+      })
+    }
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'An error occurred while checking if the name is available'
+    })
+  }
+}
+
+const getCommunityView = async (req, res) => {
+  try {
+    if (!req.params.subreddit) {
+      throw new Error('Community name is required')
+    }
+    const community = await CommunityModel.findOne({ name: req.params.subreddit })
+    if (!community || community.isDeleted) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
+    res.status(200).json({
+      name: community.name,
+      icon: community.icon,
+      banner: community.banner,
+      members: community.members,
+      rules: community.rules,
+      moderators: community.moderators
+    })
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user view: ' + error.message })
+  }
+}
+
 const getTopCommunities = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
@@ -163,6 +249,9 @@ const getSortedCommunityPosts = async (req, res) => {
 }
 
 module.exports = {
+  createCommunity,
+  getCommunityView,
+  isNameAvailable,
   getTopCommunities,
   getEditedPosts,
   getSortedCommunityPosts

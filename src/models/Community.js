@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const { faker } = require('@faker-js/faker')
 const Schema = mongoose.Schema
 
 const CommunitySchema = new Schema({
@@ -17,11 +18,11 @@ const CommunitySchema = new Schema({
     type: String
   },
   icon: {
-    type: String
+    type: String,
+    default: faker.image.avatar()
   },
   topic: {
-    type: String,
-    required: true
+    type: String
   },
   description: {
     type: String
@@ -72,8 +73,7 @@ const CommunitySchema = new Schema({
   rules: [
     {
       text: {
-        type: String,
-        required: true
+        type: String
       },
       appliesTo: {
         type: String,
