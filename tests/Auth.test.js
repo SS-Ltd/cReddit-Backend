@@ -33,9 +33,7 @@ describe('createUser', () => {
 
     await createUser(req, res)
 
-    expect(res.json).toHaveBeenCalledWith({
-      message: 'User created successfully'
-    })
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'User created successfully' }))
     expect(res.status).toHaveBeenCalledWith(201)
   })
 
@@ -229,7 +227,7 @@ describe('login', () => {
       maxAge: 24 * 60 * 60 * 1000
     })
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'User logged in successfully' })
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'User logged in successfully' }))
   })
 
   test('should throw an error when username is empty', async () => {

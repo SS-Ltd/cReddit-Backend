@@ -68,7 +68,7 @@ const createUser = async (req, res) => {
       email: newUser.email,
       profilePicture: newUser.profilePicture,
       banner: newUser.banner,
-      followers: newUser.followers.length,
+      followers: newUser.followers ? newUser.followers.length : 0,
       cakeDay: newUser.createdAt
     })
   } catch (error) {
@@ -129,7 +129,7 @@ const login = async (req, res) => {
       email: user.email,
       profilePicture: user.profilePicture,
       banner: user.banner,
-      followers: user.followers.length,
+      followers: user.followers ? user.followers.length : 0,
       cakeDay: user.createdAt
     })
   } catch (error) {
@@ -201,7 +201,7 @@ const loginGoogle = async (req, res) => {
         email: existingUser.email,
         profilePicture: existingUser.profilePicture,
         banner: existingUser.banner,
-        followers: existingUser.followers.length,
+        followers: existingUser.followers ? existingUser.followers.length : 0,
         cakeDay: existingUser.createdAt
       })
     }
@@ -220,7 +220,7 @@ const loginGoogle = async (req, res) => {
         email: existingUser.email,
         profilePicture: existingUser.profilePicture,
         banner: existingUser.banner,
-        followers: existingUser.followers.length,
+        followers: existingUser.followers ? existingUser.followers.length : 0,
         cakeDay: existingUser.createdAt
       })
     }
@@ -247,7 +247,7 @@ const loginGoogle = async (req, res) => {
       email: newUser.email,
       profilePicture: newUser.profilePicture,
       banner: newUser.banner,
-      followers: newUser.followers.length,
+      followers: newUser.followers ? newUser.followers.length : 0,
       cakeDay: newUser.createdAt
     })
   } catch (error) {
