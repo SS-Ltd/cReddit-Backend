@@ -50,7 +50,10 @@ const createPost = async (req, res) => {
     })
 
     await createdPost.save()
-    res.status(201).json({ message: 'Post created successfully' + (post.unusedData ? ' while ignoring additional fields' : '') })
+    res.status(201).json({
+      message: 'Post created successfully' + (post.unusedData ? ' while ignoring additional fields' : ''),
+      postId: createdPost._id
+    })
   } catch (error) {
     res.status(400).json({ message: error.message })
   }
