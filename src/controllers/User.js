@@ -312,7 +312,7 @@ const forgotPassword = async (req, res) => {
   }
 }
 
-const validatePassword = async (password) => {
+const validatePassword = (password) => {
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\w!@#$%^&*()\-_=+\\|[\]{};:'",.<>/?`~ ])[\w!@#$%^&*()\-_=+\\|[\]{};:'",.<>/?`~ ]{8,}$/
   return passwordRegex.test(password)
 }
