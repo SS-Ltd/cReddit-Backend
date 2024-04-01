@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 const crypto = require('crypto')
+const { faker } = require('@faker-js/faker')
 
 const UserSchema = new Schema({
   username: {
@@ -21,7 +22,8 @@ const UserSchema = new Schema({
     type: String
   },
   profilePicture: {
-    type: String
+    type: String,
+    default: faker.image.avatar()
   },
   banner: {
     type: String
