@@ -69,11 +69,11 @@ const isNameAvailable = async (req, res) => {
 const getCommunityView = async (req, res) => {
   try {
     if (!req.params.subreddit) {
-      throw new Error('Community name is required')
+      throw new Error('Subreddit name is required')
     }
     const community = await CommunityModel.findOne({ name: req.params.subreddit })
     if (!community || community.isDeleted) {
-      return res.status(404).json({ message: 'Community not found' })
+      return res.status(404).json({ message: 'Subreddit not found' })
     }
     res.status(200).json({
       name: community.name,
@@ -84,7 +84,7 @@ const getCommunityView = async (req, res) => {
       moderators: community.moderators
     })
   } catch (error) {
-    res.status(400).json({ message: 'Error getting user view: ' + error.message })
+    res.status(400).json({ message: 'Error getting subreddit view: ' + error.message })
   }
 }
 

@@ -28,7 +28,17 @@ const createUser = async (req, res) => {
           isDeleted: false
         }
       })
-      return res.status(201).json({ message: 'User created successfully' })
+      return res.status(201).json({
+        message: 'User created successfully',
+        username: existingUser.username,
+        displayName: existingUser.displayName,
+        about: existingUser.about,
+        email: existingUser.email,
+        profilePicture: existingUser.profilePicture,
+        banner: existingUser.banner,
+        followers: existingUser.followers ? existingUser.followers.length : 0,
+        cakeDay: existingUser.createdAt
+      })
     }
 
     const validEmail = emailValidator.validate(email)
