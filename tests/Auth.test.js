@@ -218,7 +218,7 @@ describe('login', () => {
       sameSite: 'None',
       secure: true,
       maxAge: 24 * 60 * 60 * 1000,
-      path: '/user/refreshToken'
+      path: '/user/refresh-token'
     })
     expect(res.cookie).toHaveBeenCalledWith('accessToken', 'accessToken', {
       httpOnly: true,
