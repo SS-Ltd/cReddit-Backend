@@ -1,6 +1,6 @@
 const { faker } = require('@faker-js/faker')
 const UserModel = require('../models/User')
-const { usernames } = require('./SeedUtils')
+const { usernames, posts } = require('./SeedUtils')
 
 const users = []
 
@@ -58,13 +58,11 @@ function createRandomUsers () {
       blockedUsers: [],
       mutedCommunities: [],
       communities: [],
-      savedPosts: [],
+      savedPosts: faker.helpers.shuffle(posts).slice(0, 5),
       savedComments: [],
-      upvotedComments: [],
-      downvotedComments: [],
-      hiddenPosts: [],
-      upvotedPosts: [],
-      downvotedPosts: [],
+      hiddenPosts: faker.helpers.shuffle(posts).slice(0, 5),
+      upvotedPosts: faker.helpers.shuffle(posts).slice(0, 5),
+      downvotedPosts: faker.helpers.shuffle(posts).slice(0, 5),
       followedPosts: [],
       approvedInCommunities: [],
       bannedInCommunities: [],

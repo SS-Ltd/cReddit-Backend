@@ -5,6 +5,11 @@ const { faker } = require('@faker-js/faker')
 const { sendVerificationEmail } = require('../utils/Email')
 const { generateTokens, decryptToken } = require('./JWT')
 
+const validatePassword = (password) => {
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\w!@#$%^&*()\-_=+\\|[\]{};:'",.<>/?`~ ])[\w!@#$%^&*()\-_=+\\|[\]{};:'",.<>/?`~ ]{8,}$/
+  return passwordRegex.test(password)
+}
+
 const createUser = async (req, res) => {
   const { username, password, email, gender } = req.body
   try {
@@ -35,8 +40,8 @@ const createUser = async (req, res) => {
       throw new Error('Invalid gender')
     }
 
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters long')
+    if (!validatePassword(password)) {
+      throw new Error('Password must contain at least one lower and upper case letters and at least one digit and must be at least 8 characters')
     }
 
     const salt = await bcrypt.genSalt(10)

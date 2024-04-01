@@ -19,7 +19,7 @@ describe('createUser', () => {
     const req = {
       body: {
         username: 'testuser',
-        password: 'testpassword',
+        password: 'TestPassword123',
         email: 'nejocov739@fryshare.com',
         gender: 'None'
       }
@@ -43,7 +43,7 @@ describe('createUser', () => {
     const req = {
       body: {
         username: 'testuser',
-        password: 'testpassword',
+        password: 'TestPassword123',
         email: 'test1@example.com',
         gender: 'None'
       }
@@ -64,7 +64,7 @@ describe('createUser', () => {
     const req = {
       body: {
         username: 'testuser1',
-        password: 'testpassword',
+        password: 'TestPassword123',
         email: 'nejocov739@fryshare.com',
         gender: 'None'
       }
@@ -84,7 +84,7 @@ describe('createUser', () => {
   test('should throw an error when username is missing', async () => {
     const req = {
       body: {
-        password: 'testpassword',
+        password: 'TestPassword123',
         email: 'test1@example.com',
         gender: 'None'
       }
@@ -105,7 +105,7 @@ describe('createUser', () => {
     const req = {
       body: {
         username: 'testuser1',
-        password: 'testpassword',
+        password: 'TestPassword123',
         email: 'test1@example.com',
         gender: 'male'
       }
@@ -140,7 +140,7 @@ describe('createUser', () => {
     await createUser(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Password must be at least 8 characters long' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Password must contain at least one lower and upper case letters and at least one digit and must be at least 8 characters' })
   })
 })
 

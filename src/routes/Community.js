@@ -1,7 +1,11 @@
 const express = require('express')
-const community = require('../controllers/Community')
-const { isLoggedIn } = require('../middlewares/Verify')
 const router = express.Router()
+const community = require('../controllers/Community')
+const { isLoggedIn, verifyToken } = require('../middlewares/Verify')
+const { isModerator } = require('../middlewares/VerifyModerator')
+
+router.route('/top').get(verifyToken, community.getTopCommunities)
+router.route('/about/edited/:communityName').get(verifyToken, isModerator, community.getEditedPosts)
 
 router.route('/:subreddit').get(isLoggedIn, community.getSortedCommunityPosts)
 
