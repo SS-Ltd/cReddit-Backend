@@ -35,11 +35,11 @@ const PostSchema = new Schema({
       type: String,
       required: true
     },
-    voters: {
+    voters: [{
       type: String,
       ref: 'User',
       refPath: 'username'
-    }
+    }]
   }],
   expirationDate: {
     type: Date
