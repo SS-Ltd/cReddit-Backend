@@ -634,15 +634,9 @@ const getSaved = async (req, res) => {
       limit: limit
     }
 
-    const savedPosts = await user.getPosts(options)
-    const savedComments = await user.getSavedComments()
-    const sortedArray = [...savedPosts, ...savedComments].sort((a, b) => {
-      return new Date(b.savedAt) - new Date(a.savedAt)
-    })
+    const savedContent = await user.getPosts(options)
 
-    const paginatedArray = sortedArray.slice((page - 1) * limit, page * limit)
-
-    res.status(200).json(paginatedArray)
+    res.status(200).json(savedContent)
   } catch (error) {
     res.status(500).json({ message: 'Error getting saved posts' })
   }

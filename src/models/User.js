@@ -308,33 +308,62 @@ UserSchema.methods.createResetPasswordToken = async function () {
 // NOTE: be aware for the '$' sign in the examles above
 UserSchema.methods.getPosts = async function (options) {
   const { username, unwind, localField, savedAt, page, limit } = options
-
   return await this.model('User').aggregate([
     {
-      $match: { username: username }
+      $match: { username: 'Esmeralda59' }
     },
     {
-      $unwind: unwind
+      $unwind: '$savedPosts'
     },
     {
       $lookup: {
         from: 'posts',
-        localField: localField,
+        localField: 'savedPosts.postId',
         foreignField: '_id',
         as: 'post'
       }
     },
     {
       $match: {
-        'post.isDeleted': false
+        'post.isDeleted': false,
+        'post.isRemoved': false
       }
     },
     {
+      $project: {
+        post: { $arrayElemAt: ['$post', 0] },
+        savedAt: '$savedPosts.savedAt'
+      }
+    },
+    {
+      $sort: { 'savedPosts.savedAt': -1 }
+    },
+    {
+      $skip: (1 - 1) * 10
+    },
+    {
+      $limit: 10
+    },
+    {
       $lookup: {
-        from: 'comments',
-        localField: 'post._id',
-        foreignField: 'postID',
-        as: 'comments'
+        from: 'posts',
+        let: { post_id: '$post._id', type: 'Comment' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$postID', '$$post_id'] },
+                  { $eq: ['$type', '$$type'] }
+                ]
+              }
+            }
+          },
+          {
+            $count: 'commentCount'
+          }
+        ],
+        as: 'commentCount'
       }
     },
     {
@@ -346,17 +375,33 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'communities',
+        localField: 'post.communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
       $project: {
-        post: {
-          $arrayElemAt: ['$post', 0]
-        },
-        commentCount: {
-          $size: '$comments'
-        },
-        userPic: {
-          $arrayElemAt: ['$user.profilePicture', 0]
-        },
-        savedAt: savedAt
+        _id: 0,
+        postId: '$post._id',
+        type: '$post.type',
+        username: '$post.username',
+        profilePic: { $arrayElemAt: ['$user.profilePicture', 0] },
+        communityName: '$post.communityName',
+        communityPic: { $arrayElemAt: ['$community.banner', 0] },
+        title: '$post.title',
+        netVote: '$post.netVote',
+        isSpoiler: '$post.isSpoiler',
+        isNSFW: '$post.isNSFW',
+        isApproved: '$post.isApproved',
+        content: '$post.content',
+        isUpvoted: '$post.isUpvoted',
+        isDownvoted: '$post.isDownvoted',
+        isHidden: '$post.isHidden',
+        isSaved: '$post.isSaved',
+        commentCount: { $arrayElemAt: ['$commentCount.commentCount', 0] }
       }
     }
   ])
