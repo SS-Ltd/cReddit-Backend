@@ -488,7 +488,7 @@ const getUserView = async (req, res) => {
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
     }
-    res.status(200).json({
+    const userData = {
       username: user.username,
       displayName: user.displayName,
       about: user.about,
@@ -497,7 +497,15 @@ const getUserView = async (req, res) => {
       banner: user.banner,
       followers: user.followers.length,
       cakeDay: user.createdAt
-    })
+    }
+    if (req.decoded) {
+      const viewer = await UserModel.findOne({ username: req.decoded.username })
+      if (viewer && viewer.username !== user.username) {
+        userData.isFollowed = viewer.follows.includes(user.username)
+        userData.isBlocked = viewer.blockedUsers.includes(user.username)
+      }
+    }
+    res.status(200).json(userData)
   } catch (error) {
     res.status(400).json({ message: 'Error getting user view: ' + error.message })
   }

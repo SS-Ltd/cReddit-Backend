@@ -1,6 +1,6 @@
 const express = require('express')
 const user = require('../controllers/User')
-const { verifyToken, verifyGoogleToken } = require('../middlewares/Verify')
+const { verifyToken, verifyGoogleToken, isLoggedIn } = require('../middlewares/Verify')
 const jwt = require('../controllers/JWT')
 const auth = require('../controllers/Auth')
 const router = express.Router()
@@ -32,6 +32,6 @@ router.route('/downvoted').get(verifyToken, user.getDownvotedPosts)
 
 router.route('/settings').put(verifyToken, user.updateSettings)
 router.route('/settings').get(verifyToken, user.getSettings)
-router.route('/:username').get(user.getUserView)
+router.route('/:username').get(isLoggedIn, user.getUserView)
 
 module.exports = router

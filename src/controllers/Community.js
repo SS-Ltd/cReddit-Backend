@@ -75,14 +75,25 @@ const getCommunityView = async (req, res) => {
     if (!community || community.isDeleted) {
       return res.status(404).json({ message: 'Subreddit not found' })
     }
-    res.status(200).json({
+    const communityData = {
       name: community.name,
       icon: community.icon,
       banner: community.banner,
       members: community.members,
       rules: community.rules,
       moderators: community.moderators
-    })
+    }
+
+    if (req.decoded) {
+      const user = await UserModel.findOne({ username: req.decoded.username })
+
+      if (user) {
+        communityData.isModerator = community.moderators.includes(req.decoded.username)
+        communityData.isMember = user.communities.includes(community.name)
+      }
+    }
+
+    res.status(200).json(communityData)
   } catch (error) {
     res.status(400).json({ message: 'Error getting subreddit view: ' + error.message })
   }
