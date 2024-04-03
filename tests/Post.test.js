@@ -2,7 +2,7 @@ const PostController = require('../src/controllers/Post')
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const cloudinary = require('../src/utils/Cloudinary')
+const MediaUtils = require('../src/utils/Media')
 const { getSortedCommunityPosts } = require('../src/controllers/Community')
 
 jest.mock('../src/models/Post', () => {
@@ -83,7 +83,7 @@ describe('createPost', () => {
       ]
     }
 
-    cloudinary.uploader.upload = jest.fn().mockResolvedValue({ secure_url: 'secure_url' })
+    MediaUtils.cloudinary.uploader.upload = jest.fn().mockResolvedValue({ secure_url: 'secure_url' })
 
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -92,7 +92,7 @@ describe('createPost', () => {
 
     await PostController.createPost(req, res)
 
-    expect(cloudinary.uploader.upload).toHaveBeenCalledTimes(5)
+    expect(MediaUtils.cloudinary.uploader.upload).toHaveBeenCalledTimes(5)
     expect(PostModel).toHaveBeenCalledWith({
       type: 'Images & Video',
       username: 'Test User',
@@ -426,7 +426,7 @@ describe('deletePost', () => {
       content: 'cReddit/image1.jpg cReddit/video1.mp4',
       deleteOne: jest.fn()
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
 
     await PostController.deletePost(req, res)
@@ -435,8 +435,8 @@ describe('deletePost', () => {
     expect(res.status).toHaveBeenCalledWith(200)
     expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
     expect(post.deleteOne).toHaveBeenCalled()
-    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/image1')
-    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/image1')
+    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
   })
 
   test('should not delete a post when unauthorized user', async () => {
@@ -459,7 +459,7 @@ describe('deletePost', () => {
       content: 'cReddit/image1.jpg cReddit/video1.mp4',
       deleteOne: jest.fn()
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
 
     await PostController.deletePost(req, res)
@@ -468,8 +468,8 @@ describe('deletePost', () => {
     expect(res.status).toHaveBeenCalledWith(403)
     expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
     expect(post.deleteOne).not.toHaveBeenCalled()
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
   })
 
   test('should not delete a post when invalid post id', async () => {
@@ -492,7 +492,7 @@ describe('deletePost', () => {
       content: 'cReddit/image1.jpg cReddit/video1.mp4',
       deleteOne: jest.fn()
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
 
     await PostController.deletePost(req, res)
@@ -501,8 +501,8 @@ describe('deletePost', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(PostModel.findOne).not.toHaveBeenCalledWith({ _id: 'InvalidPostId' })
     expect(post.deleteOne).not.toHaveBeenCalled()
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
   })
 
   test('should not delete a post when non-existing post id', async () => {
@@ -518,7 +518,7 @@ describe('deletePost', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(null)
 
     await PostController.deletePost(req, res)
@@ -526,8 +526,8 @@ describe('deletePost', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is not found' })
     expect(res.status).toHaveBeenCalledWith(400)
     expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
   })
 
   test('should not delete a post when invalid image url', async () => {
@@ -550,7 +550,7 @@ describe('deletePost', () => {
       content: 'cRedditimage1.jpg cReddit/video1.mp4',
       deleteOne: jest.fn()
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
 
     await PostController.deletePost(req, res)
@@ -558,7 +558,7 @@ describe('deletePost', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid image or video URLs found in post' })
     expect(res.status).toHaveBeenCalledWith(500)
     expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cRedditimage1')
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cRedditimage1')
   })
 })
 
