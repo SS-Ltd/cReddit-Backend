@@ -711,6 +711,30 @@ const getSortingMethod = (sort, time) => {
   }
 }
 
+const getPosts = async (req, res) => {
+  try {
+    const username = req.params.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 1
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = req.query.sort
+    const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
+
+    const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time })
+
+    res.status(200).json(posts)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user posts: ' + error.message })
+  }
+}
+
 const getComments = async (req, res) => {
   try {
     const username = req.params.username

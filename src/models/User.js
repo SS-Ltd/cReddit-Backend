@@ -412,6 +412,149 @@ UserSchema.methods.getSavedComments = async function (options) {
   ])
 }
 
+UserSchema.methods.getUserPosts = async function (options) {
+  let { username, page, limit, sort, time } = options
+
+  switch (sort) {
+    case 'new':
+      sort = { 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    case 'top':
+      sort = { 'posts.netVote': -1, 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    case 'hot':
+      sort = { 'posts.views': -1, 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    default:
+      sort = { 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+  }
+
+  return await this.model('User').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'posts'
+      }
+    },
+    {
+      $unwind: {
+        path: '$posts'
+      }
+    },
+    {
+      $match: {
+        'posts.isDeleted': false,
+        'posts.isRemoved': false,
+        'posts.type': { $ne: 'Comment' },
+        createdAt: time
+      }
+    },
+    {
+      $addFields: {
+        'posts.isUpvoted': {
+          $in: ['$posts._id', '$upvotedPosts.postId']
+        },
+        'posts.isDownvoted': {
+          $in: ['$posts._id', '$downvotedPosts.postId']
+        },
+        'posts.isSaved': {
+          $in: ['$posts._id', '$savedPosts.postId']
+        },
+        'posts.isHidden': {
+          $in: ['$posts._id', '$hiddenPosts.postId']
+        },
+        'posts.pollOptions.isVoted': {
+          $in: [username, '$posts.pollOptions.voters']
+        }
+      }
+    },
+    {
+      $sort: sort
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { post_id: '$posts._id', type: 'Comment' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$postID', '$$post_id'] },
+                  { $eq: ['$type', '$$type'] }
+                ]
+              }
+            }
+          },
+          {
+            $count: 'commentCount'
+          }
+        ],
+        as: 'commentCount'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'post.communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        postID: '$posts._id',
+        type: '$posts.type',
+        username: '$posts.username',
+        communityName: '$posts.communityName',
+        profilePicture: { $arrayElemAt: ['$community.banner', 0] },
+        netVote: '$posts.netVote',
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
+        isSpoiler: '$posts.isSpoiler',
+        isNSFW: '$posts.isNsfw',
+        isApproved: '$posts.isApproved',
+        isLocked: '$posts.isLocked',
+        isEdited: '$posts.isEdited',
+        title: '$posts.title',
+        content: '$posts.content',
+        pollOptions: {
+          $map: {
+            input: '$posts.pollOptions',
+            as: 'option',
+            in: {
+              text: '$$option.text',
+              votes: { $size: '$$option.voters' },
+              isVoted: {
+                $in: [username, '$$option.voters']
+              }
+            }
+          }
+        },
+        expirationDate: '$posts.expirationDate',
+        createdAt: '$posts.createdAt',
+        updatedAt: '$posts.updatedAt',
+        isUpvoted: '$posts.isUpvoted',
+        isDownvoted: '$posts.isDownvoted',
+        isSaved: '$posts.isSaved',
+        isHidden: '$posts.isHidden'
+      }
+    }
+  ])
+}
+
 UserSchema.methods.getUserComments = async function (options) {
   let { username, page, limit, sort, time } = options
 
