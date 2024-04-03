@@ -2,7 +2,7 @@ const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
 const crypto = require('crypto')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser, getPosts } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
@@ -2076,5 +2076,105 @@ describe('getHiddenPosts', () => {
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: 'Error getting hidden posts' })
+  })
+})
+
+describe('getPosts', () => {
+  // Retrieve user posts with valid username and default pagination and sorting parameters
+  it('should retrieve user posts with valid username and default pagination and sorting parameters', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      },
+      query: {}
+    }
+
+    const user = {
+      getUserPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  // Return 400 error when username is not provided
+  it('should return 400 error when username is not provided', async () => {
+    const req = {
+      params: {},
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user posts: Username is required' })
+  })
+
+  // Retrieve user posts with valid username and custom pagination and sorting parameters
+  it('should retrieve user posts with valid username and custom pagination and sorting parameters', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      },
+      query: {
+        page: 2,
+        limit: 5,
+        sort: 'new',
+        time: 'week'
+      }
+    }
+
+    const user = {
+      getUserPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getPosts(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'john_doe' })
+    expect(user.getUserPosts).toHaveBeenCalledWith(expect.objectContaining({ username: 'john_doe', page: 2, limit: 5, sort: 'new' }))
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  // Return 404 error when user is not found or is deleted
+  it('should return a 404 error when the user is not found or is deleted', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 })
