@@ -5,6 +5,7 @@ const mongoose = require('mongoose')
 const cloudinary = require('../utils/Cloudinary')
 const PostUtils = require('../utils/Post')
 const HistoryModel = require('../models/History')
+const ObjectId = require('mongoose').Types.ObjectId
 
 const createPost = async (req, res) => {
   const post = req.body
@@ -253,15 +254,92 @@ const getSortingMethod = (sort) => {
 const getPost = async (req, res) => {
   try {
     const postId = req.params.postId
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
 
-    if (!postId) {
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({
-        message: 'Post ID is required'
+        message: 'Post ID is wrong'
       })
     }
 
-    let post = await Post.findOne({ _id: postId, isDeleted: false })
+    let post = await Post.getPost(new ObjectId(postId))
+    post = post[0]
+
+    if (!post) {
+      return res.status(404).json({
+        message: 'Post does not exist'
+      })
+    }
+
+    await Post.findOneAndUpdate(
+      { _id: postId, isDeleted: false, isRemoved: false },
+      { $inc: { views: 1 } }
+    )
+
+    const decoded = req.decoded
+    let user = null
+
+    // User may be a guest
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+
+      post.isUpvoted = user.upvotedPosts.includes(postId)
+      post.isDownvoted = user.downvotedPosts.includes(postId)
+      post.isSaved = user.savedPosts.includes(postId)
+      post.isHidden = user.hiddenPosts.includes(postId)
+
+      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
+
+      if (!history) {
+        await HistoryModel.create({
+          owner: user.username,
+          post: postId
+        })
+      } else {
+        history.createdAt = new Date()
+        await history.save()
+      }
+    }
+
+    if (post.type !== 'Poll') {
+      delete post.pollOptions
+      delete post.expirationDate
+    } else {
+      post.pollOptions.forEach(option => {
+        option.votes = option.voters.length
+        option.isVoted = user ? option.voters.includes(user.username) : false
+        delete option.voters
+        delete option._id
+      })
+    }
+
+    return res.status(200).json(post)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting post'
+    })
+  }
+}
+
+const getComments = async (req, res) => {
+  try {
+    const postId = req.params.postId
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({
+        message: 'Post ID is wrong'
+      })
+    }
+
+    const post = await Post.findOne({ _id: new ObjectId(postId), isDeleted: false })
 
     if (!post) {
       return res.status(404).json({
@@ -277,63 +355,45 @@ const getPost = async (req, res) => {
       })
     }
 
-    post.views += 1
-    await post.save()
-
     const communitySuggestedSort = community.suggestedSort
     const sort = getSortingMethod(communitySuggestedSort)
 
     const options = { sort }
     options.random = false
+    options.page = page
     options.limit = limit
     if (communitySuggestedSort === 'best') {
       options.random = true
     }
 
-    let comments = await post.getComments(options)
-    const commentCount = await post.getCommentCount()
-    const userProfilePicture = await post.getUserProfilePicture()
-    comments = comments[0].comments
-
-    post = post.toObject()
+    const comments = await Post.getComments(new ObjectId(postId), options)
 
     const decoded = req.decoded
+    let user = null
 
-    // User may be a guest
     if (decoded) {
-      const user = await User.findOne({ username: decoded.username, isDeleted: false })
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
 
       if (!user) {
         return res.status(404).json({
           message: 'User does not exist'
         })
       }
+    }
 
-      post.isUpvoted = user.upvotedPosts.includes(postId)
-      post.isDownvoted = user.downvotedPosts.includes(postId)
-      post.isSaved = user.savedPosts.includes(postId)
-      post.isHidden = user.hiddenPosts.includes(postId)
-
-      comments.forEach((comment) => {
+    comments.forEach((comment) => {
+      if (user) {
         comment.isUpvoted = user.upvotedComments.includes(comment._id)
         comment.isDownvoted = user.downvotedComments.includes(comment._id)
         comment.isSaved = user.savedComments.includes(comment._id)
-      })
+      }
+    })
 
-      await HistoryModel.create({
-        owner: user.username,
-        post: post._id
-      })
-    }
-
-    post.comments = comments
-    post.commentCount = commentCount[0].commentCount
-    post.profilePicture = userProfilePicture[0].profilePicture[0]
-
-    return res.status(200).json(post)
+    return res.status(200).json(comments)
   } catch (error) {
+    console.log(error)
     return res.status(500).json({
-      message: 'An error occurred while getting post'
+      message: 'An error occurred while getting comments of post'
     })
   }
 }
@@ -345,5 +405,6 @@ module.exports = {
   editPost,
   savePost,
   hidePost,
-  lockPost
+  lockPost,
+  getComments
 }

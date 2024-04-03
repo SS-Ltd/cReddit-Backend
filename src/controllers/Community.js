@@ -214,40 +214,42 @@ const getSortedCommunityPosts = async (req, res) => {
 
     const sortMethod = getSortingMethod(sort, time)
 
-    let posts = await PostModel.find({
-      communityName: subreddit,
-      isDeleted: false,
-      isRemoved: false,
-      createdAt: filterWithTime(time)
-    })
-      .select('-__v -followers')
-      .sort(sortMethod)
-      .skip(page * limit)
-      .limit(limit)
+    time = filterWithTime(time)
 
-    if (posts.length === 0) {
-      if (posts.length === 0) {
-        return res.status(404).json({
-          message: 'No posts found for the community'
-        })
-      }
+    const options = {
+      page: page,
+      limit,
+      sortMethod,
+      time
     }
 
-    const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
-    const userProfilePictures = await Promise.all(posts.map(post => post.getUserProfilePicture()))
+    const posts = await PostModel.byCommunity(subreddit, options)
 
-    posts = posts.map(post => post.toObject())
-    let count = 0
+    if (posts.length === 0) {
+      return res.status(404).json({
+        message: 'No posts found for the community'
+      })
+    }
+
     posts.forEach(post => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
+
       if (user) {
         post.isUpvoted = user.upvotedPosts.includes(post._id)
         post.isDownvoted = user.downvotedPosts.includes(post._id)
         post.isSaved = user.savedPosts.includes(post._id)
         post.isHidden = user.hiddenPosts.includes(post._id)
       }
-      post.commentCount = commentCounts[count][0].commentCount
-      post.profilePicture = userProfilePictures[count][0].profilePicture[0]
-      count++
     })
 
     return res.status(200).json(posts)
