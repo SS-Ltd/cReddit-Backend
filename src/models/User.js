@@ -487,7 +487,7 @@ UserSchema.methods.getPosts = async function (options) {
               text: '$$option.text',
               votes: { $size: '$$option.voters' },
               isVoted: {
-                $in: ['Camryn50', '$$option.voters']
+                $in: [username, '$$option.voters']
               }
             }
           }
