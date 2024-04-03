@@ -421,7 +421,7 @@ UserSchema.methods.getPosts = async function (options) {
           $in: ['$post._id', '$hiddenPostsArray.postId']
         },
         'post.pollOptions.isVoted': {
-          $in: ['Camryn50', '$post.pollOptions.voters']
+          $in: [username, '$post.pollOptions.voters']
         }
 
       }

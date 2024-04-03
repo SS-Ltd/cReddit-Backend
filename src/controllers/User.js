@@ -629,7 +629,7 @@ const getSaved = async (req, res) => {
       username: username,
       unwind: '$savedPosts',
       localField: '$savedPosts.postId',
-      searchType: 'All', // values can be 'All', 'Post', 'Comment'
+      searchType: req.searchType || 'All', // values can be 'All', 'Post', 'Comment'
       savedAt: '$savedPosts.savedAt',
       page: page,
       limit: limit
