@@ -9,6 +9,7 @@ router.route('/:postId').delete(verifyToken, post.deletePost).patch(verifyToken,
 router.route('/:postId/save').patch(verifyToken, post.savePost)
 router.route('/:postId/hidden').patch(verifyToken, post.hidePost)
 router.route('/:postId/lock').patch(verifyToken, post.lockPost)
+router.route('/:postId/comments').get(isLoggedIn, post.getComments)
 
 router.route('/:postId').get(isLoggedIn, post.getPost)
 
