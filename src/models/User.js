@@ -409,7 +409,7 @@ UserSchema.methods.getPosts = async function (options) {
         savedAt: savedAt
       }
     },
-    {
+{
       $addFields: {
         'post.isUpvoted': {
           $in: ['$post._id', '$upvotedPostsArray.postId']
@@ -595,25 +595,6 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
-      $addFields: {
-        'posts.isUpvoted': {
-          $in: ['$posts._id', '$upvotedPosts.postId']
-        },
-        'posts.isDownvoted': {
-          $in: ['$posts._id', '$downvotedPosts.postId']
-        },
-        'posts.isSaved': {
-          $in: ['$posts._id', '$savedPosts.postId']
-        },
-        'posts.isHidden': {
-          $in: ['$posts._id', '$hiddenPosts.postId']
-        },
-        'posts.pollOptions.isVoted': {
-          $in: [username, '$posts.pollOptions.voters']
-        }
-      }
-    },
-    {
       $sort: sort
     },
     {
@@ -668,26 +649,10 @@ UserSchema.methods.getUserPosts = async function (options) {
         isEdited: '$posts.isEdited',
         title: '$posts.title',
         content: '$posts.content',
-        pollOptions: {
-          $map: {
-            input: '$posts.pollOptions',
-            as: 'option',
-            in: {
-              text: '$$option.text',
-              votes: { $size: '$$option.voters' },
-              isVoted: {
-                $in: [username, '$$option.voters']
-              }
-            }
-          }
-        },
+        pollOptions: '$posts.pollOptions',
         expirationDate: '$posts.expirationDate',
         createdAt: '$posts.createdAt',
-        updatedAt: '$posts.updatedAt',
-        isUpvoted: '$posts.isUpvoted',
-        isDownvoted: '$posts.isDownvoted',
-        isSaved: '$posts.isSaved',
-        isHidden: '$posts.isHidden'
+        updatedAt: '$posts.updatedAt'
       }
     }
   ])
@@ -737,22 +702,6 @@ UserSchema.methods.getUserComments = async function (options) {
       }
     },
     {
-      $addFields: {
-        'posts.isUpvoted': {
-          $in: ['$posts._id', '$upvotedPosts.postId']
-        },
-        'posts.isDownvoted': {
-          $in: ['$posts._id', '$downvotedPosts.postId']
-        },
-        'posts.isSaved': {
-          $in: ['$posts._id', '$savedPosts.postId']
-        },
-        'posts.isHidden': {
-          $in: ['$posts._id', '$hiddenPosts.postId']
-        }
-      }
-    },
-    {
       $sort: sort
     },
     {
@@ -786,9 +735,6 @@ UserSchema.methods.getUserComments = async function (options) {
         content: '$posts.content',
         createdAt: '$posts.createdAt',
         updatedAt: '$posts.updatedAt',
-        isUpvoted: '$posts.isUpvoted',
-        isDownvoted: '$posts.isDownvoted',
-        isSaved: '$posts.isSaved',
         isLocked: '$posts.isLocked'
       }
     }
