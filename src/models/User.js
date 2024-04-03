@@ -427,7 +427,7 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
-      $sort: { 'savedPosts.savedAt': -1 }
+      $sort: { savedAt: -1 }
     },
     {
       $skip: (page - 1) * limit
