@@ -333,6 +333,20 @@ UserSchema.methods.getPosts = async function (options) {
             then: '$hiddenPosts',
             else: ['$hiddenPosts']
           }
+        },
+        upvotedPostsArray: {
+          $cond: {
+            if: { $eq: ['$isUpVotedPostsArray', true] },
+            then: '$upvotedPosts',
+            else: ['$upvotedPosts']
+          }
+        },
+        downvotedPostsArray: {
+          $cond: {
+            if: { $eq: ['$isDownVotedPostsArray', true] },
+            then: '$downvotedPosts',
+            else: ['$downvotedPosts']
+          }
         }
       }
     },
@@ -384,12 +398,32 @@ UserSchema.methods.getPosts = async function (options) {
     },
     {
       $project: {
-        upvotedPosts: 1,
-        downvotedPosts: 1,
+        upvotedPostsArray: 1,
+        downvotedPostsArray: 1,
         savedPostsArray: 1,
         hiddenPostsArray: 1,
         post: { $arrayElemAt: ['$post', 0] },
         savedAt: savedAt
+      }
+    },
+    {
+      $addFields: {
+        'post.isUpvoted': {
+          $in: ['$post._id', '$upvotedPostsArray.postId']
+        },
+        'post.isDownvoted': {
+          $in: ['$post._id', '$downvotedPostsArray.postId']
+        },
+        'post.isSaved': {
+          $in: ['$post._id', '$savedPostsArray.postId']
+        },
+        'post.isHidden': {
+          $in: ['$post._id', '$hiddenPostsArray.postId']
+        },
+        'post.pollOptions.isVoted': {
+          $in: ['Camryn50', '$post.pollOptions.voters']
+        }
+
       }
     },
     {
@@ -445,10 +479,23 @@ UserSchema.methods.getPosts = async function (options) {
         isNSFW: '$post.isNSFW',
         isApproved: '$post.isApproved',
         content: '$post.content',
-        isUpvoted: { $in: ['$post._id', '$upvotedPosts.postId'] },
-        isDownvoted: { $in: ['$post._id', '$downvotedPosts.postId'] },
-        isHidden: { $in: ['$post._id', '$hiddenPostsArray.postId'] },
-        isSaved: { $in: ['$post._id', '$savedPostsArray.postId'] },
+        pollOptions: {
+          $map: {
+            input: '$post.pollOptions',
+            as: 'option',
+            in: {
+              text: '$$option.text',
+              votes: { $size: '$$option.voters' },
+              isVoted: {
+                $in: ['Camryn50', '$$option.voters']
+              }
+            }
+          }
+        },
+        isUpvoted: '$post.isUpvoted',
+        isDownvoted: '$post.isDownvoted',
+        isHidden: '$post.isHidden',
+        isSaved: '$post.isSaved',
         commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
       }
     }
