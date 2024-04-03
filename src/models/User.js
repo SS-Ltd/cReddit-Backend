@@ -310,11 +310,48 @@ UserSchema.methods.createResetPasswordToken = async function () {
 // limit: The limit of posts per page -> ex. 10 "for PAGANATION"
 // NOTE: be aware for the '$' sign in the examles above
 UserSchema.methods.getPosts = async function (options) {
-  const { username, unwind, localField, savedAt, page, limit } = options
-
+  const { username, unwind, localField, searchType, savedAt, page, limit } = options
   return await this.model('User').aggregate([
     {
       $match: { username: username }
+    },
+    {
+      $addFields: {
+        isSavedPostsArray: { $isArray: '$savedPosts' },
+        isHiddenPostsArray: { $isArray: '$hiddenPosts' }
+      }
+    },
+    {
+      $addFields: {
+        savedPostsArray: {
+          $cond: {
+            if: { $eq: ['$isSavedPostsArray', true] },
+            then: '$savedPosts',
+            else: ['$savedPosts']
+          }
+        },
+        hiddenPostsArray: {
+          $cond: {
+            if: { $eq: ['$isHiddenPostsArray', true] },
+            then: '$hiddenPosts',
+            else: ['$hiddenPosts']
+          }
+        },
+        upvotedPostsArray: {
+          $cond: {
+            if: { $eq: ['$isUpVotedPostsArray', true] },
+            then: '$upvotedPosts',
+            else: ['$upvotedPosts']
+          }
+        },
+        downvotedPostsArray: {
+          $cond: {
+            if: { $eq: ['$isDownVotedPostsArray', true] },
+            then: '$downvotedPosts',
+            else: ['$downvotedPosts']
+          }
+        }
+      }
     },
     {
       $unwind: unwind
@@ -322,45 +359,147 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $lookup: {
         from: 'posts',
-        localField: localField,
-        foreignField: '_id',
+        let: { postId: localField, searchType: searchType },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$_id', '$$postId'] },
+                  { $ne: ['$isDeleted', true] },
+                  { $ne: ['$isRemoved', true] }
+                ]
+              }
+            }
+          },
+          {
+            $addFields: {
+              typeMatched: {
+                $cond: {
+                  if: { $eq: ['$$searchType', 'All'] },
+                  then: true,
+                  else: {
+                    $cond: {
+                      if: { $eq: ['$$searchType', 'Comment'] },
+                      then: { $eq: ['$type', 'Comment'] },
+                      else: { $ne: ['$type', 'Comment'] }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            $match: { typeMatched: true }
+          }
+        ],
         as: 'post'
       }
     },
     {
-      $match: {
-        'post.isDeleted': false,
-        'post.isRemoved': false
+      $match: { post: { $ne: [] } } // Filter out documents with empty 'post' array
+    },
+    {
+      $project: {
+        upvotedPostsArray: 1,
+        downvotedPostsArray: 1,
+        savedPostsArray: 1,
+        hiddenPostsArray: 1,
+        post: { $arrayElemAt: ['$post', 0] },
+        savedAt: savedAt
+      }
+    },
+    {
+      $addFields: {
+        'post.isUpvoted': {
+          $in: ['$post._id', '$upvotedPostsArray.postId']
+        },
+        'post.isDownvoted': {
+          $in: ['$post._id', '$downvotedPostsArray.postId']
+        },
+        'post.isSaved': {
+          $in: ['$post._id', '$savedPostsArray.postId']
+        },
+        'post.isHidden': {
+          $in: ['$post._id', '$hiddenPostsArray.postId']
+        },
+        'post.pollOptions.isVoted': {
+          $in: [username, '$post.pollOptions.voters']
+        }
+
+      }
+    },
+    {
+      $sort: { 'savedPosts.savedAt': -1 }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { post_id: '$post._id', type: 'Comment' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$postID', '$$post_id'] },
+                  { $eq: ['$type', '$$type'] }
+                ]
+              }
+            }
+          },
+          {
+            $count: 'commentCount'
+          }
+        ],
+        as: 'commentCount'
       }
     },
     {
       $lookup: {
-        from: 'comments',
-        localField: 'post._id',
-        foreignField: 'postID',
-        as: 'comments'
-      }
-    },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'post.username',
-        foreignField: 'username',
-        as: 'user'
+        from: 'communities',
+        localField: 'post.communityName',
+        foreignField: 'name',
+        as: 'community'
       }
     },
     {
       $project: {
-        post: {
-          $arrayElemAt: ['$post', 0]
+        _id: 1,
+        postID: '$post.postID',
+        type: '$post.type',
+        username: '$post.username',
+        communityName: '$post.communityName',
+        communityPic: { $arrayElemAt: ['$community.icon', 0] },
+        title: '$post.title',
+        netVote: '$post.netVote',
+        isSpoiler: '$post.isSpoiler',
+        isNSFW: '$post.isNSFW',
+        isApproved: '$post.isApproved',
+        content: '$post.content',
+        pollOptions: {
+          $map: {
+            input: '$post.pollOptions',
+            as: 'option',
+            in: {
+              text: '$$option.text',
+              votes: { $size: '$$option.voters' },
+              isVoted: {
+                $in: ['Camryn50', '$$option.voters']
+              }
+            }
+          }
         },
-        commentCount: {
-          $size: '$comments'
-        },
-        userPic: {
-          $arrayElemAt: ['$user.profilePicture', 0]
-        },
-        savedAt: savedAt
+        isUpvoted: '$post.isUpvoted',
+        isDownvoted: '$post.isDownvoted',
+        isHidden: '$post.isHidden',
+        isSaved: '$post.isSaved',
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
       }
     }
   ])
@@ -508,19 +647,18 @@ UserSchema.methods.getUserPosts = async function (options) {
     {
       $lookup: {
         from: 'communities',
-        localField: 'post.communityName',
+        localField: 'posts.communityName',
         foreignField: 'name',
         as: 'community'
       }
     },
     {
       $project: {
-        _id: 0,
-        postID: '$posts._id',
+        _id: 1,
         type: '$posts.type',
         username: '$posts.username',
         communityName: '$posts.communityName',
-        profilePicture: { $arrayElemAt: ['$community.banner', 0] },
+        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
         netVote: '$posts.netVote',
         commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$posts.isSpoiler',
@@ -626,20 +764,20 @@ UserSchema.methods.getUserComments = async function (options) {
     {
       $lookup: {
         from: 'communities',
-        localField: 'post.communityName',
+        localField: 'posts.communityName',
         foreignField: 'name',
         as: 'community'
       }
     },
     {
       $project: {
-        _id: 0,
+        _id: 1,
         postID: '$posts.postID',
         type: '$posts.type',
         isImage: '$posts.isImage',
         username: '$posts.username',
         communityName: '$posts.communityName',
-        profilePicture: { $arrayElemAt: ['$community.banner', 0] },
+        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
         netVote: '$posts.netVote',
         isSpoiler: '$posts.isSpoiler',
         isNSFW: '$posts.isNSFW',
@@ -651,7 +789,7 @@ UserSchema.methods.getUserComments = async function (options) {
         isUpvoted: '$posts.isUpvoted',
         isDownvoted: '$posts.isDownvoted',
         isSaved: '$posts.isSaved',
-        isHidden: '$posts.isHidden'
+        isLocked: '$posts.isLocked'
       }
     }
   ])
