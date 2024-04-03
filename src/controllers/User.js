@@ -628,7 +628,8 @@ const getSaved = async (req, res) => {
     const options = {
       username: username,
       unwind: '$savedPosts',
-      localField: 'savedPosts.postId',
+      localField: '$savedPosts.postId',
+      searchType: 'All', // values can be 'All', 'Post', 'Comment'
       savedAt: '$savedPosts.savedAt',
       page: page,
       limit: limit
@@ -660,7 +661,8 @@ const getHiddenPosts = async (req, res) => {
     const options = {
       username: username,
       unwind: '$hiddenPosts',
-      localField: 'hiddenPosts.postId',
+      localField: '$hiddenPosts.postId',
+      searchType: 'Post', // values can be 'All', 'Post', 'Comment'
       savedAt: '$hiddenPosts.savedAt',
       page: page,
       limit: limit
