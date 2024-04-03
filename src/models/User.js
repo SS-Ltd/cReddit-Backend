@@ -51,6 +51,9 @@ const UserSchema = new Schema({
     },
     socialLinks: [
       {
+        displayName: {
+          type: String
+        },
         platform: {
           type: String
         },
@@ -326,7 +329,8 @@ UserSchema.methods.getPosts = async function (options) {
     },
     {
       $match: {
-        'post.isDeleted': false
+        'post.isDeleted': false,
+        'post.isRemoved': false
       }
     },
     {
@@ -403,6 +407,108 @@ UserSchema.methods.getSavedComments = async function (options) {
           $arrayElemAt: ['$user.profilePicture', 0]
         },
         savedAt: '$savedComments.savedAt'
+      }
+    }
+  ])
+}
+
+UserSchema.methods.getUserComments = async function (options) {
+  let { username, page, limit, sort, time } = options
+
+  switch (sort) {
+    case 'new':
+      sort = { 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    case 'top':
+      sort = { 'posts.netVote': -1, 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    case 'hot':
+      sort = { 'posts.views': -1, 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    default:
+      sort = { 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+  }
+
+  return await this.model('User').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'posts'
+      }
+    },
+    {
+      $unwind: {
+        path: '$posts'
+      }
+    },
+    {
+      $match: {
+        'posts.isDeleted': false,
+        'posts.isRemoved': false,
+        'posts.type': 'Comment',
+        'posts.createdAt': time
+      }
+    },
+    {
+      $addFields: {
+        'posts.isUpvoted': {
+          $in: ['$posts._id', '$upvotedPosts.postId']
+        },
+        'posts.isDownvoted': {
+          $in: ['$posts._id', '$downvotedPosts.postId']
+        },
+        'posts.isSaved': {
+          $in: ['$posts._id', '$savedPosts.postId']
+        },
+        'posts.isHidden': {
+          $in: ['$posts._id', '$hiddenPosts.postId']
+        }
+      }
+    },
+    {
+      $sort: sort
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'post.communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        postID: '$posts.postID',
+        type: '$posts.type',
+        isImage: '$posts.isImage',
+        username: '$posts.username',
+        communityName: '$posts.communityName',
+        profilePicture: { $arrayElemAt: ['$community.banner', 0] },
+        netVote: '$posts.netVote',
+        isSpoiler: '$posts.isSpoiler',
+        isNSFW: '$posts.isNSFW',
+        isApproved: '$posts.isApproved',
+        title: '$posts.title',
+        content: '$posts.content',
+        createdAt: '$posts.createdAt',
+        updatedAt: '$posts.updatedAt',
+        isUpvoted: '$posts.isUpvoted',
+        isDownvoted: '$posts.isDownvoted',
+        isSaved: '$posts.isSaved',
+        isHidden: '$posts.isHidden'
       }
     }
   ])

@@ -711,7 +711,7 @@ const getSortingMethod = (sort, time) => {
   }
 }
 
-const getPosts = async (req, res) => {
+const getComments = async (req, res) => {
   try {
     const username = req.params.username
     if (!username) {
@@ -722,32 +722,16 @@ const getPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
+    const page = req.query.page ? parseInt(req.query.page) : 1
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
-    const time = filterWithTime(req.query.time || 'all')
+    const sort = req.query.sort
+    const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
-    let posts = await PostModel.find({ username: username, isDeleted: false, createdAt: time }).select('-__v -followers')
-      .sort(sort)
-      .skip(page * limit)
-      .limit(limit)
+    const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time })
 
-    const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
-
-    posts = posts.map(post => post.toObject())
-    let count = 0
-    posts.forEach(post => {
-      post.isUpvoted = user.upvotedPosts.includes(post._id)
-      post.isDownvoted = user.downvotedPosts.includes(post._id)
-      post.isSaved = user.savedPosts.includes(post._id)
-      post.isHidden = user.hiddenPosts.includes(post._id)
-      post.commentCount = commentCounts[count][0].commentCount
-      count++
-    })
-
-    res.status(200).json(posts)
+    res.status(200).json(comments)
   } catch (error) {
-    res.status(400).json({ message: 'Error getting user posts: ' + error.message })
+    res.status(400).json({ message: 'Error getting user comments: ' + error.message })
   }
 }
 
@@ -835,6 +819,7 @@ module.exports = {
   getSaved,
   getHiddenPosts,
   getPosts,
+  getComments,
   getUpvotedPosts,
   getDownvotedPosts
 }
