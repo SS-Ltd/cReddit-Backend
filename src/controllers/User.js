@@ -16,7 +16,7 @@ const getUser = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized, user must be logged in' })
     }
 
-    const user = await UserModel.findOne(username)
+    const user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
     }
