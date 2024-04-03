@@ -1,5 +1,5 @@
 const USERS = 10
-const POSTS = 100
+const POSTS = 1000
 const COMMENTS = 1000
 const COMMUNITIES = 10
 const HISTORY = 50
