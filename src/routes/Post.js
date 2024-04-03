@@ -5,6 +5,7 @@ const router = express.Router()
 const { isLoggedIn, verifyToken } = require('../middlewares/Verify')
 
 router.route('/').post(verifyToken, multer.uploadMultipleImages, post.createPost)
+router.route('/home-feed').get(isLoggedIn, post.getHomeFeed)
 router.route('/:postId/save').patch(verifyToken, post.savePost)
 router.route('/:postId/hidden').patch(verifyToken, post.hidePost)
 router.route('/:postId/lock').patch(verifyToken, post.lockPost)

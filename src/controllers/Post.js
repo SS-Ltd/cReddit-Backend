@@ -244,10 +244,33 @@ const getSortingMethod = (sort) => {
       return { createdAt: -1, _id: -1 }
     case 'top':
       return { netVote: -1, createdAt: -1, _id: -1 }
+    case 'hot':
+      return { views: -1, createdAt: -1, _id: -1 }
+    case 'rising':
+      return { mostRecentUpvote: -1, _id: -1 }
     case 'old':
       return { createdAt: 1, _id: 1 }
     default:
       return { createdAt: -1, _id: -1 }
+  }
+}
+
+const filterWithTime = (time) => {
+  switch (time) {
+    case 'now':
+      return { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+    case 'today':
+      return { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    case 'week':
+      return { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    case 'month':
+      return { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+    case 'year':
+      return { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+    case 'all':
+      return { $gte: new Date(0) }
+    default:
+      return { $gte: new Date(0) }
   }
 }
 
@@ -398,6 +421,92 @@ const getComments = async (req, res) => {
   }
 }
 
+const getHomeFeed = async (req, res) => {
+  try {
+    const decoded = req.decoded
+    let user = null
+
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    let sort = req.query.sort ? req.query.sort : 'best'
+    let time = req.query.time ? req.query.time : 'all'
+
+    if (sort !== 'top') {
+      time = 'all'
+    }
+
+    if (!user) {
+      sort = 'best'
+    }
+
+    const sortMethod = getSortingMethod(sort)
+
+    time = filterWithTime(time)
+
+    let posts = []
+
+    const options = { sortMethod }
+    options.random = false
+    options.page = page
+    options.limit = limit
+    options.time = time
+
+    const communities = (!user || user.communities.length === 0) ? null : user.communities
+    const bannedInCommunities = (!user || user.bannedInCommunities.length === 0) ? null : user.bannedInCommunities
+    const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
+
+    if (sort === 'best' || !user) {
+      posts = await Post.getRandomHomeFeed(options, bannedInCommunities, mutedCommunities)
+    } else {
+      posts = await Post.getSortedHomeFeed(options, communities, bannedInCommunities, mutedCommunities)
+    }
+
+    if (posts.length === 0) {
+      return res.status(404).json({
+        message: 'No posts found for the home feed'
+      })
+    }
+
+    posts.forEach(post => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
+
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = user ? user.communities.includes(post.communityName) : false
+      post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
+    })
+
+    return res.status(200).json(posts)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting home feed'
+    })
+  }
+}
+
 module.exports = {
   getPost,
   createPost,
@@ -406,5 +515,6 @@ module.exports = {
   savePost,
   hidePost,
   lockPost,
-  getComments
+  getComments,
+  getHomeFeed
 }

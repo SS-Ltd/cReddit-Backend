@@ -212,7 +212,7 @@ const getSortedCommunityPosts = async (req, res) => {
       time = 'all'
     }
 
-    const sortMethod = getSortingMethod(sort, time)
+    const sortMethod = getSortingMethod(sort)
 
     time = filterWithTime(time)
 
