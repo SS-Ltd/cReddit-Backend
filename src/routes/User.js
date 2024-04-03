@@ -27,6 +27,7 @@ router.route('/hidden-posts').get(verifyToken, user.getHiddenPosts)
 
 router.route('/settings').put(verifyToken, user.updateSettings).get(verifyToken, user.getSettings)
 router.route('/:username/posts').get(user.getPosts)
+router.route('/:username/comments').get(user.getComments)
 router.route('/upvoted').get(verifyToken, user.getUpvotedPosts)
 router.route('/downvoted').get(verifyToken, user.getDownvotedPosts)
 

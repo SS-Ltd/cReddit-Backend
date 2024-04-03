@@ -2,7 +2,6 @@ const bcrypt = require('bcrypt')
 const crypto = require('crypto')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
-const PostModel = require('../models/Post')
 const { sendEmail, sendVerificationEmail } = require('../utils/Email')
 const { faker } = require('@faker-js/faker')
 const dotenv = require('dotenv')
@@ -722,32 +721,40 @@ const getPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
+    const page = req.query.page ? parseInt(req.query.page) : 1
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
-    const time = filterWithTime(req.query.time || 'all')
+    const sort = req.query.sort
+    const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
-    let posts = await PostModel.find({ username: username, isDeleted: false, createdAt: time }).select('-__v -followers')
-      .sort(sort)
-      .skip(page * limit)
-      .limit(limit)
-
-    const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
-
-    posts = posts.map(post => post.toObject())
-    let count = 0
-    posts.forEach(post => {
-      post.isUpvoted = user.upvotedPosts.includes(post._id)
-      post.isDownvoted = user.downvotedPosts.includes(post._id)
-      post.isSaved = user.savedPosts.includes(post._id)
-      post.isHidden = user.hiddenPosts.includes(post._id)
-      post.commentCount = commentCounts[count][0].commentCount
-      count++
-    })
+    const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time })
 
     res.status(200).json(posts)
   } catch (error) {
     res.status(400).json({ message: 'Error getting user posts: ' + error.message })
+  }
+}
+
+const getComments = async (req, res) => {
+  try {
+    const username = req.params.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 1
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = req.query.sort
+    const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
+
+    const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time })
+
+    res.status(200).json(comments)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user comments: ' + error.message })
   }
 }
 
@@ -763,18 +770,21 @@ const getUpvotedPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const sort = getSortingMethod(req.query.sort)
+
     const options = {
       username: username,
       unwind: '$upvotedPosts',
-      localField: 'upvotedPosts.postId',
-      savedAt: '$upvotedPosts.savedAt'
+      localField: '$upvotedPosts.postId',
+      savedAt: '$upvotedPosts.savedAt',
+      page: page,
+      limit: limit,
+      sort: sort,
+      searchType: 'Post'
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
-
-    // TODO: fix sorting and pagination
     const result = await user.getPosts(options)
 
     res.status(200).json(result)
@@ -795,21 +805,23 @@ const getDownvotedPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const sort = getSortingMethod(req.query.sort)
+
     const options = {
       username: username,
       unwind: '$downvotedPosts',
-      localField: 'downvotedPosts.postId',
-      savedAt: '$downvotedPosts.savedAt'
+      localField: '$downvotedPosts.postId',
+      savedAt: '$downvotedPosts.savedAt',
+      page: page,
+      limit: limit,
+      sort: sort,
+      searchType: 'Post'
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
+    const result = await user.getPosts(options)
 
-    const result = await user.getPosts(options).select('-__v -followers')
-      .sort(sort)
-      .skip(page * limit)
-      .limit(limit)
     res.status(200).json(result)
   } catch (error) {
     res.status(400).json({ message: 'Error getting downvoted posts' })
@@ -835,6 +847,7 @@ module.exports = {
   getSaved,
   getHiddenPosts,
   getPosts,
+  getComments,
   getUpvotedPosts,
   getDownvotedPosts
 }
