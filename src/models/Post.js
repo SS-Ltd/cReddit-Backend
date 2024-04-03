@@ -8,9 +8,12 @@ const PostSchema = new Schema({
     enum: ['Post', 'Images & Video', 'Link', 'Poll', 'Comment']
   },
   child: {
-    type: String,
-    ref: 'Post',
-    refPath: 'type'
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post'
+  },
+  postID: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post'
   },
   username: {
     type: String,
@@ -24,8 +27,7 @@ const PostSchema = new Schema({
     refPath: 'name'
   },
   title: {
-    type: String,
-    required: true
+    type: String
   },
   content: {
     type: String
@@ -116,28 +118,6 @@ const PostSchema = new Schema({
     type: Date
   }
 }, { timestamps: true })
-
-PostSchema.methods.getCommentCount = async function () {
-  const postId = this._id
-  return await this.model('Post').aggregate([
-    {
-      $match: { _id: postId }
-    },
-    {
-      $lookup: {
-        from: 'comments',
-        localField: '_id',
-        foreignField: 'postID',
-        as: 'comments'
-      }
-    },
-    {
-      $project: {
-        commentCount: { $size: '$comments' }
-      }
-    }
-  ])
-}
 
 PostSchema.methods.getUserProfilePicture = async function () {
   const username = this.username
