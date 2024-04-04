@@ -800,7 +800,7 @@ const getComments = async (req, res) => {
     const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time })
 
     if (comments.length === 0) {
-      return res.status(404).json({ message: 'No comments found' })
+      return res.status(404).json({ message: 'No posts found' })
     }
 
     comments.forEach((post) => {
@@ -846,6 +846,10 @@ const getUpvotedPosts = async (req, res) => {
 
     const result = await user.getPosts(options)
 
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'No posts found' })
+    }
+
     result.forEach((post) => {
       post.isJoined = user.communities.includes(post.communityName)
       post.isModerator = user.moderatorInCommunities.includes(post.communityName)
@@ -885,6 +889,10 @@ const getDownvotedPosts = async (req, res) => {
     }
 
     const result = await user.getPosts(options)
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'No posts found' })
+    }
 
     result.forEach((post) => {
       post.isJoined = user.communities.includes(post.communityName)
