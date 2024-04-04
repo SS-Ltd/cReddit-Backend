@@ -46,7 +46,7 @@ const createPost = async (req, res) => {
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
       expirationDate: post.expirationDate || null,
       isSpoiler: post.isSpoiler || false,
-      isNSFW: post.isNSFW || false
+      isNsfw: post.isNSFW || false
     })
 
     await createdPost.save()
