@@ -26,6 +26,8 @@ router.route('/saved').get(verifyToken, user.getSaved)
 router.route('/saved-posts').get(verifyToken, (req, res, next) => { req.searchType = 'Post'; next() }, user.getSaved)
 router.route('/saved-comments').get(verifyToken, (req, res, next) => { req.searchType = 'Comment'; next() }, user.getSaved)
 router.route('/hidden-posts').get(verifyToken, user.getHiddenPosts)
+router.route('/history').get(verifyToken, user.getHistory).delete(verifyToken, user.clearHistory)
+router.route('/joined-communities').get(verifyToken, user.getJoinedCommunities)
 
 router.route('/settings').put(verifyToken, user.updateSettings).get(verifyToken, user.getSettings)
 router.route('/:username/posts').get(isLoggedIn, user.getPosts)
