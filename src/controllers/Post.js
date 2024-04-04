@@ -311,11 +311,6 @@ const getPost = async (req, res) => {
         })
       }
 
-      post.isUpvoted = user.upvotedPosts.includes(postId)
-      post.isDownvoted = user.downvotedPosts.includes(postId)
-      post.isSaved = user.savedPosts.includes(postId)
-      post.isHidden = user.hiddenPosts.includes(postId)
-
       const history = await HistoryModel.findOne({ owner: user.username, post: postId })
 
       if (!history) {
@@ -324,10 +319,21 @@ const getPost = async (req, res) => {
           post: postId
         })
       } else {
-        history.createdAt = new Date()
+        console.log(history)
+        history.updatedAt = new Date()
         await history.save()
       }
     }
+
+    post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    post.isJoined = user ? user.communities.includes(post.communityName) : false
+    post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
+
+    post.isNSFW = post.isNsfw
+    delete post.isNsfw
 
     if (post.type !== 'Poll') {
       delete post.pollOptions
@@ -378,14 +384,14 @@ const getComments = async (req, res) => {
       })
     }
 
-    const communitySuggestedSort = community.suggestedSort
-    const sort = getSortingMethod(communitySuggestedSort)
+    const sortChoice = req.query.sort ? req.query.sort : community.suggestedSort
+    const sort = getSortingMethod(sortChoice)
 
     const options = { sort }
     options.random = false
     options.page = page
     options.limit = limit
-    if (communitySuggestedSort === 'best') {
+    if (sortChoice === 'best') {
       options.random = true
     }
 
@@ -405,11 +411,9 @@ const getComments = async (req, res) => {
     }
 
     comments.forEach((comment) => {
-      if (user) {
-        comment.isUpvoted = user.upvotedComments.includes(comment._id)
-        comment.isDownvoted = user.downvotedComments.includes(comment._id)
-        comment.isSaved = user.savedComments.includes(comment._id)
-      }
+      comment.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+      comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+      comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
     })
 
     return res.status(200).json(comments)
@@ -462,19 +466,12 @@ const getHomeFeed = async (req, res) => {
     options.time = time
 
     const communities = (!user || user.communities.length === 0) ? null : user.communities
-    const bannedInCommunities = (!user || user.bannedInCommunities.length === 0) ? null : user.bannedInCommunities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
 
     if (sort === 'best' || !user) {
-      posts = await Post.getRandomHomeFeed(options, bannedInCommunities, mutedCommunities)
+      posts = await Post.getRandomHomeFeed(options, mutedCommunities)
     } else {
-      posts = await Post.getSortedHomeFeed(options, communities, bannedInCommunities, mutedCommunities)
-    }
-
-    if (posts.length === 0) {
-      return res.status(404).json({
-        message: 'No posts found for the home feed'
-      })
+      posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities)
     }
 
     posts.forEach(post => {
@@ -489,6 +486,9 @@ const getHomeFeed = async (req, res) => {
           delete option._id
         })
       }
+
+      post.isNSFW = post.isNsfw
+      delete post.isNsfw
 
       post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
       post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false

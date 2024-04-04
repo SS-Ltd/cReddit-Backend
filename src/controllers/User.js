@@ -635,8 +635,18 @@ const getSaved = async (req, res) => {
 
     const savedContent = await user.getPosts(options)
 
+    savedContent.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
     res.status(200).json(savedContent)
   } catch (error) {
+    console.error('Error getting saved content:', error)
     res.status(500).json({ message: 'Error getting saved posts' })
   }
 }
@@ -667,6 +677,16 @@ const getHiddenPosts = async (req, res) => {
     }
 
     const result = await user.getPosts(options)
+
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
     res.status(200).json(result)
   } catch (error) {
     res.status(500).json({ message: 'Error getting hidden posts' })
@@ -732,7 +752,7 @@ const getPosts = async (req, res) => {
     const sort = req.query.sort
     const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
-    const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time })
+    const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time, mutedCommunities: visitor ? visitor.mutedCommunities : [] })
 
     posts.forEach((post) => {
       if (post.type !== 'Poll') {
@@ -788,7 +808,7 @@ const getComments = async (req, res) => {
     const sort = req.query.sort
     const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
-    const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time })
+    const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time, mutedCommunities: visitor ? visitor.mutedCommunities : [] })
 
     comments.forEach((post) => {
       post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
@@ -818,7 +838,6 @@ const getUpvotedPosts = async (req, res) => {
 
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10
-    const sort = getSortingMethod(req.query.sort)
 
     const options = {
       username: username,
@@ -827,7 +846,6 @@ const getUpvotedPosts = async (req, res) => {
       savedAt: '$upvotedPosts.savedAt',
       page: page,
       limit: limit,
-      sort: sort,
       searchType: 'Post'
     }
 

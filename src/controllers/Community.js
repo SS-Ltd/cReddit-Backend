@@ -226,12 +226,6 @@ const getSortedCommunityPosts = async (req, res) => {
 
     const posts = await PostModel.byCommunity(subreddit, options)
 
-    if (posts.length === 0) {
-      return res.status(404).json({
-        message: 'No posts found for the community'
-      })
-    }
-
     posts.forEach(post => {
       if (post.type !== 'Poll') {
         delete post.pollOptions
@@ -245,12 +239,13 @@ const getSortedCommunityPosts = async (req, res) => {
         })
       }
 
-      if (user) {
-        post.isUpvoted = user.upvotedPosts.includes(post._id)
-        post.isDownvoted = user.downvotedPosts.includes(post._id)
-        post.isSaved = user.savedPosts.includes(post._id)
-        post.isHidden = user.hiddenPosts.includes(post._id)
-      }
+      post.isNSFW = post.isNsfw
+      delete post.isNsfw
+
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
     })
 
     return res.status(200).json(posts)

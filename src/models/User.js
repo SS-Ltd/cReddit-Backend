@@ -316,44 +316,6 @@ UserSchema.methods.getPosts = async function (options) {
       $match: { username: username }
     },
     {
-      $addFields: {
-        isSavedPostsArray: { $isArray: '$savedPosts' },
-        isHiddenPostsArray: { $isArray: '$hiddenPosts' }
-      }
-    },
-    {
-      $addFields: {
-        savedPostsArray: {
-          $cond: {
-            if: { $eq: ['$isSavedPostsArray', true] },
-            then: '$savedPosts',
-            else: ['$savedPosts']
-          }
-        },
-        hiddenPostsArray: {
-          $cond: {
-            if: { $eq: ['$isHiddenPostsArray', true] },
-            then: '$hiddenPosts',
-            else: ['$hiddenPosts']
-          }
-        },
-        upvotedPostsArray: {
-          $cond: {
-            if: { $eq: ['$isUpVotedPostsArray', true] },
-            then: '$upvotedPosts',
-            else: ['$upvotedPosts']
-          }
-        },
-        downvotedPostsArray: {
-          $cond: {
-            if: { $eq: ['$isDownVotedPostsArray', true] },
-            then: '$downvotedPosts',
-            else: ['$downvotedPosts']
-          }
-        }
-      }
-    },
-    {
       $unwind: unwind
     },
     {
@@ -397,9 +359,30 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
-      $match: {
-        'post.isDeleted': false
+      $match: { post: { $ne: [] } } // Filter out documents with empty 'post' array
+    },
+    {
+      $project: {
+        post: { $arrayElemAt: ['$post', 0] },
+        savedAt: savedAt
       }
+    },
+    {
+      $addFields: {
+        'post.pollOptions.isVoted': {
+          $in: [username, '$post.pollOptions.voters']
+        }
+
+      }
+    },
+    {
+      $sort: { savedAt: -1 }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
     },
     {
       $lookup: {
@@ -436,18 +419,14 @@ UserSchema.methods.getPosts = async function (options) {
         _id: '$post._id',
         postID: '$post.postID',
         type: '$post.type',
-        isImage: '$post.isImage',
         username: '$post.username',
         communityName: '$post.communityName',
         profilePicture: { $arrayElemAt: ['$community.icon', 0] },
+        title: '$post.title',
         netVote: '$post.netVote',
-        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$post.isSpoiler',
         isNSFW: '$post.isNsfw',
         isApproved: '$post.isApproved',
-        isLocked: '$post.isLocked',
-        isEdited: '$post.isEdited',
-        title: '$post.title',
         content: '$post.content',
         pollOptions: {
           $map: {
@@ -462,9 +441,7 @@ UserSchema.methods.getPosts = async function (options) {
             }
           }
         },
-        expirationDate: '$post.expirationDate',
-        createdAt: '$post.createdAt',
-        updatedAt: '$post.updatedAt'
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
       }
     }
   ])
@@ -507,7 +484,7 @@ UserSchema.methods.getSavedComments = async function (options) {
         commentSaved: {
           $arrayElemAt: ['$commentSaved', 0]
         },
-        profilePic: {
+        profilePicture: {
           $arrayElemAt: ['$user.profilePicture', 0]
         },
         savedAt: '$savedComments.savedAt'
@@ -517,7 +494,7 @@ UserSchema.methods.getSavedComments = async function (options) {
 }
 
 UserSchema.methods.getUserPosts = async function (options) {
-  let { username, page, limit, sort, time } = options
+  let { username, page, limit, sort, time, mutedCommunities } = options
 
   switch (sort) {
     case 'new':
@@ -556,6 +533,11 @@ UserSchema.methods.getUserPosts = async function (options) {
         'posts.isDeleted': false,
         'posts.isRemoved': false,
         'posts.type': { $ne: 'Comment' },
+        $expr: {
+          $and: [
+            { $not: { $in: ['$posts.communityName', mutedCommunities] } }
+          ]
+        },
         createdAt: time
       }
     },
@@ -624,7 +606,7 @@ UserSchema.methods.getUserPosts = async function (options) {
 }
 
 UserSchema.methods.getUserComments = async function (options) {
-  let { username, page, limit, sort, time } = options
+  let { username, page, limit, sort, time, mutedCommunities } = options
 
   switch (sort) {
     case 'new':
@@ -663,6 +645,11 @@ UserSchema.methods.getUserComments = async function (options) {
         'posts.isDeleted': false,
         'posts.isRemoved': false,
         'posts.type': 'Comment',
+        $expr: {
+          $and: [
+            { $not: { $in: ['$posts.communityName', mutedCommunities] } }
+          ]
+        },
         'posts.createdAt': time
       }
     },
@@ -694,7 +681,7 @@ UserSchema.methods.getUserComments = async function (options) {
         profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
         netVote: '$posts.netVote',
         isSpoiler: '$posts.isSpoiler',
-        isNSFW: '$posts.isNSFW',
+        isNSFW: '$posts.isNsfw',
         isApproved: '$posts.isApproved',
         title: '$posts.title',
         content: '$posts.content',
