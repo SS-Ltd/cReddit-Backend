@@ -324,7 +324,6 @@ const forgotPassword = async (req, res) => {
 
   const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
-  console.log(resetToken)
 
   try {
     await sendEmail(user.email, 'Ask and you shall receive a password reset', message)
