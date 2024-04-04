@@ -736,7 +736,7 @@ const getPosts = async (req, res) => {
     const sort = req.query.sort
     const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
-    const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time })
+    const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time, mutedCommunities: visitor ? visitor.mutedCommunities : [] })
 
     posts.forEach((post) => {
       if (post.type !== 'Poll') {
@@ -792,7 +792,7 @@ const getComments = async (req, res) => {
     const sort = req.query.sort
     const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
-    const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time })
+    const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time, mutedCommunities: visitor ? visitor.mutedCommunities : [] })
 
     comments.forEach((post) => {
       post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false

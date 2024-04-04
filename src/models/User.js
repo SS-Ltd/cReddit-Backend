@@ -541,7 +541,7 @@ UserSchema.methods.getSavedComments = async function (options) {
 }
 
 UserSchema.methods.getUserPosts = async function (options) {
-  let { username, page, limit, sort, time } = options
+  let { username, page, limit, sort, time, mutedCommunities } = options
 
   switch (sort) {
     case 'new':
@@ -580,6 +580,11 @@ UserSchema.methods.getUserPosts = async function (options) {
         'posts.isDeleted': false,
         'posts.isRemoved': false,
         'posts.type': { $ne: 'Comment' },
+        $expr: {
+          $and: [
+            { $not: { $in: ['$posts.communityName', mutedCommunities] } }
+          ]
+        },
         createdAt: time
       }
     },
@@ -648,7 +653,7 @@ UserSchema.methods.getUserPosts = async function (options) {
 }
 
 UserSchema.methods.getUserComments = async function (options) {
-  let { username, page, limit, sort, time } = options
+  let { username, page, limit, sort, time, mutedCommunities } = options
 
   switch (sort) {
     case 'new':
@@ -687,6 +692,11 @@ UserSchema.methods.getUserComments = async function (options) {
         'posts.isDeleted': false,
         'posts.isRemoved': false,
         'posts.type': 'Comment',
+        $expr: {
+          $and: [
+            { $not: { $in: ['$posts.communityName', mutedCommunities] } }
+          ]
+        },
         'posts.createdAt': time
       }
     },
