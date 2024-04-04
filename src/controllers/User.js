@@ -287,10 +287,16 @@ const isUsernameAvailable = async (req, res) => {
 const generateUsername = async (req, res) => {
   try {
     let username = faker.internet.userName()
+    if (username.includes('.')) {
+      username = username.replace('.', '_')
+    }
     let user = await UserModel.findOne({ username })
 
     while (user) {
       username = faker.internet.userName()
+      if (username.includes('.')) {
+        username = username.replace('.', '_')
+      }
       user = await UserModel.findOne({ username })
     }
 
