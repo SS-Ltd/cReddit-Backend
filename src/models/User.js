@@ -409,24 +409,11 @@ UserSchema.methods.getPosts = async function (options) {
         savedAt: savedAt
       }
     },
-{
+    {
       $addFields: {
-        'post.isUpvoted': {
-          $in: ['$post._id', '$upvotedPostsArray.postId']
-        },
-        'post.isDownvoted': {
-          $in: ['$post._id', '$downvotedPostsArray.postId']
-        },
-        'post.isSaved': {
-          $in: ['$post._id', '$savedPostsArray.postId']
-        },
-        'post.isHidden': {
-          $in: ['$post._id', '$hiddenPostsArray.postId']
-        },
         'post.pollOptions.isVoted': {
           $in: [username, '$post.pollOptions.voters']
         }
-
       }
     },
     {
@@ -494,7 +481,7 @@ UserSchema.methods.getPosts = async function (options) {
               text: '$$option.text',
               votes: { $size: '$$option.voters' },
               isVoted: {
-                $in: ['Camryn50', '$$option.voters']
+                $in: [username, '$$option.voters']
               }
             }
           }
@@ -637,7 +624,7 @@ UserSchema.methods.getUserPosts = async function (options) {
     },
     {
       $project: {
-        _id: 1,
+        _id: '$posts._id',
         type: '$posts.type',
         username: '$posts.username',
         communityName: '$posts.communityName',
@@ -722,7 +709,7 @@ UserSchema.methods.getUserComments = async function (options) {
     },
     {
       $project: {
-        _id: 1,
+        _id: '$posts._id',
         postID: '$posts.postID',
         type: '$posts.type',
         isImage: '$posts.isImage',
