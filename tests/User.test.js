@@ -2,7 +2,7 @@ const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
 const crypto = require('crypto')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser, getPosts } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser, getPosts, getComments } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
@@ -858,7 +858,75 @@ describe('isUsernameAvailable', () => {
   })
 })
 
+describe('getUserView', () => {
+  // Returns user data when valid username is provided
+  test('should return user data when valid username is provided', async () => {
+    const req = { params: { username: 'validUsername' } }
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+    const user = {
+      username: 'validUsername',
+      displayName: 'John Doe',
+      about: 'Lorem ipsum',
+      email: 'johndoe@example.com',
+      profilePicture: 'profile.jpg',
+      banner: 'banner.jpg',
+      followers: ['follower1', 'follower2'],
+      createdAt: '2022-01-01'
+    }
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getUserView(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      username: 'validUsername',
+      displayName: 'John Doe',
+      about: 'Lorem ipsum',
+      email: 'johndoe@example.com',
+      profilePicture: 'profile.jpg',
+      banner: 'banner.jpg',
+      followers: 2,
+      cakeDay: '2022-01-01'
+    })
+  })
+
+  // Returns 400 error when username is not provided
+  test('should return 400 error when username is not provided', async () => {
+    const req = { params: {} }
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+
+    await getUserView(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user view: Username is required' })
+  })
+
+  // Returns 404 error when user is not found or is deleted
+  test('should return 404 error when user is not found or is deleted', async () => {
+    const req = { params: { username: 'nonexistentUser' } }
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+    const user = null
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getUserView(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentUser' })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+})
+
 describe('updateSettings', () => {
+  let consoleErrorBackup
+  beforeAll(() => {
+    consoleErrorBackup = console.error
+    console.error = jest.fn()
+  })
+
+  afterAll(() => {
+    console.error = consoleErrorBackup
+  })
   test('should update user preferences successfully when valid preferences are provided', async () => {
     // Mock the request object
     const req = {
@@ -1071,65 +1139,6 @@ describe('updateSettings', () => {
     // Check the response
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Error updating settings: Username is required' })
-  })
-})
-
-describe('getUserView', () => {
-  // Returns user data when valid username is provided
-  test('should return user data when valid username is provided', async () => {
-    const req = { params: { username: 'validUsername' } }
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
-    const user = {
-      username: 'validUsername',
-      displayName: 'John Doe',
-      about: 'Lorem ipsum',
-      email: 'johndoe@example.com',
-      profilePicture: 'profile.jpg',
-      banner: 'banner.jpg',
-      followers: ['follower1', 'follower2'],
-      createdAt: '2022-01-01'
-    }
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
-
-    await getUserView(req, res)
-
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
-    expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({
-      username: 'validUsername',
-      displayName: 'John Doe',
-      about: 'Lorem ipsum',
-      email: 'johndoe@example.com',
-      profilePicture: 'profile.jpg',
-      banner: 'banner.jpg',
-      followers: 2,
-      cakeDay: '2022-01-01'
-    })
-  })
-
-  // Returns 400 error when username is not provided
-  test('should return 400 error when username is not provided', async () => {
-    const req = { params: {} }
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
-
-    await getUserView(req, res)
-
-    expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user view: Username is required' })
-  })
-
-  // Returns 404 error when user is not found or is deleted
-  test('should return 404 error when user is not found or is deleted', async () => {
-    const req = { params: { username: 'nonexistentUser' } }
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
-    const user = null
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
-
-    await getUserView(req, res)
-
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentUser' })
-    expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 })
 
@@ -1945,7 +1954,6 @@ describe('getUser', () => {
   })
 })
 
-// ///////////////////////////////////////// Get saved posts //////////////////////////
 describe('getSavedPosts', () => {
   // Function successfully retrieves saved posts for a valid user
   test('should retrieve saved posts for a valid user with saved posts', async () => {
@@ -2022,7 +2030,6 @@ describe('getSavedPosts', () => {
   })
 })
 
-// ///////////////////////////////////////// Get hidden posts //////////////////////////
 describe('getHiddenPosts', () => {
   test('should retrieve hidden posts for a valid user with saved posts', async () => {
     const req = {
@@ -2081,7 +2088,7 @@ describe('getHiddenPosts', () => {
 
 describe('getPosts', () => {
   // Retrieve user posts with valid username and default pagination and sorting parameters
-  it('should retrieve user posts with valid username and default pagination and sorting parameters', async () => {
+  test('should retrieve user posts with valid username and default pagination and sorting parameters', async () => {
     const req = {
       params: {
         username: 'john_doe'
@@ -2107,7 +2114,7 @@ describe('getPosts', () => {
   })
 
   // Return 400 error when username is not provided
-  it('should return 400 error when username is not provided', async () => {
+  test('should return 400 error when username is not provided', async () => {
     const req = {
       params: {},
       query: {}
@@ -2125,7 +2132,7 @@ describe('getPosts', () => {
   })
 
   // Retrieve user posts with valid username and custom pagination and sorting parameters
-  it('should retrieve user posts with valid username and custom pagination and sorting parameters', async () => {
+  test('should retrieve user posts with valid username and custom pagination and sorting parameters', async () => {
     const req = {
       params: {
         username: 'john_doe'
@@ -2158,7 +2165,7 @@ describe('getPosts', () => {
   })
 
   // Return 404 error when user is not found or is deleted
-  it('should return a 404 error when the user is not found or is deleted', async () => {
+  test('should return a 404 error when the user is not found or is deleted', async () => {
     const req = {
       params: {
         username: 'john_doe'
@@ -2173,6 +2180,102 @@ describe('getPosts', () => {
     UserModel.findOne = jest.fn().mockResolvedValue(null)
 
     await getPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+})
+
+describe('getComments', () => {
+  test('should retrieve user comments with valid username and default pagination and sorting parameters', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      },
+      query: {}
+    }
+
+    const user = {
+      getUserComments: jest.fn().mockResolvedValue(['comment1', 'comment2'])
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  test('should return 400 error when username is not provided', async () => {
+    const req = {
+      params: {},
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user comments: Username is required' })
+  })
+
+  test('should retrieve user comments with valid username and custom pagination and sorting parameters', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      },
+      query: {
+        page: 2,
+        limit: 5,
+        sort: 'new',
+        time: 'week'
+      }
+    }
+
+    const user = {
+      getUserComments: jest.fn().mockResolvedValue(['comment1', 'comment2'])
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getComments(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'john_doe' })
+    expect(user.getUserComments).toHaveBeenCalledWith(expect.objectContaining({ username: 'john_doe', page: 2, limit: 5, sort: 'new' }))
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  test('should return a 404 error when the user is not found or is deleted', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getComments(req, res)
 
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
