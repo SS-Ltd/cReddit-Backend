@@ -51,6 +51,9 @@ const UserSchema = new Schema({
     },
     socialLinks: [
       {
+        displayName: {
+          type: String
+        },
         platform: {
           type: String
         },
@@ -394,46 +397,9 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
-      $match: { post: { $ne: [] } } // Filter out documents with empty 'post' array
-    },
-    {
-      $project: {
-        upvotedPostsArray: 1,
-        downvotedPostsArray: 1,
-        savedPostsArray: 1,
-        hiddenPostsArray: 1,
-        post: { $arrayElemAt: ['$post', 0] },
-        savedAt: savedAt
+      $match: {
+        'post.isDeleted': false
       }
-    },
-    {
-      $addFields: {
-        'post.isUpvoted': {
-          $in: ['$post._id', '$upvotedPostsArray.postId']
-        },
-        'post.isDownvoted': {
-          $in: ['$post._id', '$downvotedPostsArray.postId']
-        },
-        'post.isSaved': {
-          $in: ['$post._id', '$savedPostsArray.postId']
-        },
-        'post.isHidden': {
-          $in: ['$post._id', '$hiddenPostsArray.postId']
-        },
-        'post.pollOptions.isVoted': {
-          $in: [username, '$post.pollOptions.voters']
-        }
-
-      }
-    },
-    {
-      $sort: { savedAt: -1 }
-    },
-    {
-      $skip: (page - 1) * limit
-    },
-    {
-      $limit: limit
     },
     {
       $lookup: {
@@ -467,17 +433,21 @@ UserSchema.methods.getPosts = async function (options) {
     },
     {
       $project: {
-        _id: 0,
-        postID: '$post._id',
+        _id: '$post._id',
+        postID: '$post.postID',
         type: '$post.type',
+        isImage: '$post.isImage',
         username: '$post.username',
         communityName: '$post.communityName',
-        communityPic: { $arrayElemAt: ['$community.icon', 0] },
-        title: '$post.title',
+        profilePicture: { $arrayElemAt: ['$community.icon', 0] },
         netVote: '$post.netVote',
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$post.isSpoiler',
-        isNSFW: '$post.isNSFW',
+        isNSFW: '$post.isNsfw',
         isApproved: '$post.isApproved',
+        isLocked: '$post.isLocked',
+        isEdited: '$post.isEdited',
+        title: '$post.title',
         content: '$post.content',
         pollOptions: {
           $map: {
@@ -492,11 +462,9 @@ UserSchema.methods.getPosts = async function (options) {
             }
           }
         },
-        isUpvoted: '$post.isUpvoted',
-        isDownvoted: '$post.isDownvoted',
-        isHidden: '$post.isHidden',
-        isSaved: '$post.isSaved',
-        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
+        expirationDate: '$post.expirationDate',
+        createdAt: '$post.createdAt',
+        updatedAt: '$post.updatedAt'
       }
     }
   ])
@@ -543,6 +511,196 @@ UserSchema.methods.getSavedComments = async function (options) {
           $arrayElemAt: ['$user.profilePicture', 0]
         },
         savedAt: '$savedComments.savedAt'
+      }
+    }
+  ])
+}
+
+UserSchema.methods.getUserPosts = async function (options) {
+  let { username, page, limit, sort, time } = options
+
+  switch (sort) {
+    case 'new':
+      sort = { 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    case 'top':
+      sort = { 'posts.netVote': -1, 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    case 'hot':
+      sort = { 'posts.views': -1, 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    default:
+      sort = { 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+  }
+
+  return await this.model('User').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'posts'
+      }
+    },
+    {
+      $unwind: {
+        path: '$posts'
+      }
+    },
+    {
+      $match: {
+        'posts.isDeleted': false,
+        'posts.isRemoved': false,
+        'posts.type': { $ne: 'Comment' },
+        createdAt: time
+      }
+    },
+    {
+      $sort: sort
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { post_id: '$posts._id', type: 'Comment' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$postID', '$$post_id'] },
+                  { $eq: ['$type', '$$type'] }
+                ]
+              }
+            }
+          },
+          {
+            $count: 'commentCount'
+          }
+        ],
+        as: 'commentCount'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'posts.communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $project: {
+        _id: '$posts._id',
+        type: '$posts.type',
+        username: '$posts.username',
+        communityName: '$posts.communityName',
+        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
+        netVote: '$posts.netVote',
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
+        isSpoiler: '$posts.isSpoiler',
+        isNSFW: '$posts.isNsfw',
+        isApproved: '$posts.isApproved',
+        isLocked: '$posts.isLocked',
+        isEdited: '$posts.isEdited',
+        title: '$posts.title',
+        content: '$posts.content',
+        pollOptions: '$posts.pollOptions',
+        expirationDate: '$posts.expirationDate',
+        createdAt: '$posts.createdAt',
+        updatedAt: '$posts.updatedAt'
+      }
+    }
+  ])
+}
+
+UserSchema.methods.getUserComments = async function (options) {
+  let { username, page, limit, sort, time } = options
+
+  switch (sort) {
+    case 'new':
+      sort = { 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    case 'top':
+      sort = { 'posts.netVote': -1, 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    case 'hot':
+      sort = { 'posts.views': -1, 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+    default:
+      sort = { 'posts.createdAt': -1, 'posts._id': -1 }
+      break
+  }
+
+  return await this.model('User').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'posts'
+      }
+    },
+    {
+      $unwind: {
+        path: '$posts'
+      }
+    },
+    {
+      $match: {
+        'posts.isDeleted': false,
+        'posts.isRemoved': false,
+        'posts.type': 'Comment',
+        'posts.createdAt': time
+      }
+    },
+    {
+      $sort: sort
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'posts.communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $project: {
+        _id: '$posts._id',
+        postID: '$posts.postID',
+        type: '$posts.type',
+        isImage: '$posts.isImage',
+        username: '$posts.username',
+        communityName: '$posts.communityName',
+        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
+        netVote: '$posts.netVote',
+        isSpoiler: '$posts.isSpoiler',
+        isNSFW: '$posts.isNSFW',
+        isApproved: '$posts.isApproved',
+        title: '$posts.title',
+        content: '$posts.content',
+        createdAt: '$posts.createdAt',
+        updatedAt: '$posts.updatedAt',
+        isLocked: '$posts.isLocked'
       }
     }
   ])

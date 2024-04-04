@@ -1,6 +1,6 @@
 const { faker } = require('@faker-js/faker')
-const CommentModel = require('../models/Comment')
-const { usernames, postIDs, communityIDs, commentIDs } = require('./SeedUtils')
+const CommentModel = require('../models/Post')
+const { usernames, postIDs, commentIDs } = require('./SeedUtils')
 
 const comments = []
 
@@ -11,25 +11,29 @@ function createRandomComments () {
 
     comments.push({
       _id: commentIDs[i],
-      postID: faker.helpers.arrayElement(postIDs),
       username: faker.helpers.arrayElement(usernames),
-      parentID: faker.helpers.arrayElement([...commentIDs.slice(0, i - 1), null]),
-      communityID: faker.helpers.arrayElement(communityIDs),
       content: faker.lorem.paragraph(),
       upvote: upvotes,
       downvote: downvotes,
       netVote: upvotes - downvotes,
-      isEdited: faker.datatype.boolean(),
-      isLocked: faker.datatype.boolean(),
-      isApproved: faker.datatype.boolean(),
-      isDeleted: faker.datatype.boolean(0.1)
+      views: faker.number.int(),
+      isSpoiler: faker.datatype.boolean(0.2),
+      isNSFW: faker.datatype.boolean(0.2),
+      isLocked: faker.datatype.boolean(0.2),
+      isDeleted: faker.datatype.boolean(0.05),
+      isApproved: faker.datatype.boolean(0.4),
+      isEdited: faker.datatype.boolean(0.1),
+      isRemoved: faker.datatype.boolean(0.05),
+      followers: [],
+      mostRecentUpvote: faker.date.recent(),
+      postID: faker.helpers.arrayElement(postIDs),
+      isImage: false,
+      type: 'Comment'
     })
   }
 }
-
 async function seedComments () {
   createRandomComments()
-  await CommentModel.deleteMany({})
   await CommentModel.insertMany(comments)
   console.log('Comments seeded')
 }

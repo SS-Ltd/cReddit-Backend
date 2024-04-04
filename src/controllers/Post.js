@@ -5,6 +5,7 @@ const mongoose = require('mongoose')
 const cloudinary = require('../utils/Cloudinary')
 const PostUtils = require('../utils/Post')
 const HistoryModel = require('../models/History')
+const ObjectId = require('mongoose').Types.ObjectId
 
 const createPost = async (req, res) => {
   const post = req.body
@@ -243,6 +244,10 @@ const getSortingMethod = (sort) => {
       return { createdAt: -1, _id: -1 }
     case 'top':
       return { netVote: -1, createdAt: -1, _id: -1 }
+    case 'hot':
+      return { views: -1, createdAt: -1, _id: -1 }
+    case 'rising':
+      return { mostRecentUpvote: -1, _id: -1 }
     case 'old':
       return { createdAt: 1, _id: 1 }
     default:
@@ -250,18 +255,114 @@ const getSortingMethod = (sort) => {
   }
 }
 
+const filterWithTime = (time) => {
+  switch (time) {
+    case 'now':
+      return { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+    case 'today':
+      return { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    case 'week':
+      return { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    case 'month':
+      return { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+    case 'year':
+      return { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+    case 'all':
+      return { $gte: new Date(0) }
+    default:
+      return { $gte: new Date(0) }
+  }
+}
+
 const getPost = async (req, res) => {
   try {
     const postId = req.params.postId
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
 
-    if (!postId) {
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({
-        message: 'Post ID is required'
+        message: 'Post ID is wrong'
       })
     }
 
-    let post = await Post.findOne({ _id: postId, isDeleted: false })
+    let post = await Post.getPost(new ObjectId(postId))
+    post = post[0]
+
+    if (!post) {
+      return res.status(404).json({
+        message: 'Post does not exist'
+      })
+    }
+
+    await Post.findOneAndUpdate(
+      { _id: postId, isDeleted: false, isRemoved: false },
+      { $inc: { views: 1 } }
+    )
+
+    const decoded = req.decoded
+    let user = null
+
+    // User may be a guest
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+
+      post.isUpvoted = user.upvotedPosts.includes(postId)
+      post.isDownvoted = user.downvotedPosts.includes(postId)
+      post.isSaved = user.savedPosts.includes(postId)
+      post.isHidden = user.hiddenPosts.includes(postId)
+
+      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
+
+      if (!history) {
+        await HistoryModel.create({
+          owner: user.username,
+          post: postId
+        })
+      } else {
+        history.createdAt = new Date()
+        await history.save()
+      }
+    }
+
+    if (post.type !== 'Poll') {
+      delete post.pollOptions
+      delete post.expirationDate
+    } else {
+      post.pollOptions.forEach(option => {
+        option.votes = option.voters.length
+        option.isVoted = user ? option.voters.includes(user.username) : false
+        delete option.voters
+        delete option._id
+      })
+    }
+
+    return res.status(200).json(post)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting post'
+    })
+  }
+}
+
+const getComments = async (req, res) => {
+  try {
+    const postId = req.params.postId
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({
+        message: 'Post ID is wrong'
+      })
+    }
+
+    const post = await Post.findOne({ _id: new ObjectId(postId), isDeleted: false })
 
     if (!post) {
       return res.status(404).json({
@@ -277,63 +378,131 @@ const getPost = async (req, res) => {
       })
     }
 
-    post.views += 1
-    await post.save()
-
     const communitySuggestedSort = community.suggestedSort
     const sort = getSortingMethod(communitySuggestedSort)
 
     const options = { sort }
     options.random = false
+    options.page = page
     options.limit = limit
     if (communitySuggestedSort === 'best') {
       options.random = true
     }
 
-    let comments = await post.getComments(options)
-    const commentCount = await post.getCommentCount()
-    const userProfilePicture = await post.getUserProfilePicture()
-    comments = comments[0].comments
-
-    post = post.toObject()
+    const comments = await Post.getComments(new ObjectId(postId), options)
 
     const decoded = req.decoded
+    let user = null
 
-    // User may be a guest
     if (decoded) {
-      const user = await User.findOne({ username: decoded.username, isDeleted: false })
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
 
       if (!user) {
         return res.status(404).json({
           message: 'User does not exist'
         })
       }
+    }
 
-      post.isUpvoted = user.upvotedPosts.includes(postId)
-      post.isDownvoted = user.downvotedPosts.includes(postId)
-      post.isSaved = user.savedPosts.includes(postId)
-      post.isHidden = user.hiddenPosts.includes(postId)
-
-      comments.forEach((comment) => {
+    comments.forEach((comment) => {
+      if (user) {
         comment.isUpvoted = user.upvotedComments.includes(comment._id)
         comment.isDownvoted = user.downvotedComments.includes(comment._id)
         comment.isSaved = user.savedComments.includes(comment._id)
-      })
+      }
+    })
 
-      await HistoryModel.create({
-        owner: user.username,
-        post: post._id
+    return res.status(200).json(comments)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting comments of post'
+    })
+  }
+}
+
+const getHomeFeed = async (req, res) => {
+  try {
+    const decoded = req.decoded
+    let user = null
+
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    let sort = req.query.sort ? req.query.sort : 'best'
+    let time = req.query.time ? req.query.time : 'all'
+
+    if (sort !== 'top') {
+      time = 'all'
+    }
+
+    if (!user) {
+      sort = 'best'
+    }
+
+    const sortMethod = getSortingMethod(sort)
+
+    time = filterWithTime(time)
+
+    let posts = []
+
+    const options = { sortMethod }
+    options.random = false
+    options.page = page
+    options.limit = limit
+    options.time = time
+
+    const communities = (!user || user.communities.length === 0) ? null : user.communities
+    const bannedInCommunities = (!user || user.bannedInCommunities.length === 0) ? null : user.bannedInCommunities
+    const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
+
+    if (sort === 'best' || !user) {
+      posts = await Post.getRandomHomeFeed(options, bannedInCommunities, mutedCommunities)
+    } else {
+      posts = await Post.getSortedHomeFeed(options, communities, bannedInCommunities, mutedCommunities)
+    }
+
+    if (posts.length === 0) {
+      return res.status(404).json({
+        message: 'No posts found for the home feed'
       })
     }
 
-    post.comments = comments
-    post.commentCount = commentCount[0].commentCount
-    post.profilePicture = userProfilePicture[0].profilePicture[0]
+    posts.forEach(post => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
 
-    return res.status(200).json(post)
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = user ? user.communities.includes(post.communityName) : false
+      post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
+    })
+
+    return res.status(200).json(posts)
   } catch (error) {
+    console.log(error)
     return res.status(500).json({
-      message: 'An error occurred while getting post'
+      message: 'An error occurred while getting home feed'
     })
   }
 }
@@ -345,5 +514,7 @@ module.exports = {
   editPost,
   savePost,
   hidePost,
-  lockPost
+  lockPost,
+  getComments,
+  getHomeFeed
 }
