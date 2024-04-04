@@ -5,5 +5,6 @@ const router = express.Router()
 const { verifyToken } = require('../middlewares/Verify')
 
 router.route('/').post(verifyToken, multer.uploadMultipleImages, comment.createComment)
+router.route('/:commentId').patch(verifyToken, multer.uploadMultipleImages, comment.editComment)
 
 module.exports = router
