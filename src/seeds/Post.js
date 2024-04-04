@@ -30,7 +30,7 @@ function createRandomPosts () {
       isRemoved: faker.datatype.boolean(0.05),
       followers: [],
       mostRecentUpvote: faker.date.recent(),
-      type: faker.helpers.arrayElement(['Post', 'Image & Video', 'Link', 'Poll'])
+      type: faker.helpers.arrayElement(['Post', 'Images & Video', 'Link', 'Poll'])
     })
   }
 }

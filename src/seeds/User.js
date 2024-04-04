@@ -1,16 +1,19 @@
 const { faker } = require('@faker-js/faker')
 const UserModel = require('../models/User')
 const { usernames, posts } = require('./SeedUtils')
+const bcrypt = require('bcrypt')
 
 const users = []
 
-function createRandomUsers () {
+async function createRandomUsers () {
+  const salt = await bcrypt.genSalt(10)
+  const hash = await bcrypt.hash('1', salt)
   for (let i = 0; i < usernames.length; i++) {
     users.push({
       username: usernames[i],
       displayName: faker.person.firstName(),
       email: faker.internet.email(),
-      password: faker.internet.password(),
+      password: hash,
       profilePicture: faker.image.url(),
       banner: faker.image.url(),
       about: faker.lorem.sentence(),
@@ -22,6 +25,7 @@ function createRandomUsers () {
         google: faker.string.uuid(),
         socialLinks: [
           {
+            displayName: faker.lorem.word(),
             platform: faker.lorem.word(),
             url: faker.internet.url()
           }
@@ -51,7 +55,6 @@ function createRandomUsers () {
         followEmail: faker.datatype.boolean(),
         chatEmail: faker.datatype.boolean()
       },
-      // Need to find a better seeding technique involving relations
       isVerified: faker.datatype.boolean(0.2),
       follows: [],
       followers: [],
@@ -76,7 +79,7 @@ function createRandomUsers () {
 }
 
 async function seedUsers () {
-  createRandomUsers()
+  await createRandomUsers()
   await UserModel.deleteMany({})
   await UserModel.insertMany(users)
   console.log('Users seeded')

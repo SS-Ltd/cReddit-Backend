@@ -2,7 +2,6 @@ const bcrypt = require('bcrypt')
 const crypto = require('crypto')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
-const PostModel = require('../models/Post')
 const { sendEmail, sendVerificationEmail } = require('../utils/Email')
 const { faker } = require('@faker-js/faker')
 const dotenv = require('dotenv')
@@ -331,7 +330,6 @@ const forgotPassword = async (req, res) => {
 
   const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
-  console.log(resetToken)
 
   try {
     await sendEmail(user.email, 'Ask and you shall receive a password reset', message)
@@ -634,22 +632,27 @@ const getSaved = async (req, res) => {
     const options = {
       username: username,
       unwind: '$savedPosts',
-      localField: 'savedPosts.postId',
+      localField: '$savedPosts.postId',
+      searchType: req.searchType || 'All', // values can be 'All', 'Post', 'Comment'
       savedAt: '$savedPosts.savedAt',
       page: page,
       limit: limit
     }
 
-    const savedPosts = await user.getPosts(options)
-    const savedComments = await user.getSavedComments()
-    const sortedArray = [...savedPosts, ...savedComments].sort((a, b) => {
-      return new Date(b.savedAt) - new Date(a.savedAt)
+    const savedContent = await user.getPosts(options)
+
+    savedContent.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
     })
 
-    const paginatedArray = sortedArray.slice((page - 1) * limit, page * limit)
-
-    res.status(200).json(paginatedArray)
+    res.status(200).json(savedContent)
   } catch (error) {
+    console.error('Error getting saved content:', error)
     res.status(500).json({ message: 'Error getting saved posts' })
   }
 }
@@ -672,13 +675,24 @@ const getHiddenPosts = async (req, res) => {
     const options = {
       username: username,
       unwind: '$hiddenPosts',
-      localField: 'hiddenPosts.postId',
+      localField: '$hiddenPosts.postId',
+      searchType: 'Post', // values can be 'All', 'Post', 'Comment'
       savedAt: '$hiddenPosts.savedAt',
       page: page,
       limit: limit
     }
 
     const result = await user.getPosts(options)
+
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
     res.status(200).json(result)
   } catch (error) {
     res.status(500).json({ message: 'Error getting hidden posts' })
@@ -719,41 +733,100 @@ const getSortingMethod = (sort, time) => {
 
 const getPosts = async (req, res) => {
   try {
+    const decoded = req.decoded
+    let visitor = null
+
+    if (decoded) {
+      visitor = await UserModel.findOne({ username: decoded.username })
+      if (!visitor) {
+        return res.status(404).json({ message: 'Visitor not found' })
+      }
+    }
+
     const username = req.params.username
     if (!username) {
       throw new Error('Username is required')
     }
+
     const user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
+    const page = req.query.page ? parseInt(req.query.page) : 1
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
-    const time = filterWithTime(req.query.time || 'all')
+    const sort = req.query.sort
+    const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
-    let posts = await PostModel.find({ username: username, isDeleted: false, createdAt: time }).select('-__v -followers')
-      .sort(sort)
-      .skip(page * limit)
-      .limit(limit)
+    const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time, mutedCommunities: !visitor || visitor.username === username ? [] : visitor.mutedCommunities })
 
-    const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
+    posts.forEach((post) => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach((option) => {
+          option.votes = option.voters.length
+          option.isVoted = visitor ? option.voters.includes(visitor) : false
+          delete option.voters
+          delete option._id
+        })
+      }
 
-    posts = posts.map(post => post.toObject())
-    let count = 0
-    posts.forEach(post => {
-      post.isUpvoted = user.upvotedPosts.includes(post._id)
-      post.isDownvoted = user.downvotedPosts.includes(post._id)
-      post.isSaved = user.savedPosts.includes(post._id)
-      post.isHidden = user.hiddenPosts.includes(post._id)
-      post.commentCount = commentCounts[count][0].commentCount
-      count++
+      post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = visitor ? visitor.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = visitor ? visitor.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = visitor ? visitor.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = visitor ? visitor.communities.includes(post.communityName) : false
+      post.isModerator = visitor ? visitor.moderatorInCommunities.includes(post.communityName) : false
     })
 
     res.status(200).json(posts)
   } catch (error) {
     res.status(400).json({ message: 'Error getting user posts: ' + error.message })
+  }
+}
+
+const getComments = async (req, res) => {
+  try {
+    const decoded = req.decoded
+    let visitor = null
+
+    if (decoded) {
+      visitor = await UserModel.findOne({ username: decoded.username })
+      if (!visitor) {
+        return res.status(404).json({ message: 'Visitor not found' })
+      }
+    }
+
+    const username = req.params.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+
+    const user = await UserModel.findOne({ username: username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 1
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = req.query.sort
+    const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
+
+    const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time, mutedCommunities: !visitor || visitor.username === username ? [] : visitor.mutedCommunities })
+
+    comments.forEach((post) => {
+      post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = visitor ? visitor.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = visitor ? visitor.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = visitor ? visitor.communities.includes(post.communityName) : false
+      post.isModerator = visitor ? visitor.moderatorInCommunities.includes(post.communityName) : false
+    })
+
+    res.status(200).json(comments)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user comments: ' + error.message })
   }
 }
 
@@ -769,19 +842,29 @@ const getUpvotedPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
     const options = {
       username: username,
       unwind: '$upvotedPosts',
-      localField: 'upvotedPosts.postId',
-      savedAt: '$upvotedPosts.savedAt'
+      localField: '$upvotedPosts.postId',
+      savedAt: '$upvotedPosts.savedAt',
+      page: page,
+      limit: limit,
+      searchType: 'Post'
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
-
-    // TODO: fix sorting and pagination
     const result = await user.getPosts(options)
+
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
 
     res.status(200).json(result)
   } catch (error) {
@@ -801,21 +884,32 @@ const getDownvotedPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const sort = getSortingMethod(req.query.sort)
+
     const options = {
       username: username,
       unwind: '$downvotedPosts',
-      localField: 'downvotedPosts.postId',
-      savedAt: '$downvotedPosts.savedAt'
+      localField: '$downvotedPosts.postId',
+      savedAt: '$downvotedPosts.savedAt',
+      page: page,
+      limit: limit,
+      sort: sort,
+      searchType: 'Post'
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
+    const result = await user.getPosts(options)
 
-    const result = await user.getPosts(options).select('-__v -followers')
-      .sort(sort)
-      .skip(page * limit)
-      .limit(limit)
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
     res.status(200).json(result)
   } catch (error) {
     res.status(400).json({ message: 'Error getting downvoted posts' })
@@ -841,6 +935,7 @@ module.exports = {
   getSaved,
   getHiddenPosts,
   getPosts,
+  getComments,
   getUpvotedPosts,
   getDownvotedPosts
 }
