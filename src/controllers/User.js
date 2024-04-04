@@ -4,6 +4,7 @@ const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
 const HistoryModel = require('../models/History')
 const CommunityModel = require('../models/Community')
+const MediaUtils = require('../utils/Media')
 const { sendEmail, sendVerificationEmail } = require('../utils/Email')
 const { faker } = require('@faker-js/faker')
 const dotenv = require('dotenv')
@@ -603,13 +604,15 @@ const updateSettings = async (req, res) => {
       throw new Error('Username is required')
     }
 
+    console.log(req.body.profile)
+
     let user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    // Update preferences
     if (req.body.account) {
+      req.body.account = JSON.parse(req.body.account)
       const { gender } = req.body.account
       if (gender) user.gender = gender
     }
@@ -635,24 +638,31 @@ const updateSettings = async (req, res) => {
     })
 
     if (req.body.profile) {
+      req.body.profile = JSON.parse(req.body.profile)
       const {
         displayName,
         about,
         socialLinks,
-        avatar,
-        banner,
         isNSFW,
         allowFollow,
         isContentVisible
       } = req.body.profile
+
+      const { avatar, banner } = req.files
       if (displayName) user.displayName = displayName
       if (about) user.about = about
       if (socialLinks) user.preferences.socialLinks = socialLinks
       if (avatar) {
-        // TODO: @MahmoudSamy1452: Implement avatar upload
+        const urls = user.profilePicture ? [user.profilePicture] : []
+        await MediaUtils.deleteImages(urls)
+        const newAvatar = await MediaUtils.uploadImages(avatar)
+        user.profilePicture = newAvatar[0]
       }
       if (banner) {
-        // TODO: @MahmoudSamy1452: Implement banner upload
+        const urls = user.banner ? [user.banner] : []
+        await MediaUtils.deleteImages(urls)
+        const newBanner = await MediaUtils.uploadImages(banner)
+        user.banner = newBanner[0]
       }
       if (isNSFW !== undefined) user.preferences.isNSFW = isNSFW
       if (allowFollow !== undefined) user.preferences.allowFollow = allowFollow
@@ -660,6 +670,7 @@ const updateSettings = async (req, res) => {
     }
 
     if (req.body.feedSettings) {
+      req.body.feedSettings = JSON.parse(req.body.feedSettings)
       const {
         showAdultContent,
         autoPlayMedia,
@@ -677,6 +688,7 @@ const updateSettings = async (req, res) => {
     }
 
     if (req.body.notifications) {
+      req.body.notifications = JSON.parse(req.body.notifications)
       const {
         mentionsNotifs,
         commentsNotifs,
@@ -702,6 +714,7 @@ const updateSettings = async (req, res) => {
     }
 
     if (req.body.email) {
+      req.body.email = JSON.parse(req.body.email)
       const { followEmail, chatEmail } = req.body.email
       if (followEmail !== undefined) user.preferences.followEmail = followEmail
       if (chatEmail !== undefined) user.preferences.chatEmail = chatEmail
