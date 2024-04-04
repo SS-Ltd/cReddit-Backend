@@ -1,14 +1,15 @@
 const PostModel = require('../models/Post')
 const UserModel = require('../models/User')
 const ObjectId = require('mongoose').Types.ObjectId
+const mongoose = require('mongoose')
 
 const getComment = async (req, res) => {
   try {
     const commentId = req.params.commentId
 
-    if (!commentId) {
+    if (!commentId || !mongoose.Types.ObjectId.isValid(commentId)) {
       return res.status(400).json({
-        message: 'Comment ID is required'
+        message: 'Comment ID is wrong'
       })
     }
 
@@ -24,20 +25,21 @@ const getComment = async (req, res) => {
     comment = comment.toObject()
 
     const decoded = req.decoded
+    let user = null
 
     if (decoded) {
-      const user = await UserModel.findOne({ username: decoded.username, isDeleted: false })
+      user = await UserModel.findOne({ username: decoded.username, isDeleted: false })
 
       if (!user) {
         return res.status(404).json({
           message: 'User does not exist'
         })
       }
-
-      comment.isUpvoted = user.upvotedComments.includes(commentId)
-      comment.isDownvoted = user.downvotedComments.includes(commentId)
-      comment.isSaved = user.savedComments.includes(commentId)
     }
+
+    comment.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+    comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+    comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
 
     comment.profilePicture = userProfilePicture[0].profilePicture[0]
 

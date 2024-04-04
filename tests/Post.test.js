@@ -4,13 +4,17 @@ const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
 const HistoryModel = require('../src/models/History')
 const cloudinary = require('../src/utils/Cloudinary')
-const { getPost } = require('../src/controllers/Post')
+const { getPost, getHomeFeed } = require('../src/controllers/Post')
 
 jest.mock('../src/models/Post', () => {
   return jest.fn().mockImplementation(() => {
     return {
       save: jest.fn(),
-      deleteOne: jest.fn()
+      deleteOne: jest.fn(),
+      getPost: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      getRandomHomeFeed: jest.fn(),
+      getSortedHomeFeed: jest.fn()
     }
   })
 })
@@ -24,6 +28,13 @@ jest.mock('../src/models/Community', () => {
 jest.mock('../src/models/User', () => {
   return {
     findOne: jest.fn()
+  }
+})
+
+jest.mock('../src/models/History', () => {
+  return {
+    findOne: jest.fn(),
+    create: jest.fn()
   }
 })
 
@@ -1341,30 +1352,15 @@ describe('lockPost', () => {
   })
 })
 
-jest.mock('../src/models/User', () => ({
-  findOne: jest.fn()
-}))
-
-jest.mock('../src/models/Community', () => ({
-  findOne: jest.fn()
-}))
-
-jest.mock('../src/models/History', () => ({
-  create: jest.fn()
-}))
-
 describe('getPost', () => {
   beforeEach(() => {
-    UserModel.findOne.mockClear()
-    PostModel.findOne.mockClear()
-    CommunityModel.findOne.mockClear()
-    HistoryModel.create.mockClear()
+    jest.clearAllMocks()
   })
 
   test('should retrieve a post by ID for a guest', async () => {
     const req = {
       params: {
-        postId: '12345'
+        postId: '55bb126babb335677998fbca'
       },
       query: {}
     }
@@ -1373,77 +1369,47 @@ describe('getPost', () => {
       json: jest.fn()
     }
 
-    const post = {
-      _id: '12345',
-      isDeleted: false,
-      communityName: 'community1',
-      views: 0,
-      save: jest.fn(),
-      toObject: jest.fn().mockReturnValue({
-        _id: '12345',
-        isDeleted: false,
-        communityName: 'community1',
-        views: 1
-      })
-    }
-
-    const community = {
-      name: 'community1',
-      isDeleted: false,
-      suggestedSort: 'new'
-    }
-
-    const comments = [
-      {
-        _id: 'comment1',
-        comments: []
-      }
-    ]
-
-    const commentCount = [
-      {
-        commentCount: 0
-      }
-    ]
-
-    const userProfilePicture = [
-      {
-        profilePicture: ['profile.jpg']
-      }
-    ]
-
-    PostModel.findOne.mockResolvedValue(post)
-    CommunityModel.findOne.mockResolvedValue(community)
-    post.getComments = jest.fn().mockResolvedValue(comments)
-    post.getCommentCount = jest.fn().mockResolvedValue(commentCount)
-    post.getUserProfilePicture = jest.fn().mockResolvedValue(userProfilePicture)
-
-    await getPost(req, res)
-
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '12345', isDeleted: false })
-    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'community1', isDeleted: false })
-    expect(post.save).toHaveBeenCalled()
-    expect(post.getComments).toHaveBeenCalledWith({ sort: { createdAt: -1, _id: -1 }, random: false, limit: 10 })
-    expect(post.getCommentCount).toHaveBeenCalled()
-    expect(post.getUserProfilePicture).toHaveBeenCalled()
-    expect(UserModel.findOne).not.toHaveBeenCalled()
-    expect(HistoryModel.create).not.toHaveBeenCalled()
-    expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({
-      _id: '12345',
+    const post = [{
+      _id: '55bb126babb335677998fbca',
       isDeleted: false,
       communityName: 'community1',
       views: 1,
-      comments: [],
       commentCount: 0,
-      profilePicture: 'profile.jpg'
+      profilePicture: 'icon.jpg',
+      isNsfw: false
+    }]
+
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    PostModel.findOneAndUpdate = jest.fn().mockResolvedValue(post)
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      _id: '55bb126babb335677998fbca',
+      isDeleted: false,
+      communityName: 'community1',
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isDownvoted: false,
+      isHidden: false,
+      isSaved: false,
+      isUpvoted: false,
+      isNSFW: false,
+      isJoined: false,
+      isModerator: false
     })
   })
 
   test('should retrieve a post by ID for a logged in user', async () => {
     const req = {
       params: {
-        postId: '12345'
+        postId: '55bb126babb335677998fbca'
       },
       query: {},
       decoded: {
@@ -1455,98 +1421,57 @@ describe('getPost', () => {
       json: jest.fn()
     }
 
-    const post = {
-      _id: '12345',
+    const post = [{
+      _id: '55bb126babb335677998fbca',
       isDeleted: false,
       communityName: 'community1',
-      views: 0,
-      save: jest.fn(),
-      toObject: jest.fn().mockReturnValue({
-        _id: '12345',
-        isDeleted: false,
-        communityName: 'community1',
-        views: 1
-      })
-    }
-
-    const community = {
-      name: 'community1',
-      isDeleted: false,
-      suggestedSort: 'new'
-    }
-
-    const comments = [
-      {
-        _id: '12345',
-        comments: [
-          {
-            _id: 'comment1'
-          }
-        ]
-      }
-    ]
-
-    const commentCount = [
-      {
-        commentCount: 1
-      }
-    ]
-
-    const userProfilePicture = [
-      {
-        profilePicture: ['profile.jpg']
-      }
-    ]
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isNsfw: false
+    }]
 
     const user = {
       username: 'user1',
       isDeleted: false,
-      upvotedPosts: ['12345'],
+      upvotedPosts: [{ postId: '55bb126babb335677998fbca' }],
       downvotedPosts: [],
-      savedPosts: ['12345'],
+      savedPosts: [{ postId: '55bb126babb335677998fbca' }],
       hiddenPosts: [],
-      upvotedComments: [],
-      downvotedComments: ['comment1'],
-      savedComments: []
+      communities: [],
+      moderatorInCommunities: [],
+      isNsfw: false,
+      type: 'Post'
     }
 
-    PostModel.findOne.mockResolvedValue(post)
-    CommunityModel.findOne.mockResolvedValue(community)
-    post.getComments = jest.fn().mockResolvedValue(comments)
-    post.getCommentCount = jest.fn().mockResolvedValue(commentCount)
-    post.getUserProfilePicture = jest.fn().mockResolvedValue(userProfilePicture)
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    PostModel.findOneAndUpdate = jest.fn().mockResolvedValue(post)
     UserModel.findOne.mockResolvedValue(user)
+    HistoryModel.findOne = jest.fn().mockResolvedValue(null)
+    HistoryModel.create = jest.fn()
 
     await getPost(req, res)
 
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '12345', isDeleted: false })
-    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'community1', isDeleted: false })
-    expect(post.save).toHaveBeenCalled()
-    expect(post.getComments).toHaveBeenCalledWith({ sort: { createdAt: -1, _id: -1 }, random: false, limit: 10 })
-    expect(post.getCommentCount).toHaveBeenCalled()
-    expect(post.getUserProfilePicture).toHaveBeenCalled()
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).toHaveBeenCalled()
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
-    expect(HistoryModel.create).toHaveBeenCalledWith({ owner: 'user1', post: '12345' })
+    expect(HistoryModel.findOne).toHaveBeenCalledWith({ post: '55bb126babb335677998fbca', owner: 'user1' })
+    expect(HistoryModel.create).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({
-      _id: '12345',
+      _id: '55bb126babb335677998fbca',
       isDeleted: false,
       communityName: 'community1',
       views: 1,
-      isUpvoted: true,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
       isDownvoted: false,
-      isSaved: true,
       isHidden: false,
-      comments: [
-        {
-          _id: 'comment1',
-          isUpvoted: false,
-          isDownvoted: true,
-          isSaved: false
-        }
-      ],
-      commentCount: 1,
-      profilePicture: 'profile.jpg'
+      isSaved: true,
+      isUpvoted: true,
+      isNSFW: false,
+      isJoined: false,
+      isModerator: false
     })
   })
 
@@ -1561,22 +1486,25 @@ describe('getPost', () => {
       json: jest.fn()
     }
 
+    PostModel.getPost = jest.fn()
+    PostModel.findOneAndUpdate = jest.fn()
+
     await getPost(req, res)
 
-    expect(PostModel.findOne).not.toHaveBeenCalled()
-    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.getPost).not.toHaveBeenCalled()
     expect(UserModel.findOne).not.toHaveBeenCalled()
-    expect(HistoryModel.create).not.toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).not.toHaveBeenCalled()
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({
-      message: 'Post ID is required'
+      message: 'Post ID is wrong'
     })
   })
 
   test('should return 404 if post does not exist', async () => {
     const req = {
       params: {
-        postId: '12345'
+        postId: '55bb126babb335677998fbca'
       },
       query: {}
     }
@@ -1586,79 +1514,27 @@ describe('getPost', () => {
       json: jest.fn()
     }
 
-    const post = null
+    const post = []
 
-    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    PostModel.findOneAndUpdate = jest.fn()
 
     await getPost(req, res)
 
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '12345', isDeleted: false })
-    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).not.toHaveBeenCalled()
     expect(UserModel.findOne).not.toHaveBeenCalled()
-    expect(HistoryModel.create).not.toHaveBeenCalled()
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Post does not exist'
     })
   })
 
-  test('should return 404 if community does not exist', async () => {
-    const req = {
-      params: {
-        postId: '12345'
-      },
-      query: {}
-    }
-
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn()
-    }
-
-    const post = {
-      _id: '12345',
-      isDeleted: false,
-      communityName: 'community1',
-      views: 0,
-      save: jest.fn()
-    }
-
-    const community = null
-
-    const comments = [
-      {
-        _id: '12345',
-        comments: []
-      }
-    ]
-
-    const commentCount = [
-      {
-        commentCount: 0
-      }
-    ]
-
-    PostModel.findOne.mockResolvedValue(post)
-    CommunityModel.findOne.mockResolvedValue(community)
-    post.getComments = jest.fn().mockResolvedValue(comments)
-    post.getCommentCount = jest.fn().mockResolvedValue(commentCount)
-
-    await getPost(req, res)
-
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '12345', isDeleted: false })
-    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'community1', isDeleted: false })
-    expect(UserModel.findOne).not.toHaveBeenCalled()
-    expect(HistoryModel.create).not.toHaveBeenCalled()
-    expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.json).toHaveBeenCalledWith({
-      message: 'Community does not exist'
-    })
-  })
-
   test('should return 404 if user does not exist', async () => {
     const req = {
       params: {
-        postId: '12345'
+        postId: '55bb126babb335677998fbca'
       },
       query: {},
       decoded: {
@@ -1671,63 +1547,147 @@ describe('getPost', () => {
       json: jest.fn()
     }
 
-    const post = {
-      _id: '12345',
+    const post = [{
+      _id: '55bb126babb335677998fbca',
       isDeleted: false,
-      communityName: 'community1',
-      views: 0,
-      save: jest.fn(),
-      toObject: jest.fn().mockReturnValue({
-        _id: '12345',
-        isDeleted: false,
-        communityName: 'community1',
-        views: 1
-      })
-    }
-
-    const community = {
-      name: 'community1',
-      isDeleted: false,
-      suggestedSort: 'new'
-    }
-
-    const comments = [
-      {
-        _id: '12345',
-        comments: []
-      }
-    ]
-
-    const commentCount = [
-      {
-        commentCount: 0
-      }
-    ]
-
-    const userProfilePicture = [
-      {
-        profilePicture: ['profile.jpg']
-      }
-    ]
+      communityName: 'community1'
+    }]
 
     const user = null
 
-    PostModel.findOne.mockResolvedValue(post)
-    CommunityModel.findOne.mockResolvedValue(community)
-    post.getComments = jest.fn().mockResolvedValue(comments)
-    post.getCommentCount = jest.fn().mockResolvedValue(commentCount)
-    post.getUserProfilePicture = jest.fn().mockResolvedValue(userProfilePicture)
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    PostModel.findOneAndUpdate = jest.fn()
     UserModel.findOne.mockResolvedValue(user)
 
     await getPost(req, res)
 
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '12345', isDeleted: false })
-    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'community1', isDeleted: false })
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).toHaveBeenCalled()
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
-    expect(HistoryModel.create).not.toHaveBeenCalled()
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'User does not exist'
     })
+  })
+})
+
+describe('getHomeFeed', () => {
+  test('should return an error message when user does not exist', async () => {
+    const req = {
+      decoded: { username: 'nonexistentuser' },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'best',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getHomeFeed(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
+    })
+  })
+
+  test('should return a list of posts sorted by best when user is not logged in', async () => {
+    const req = {
+      decoded: null,
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'best',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.getRandomHomeFeed = jest.fn().mockResolvedValue([])
+
+    await getHomeFeed(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  test('should return a list of posts sorted by best when user is logged in and has no communities', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'best',
+        time: 'all'
+      }
+    }
+
+    const user = {
+      username: 'testUser',
+      communities: [],
+      mutedCommunities: []
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getRandomHomeFeed = jest.fn().mockResolvedValue([])
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getHomeFeed(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.getRandomHomeFeed).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
+  })
+
+  test('should return a list of posts sorted by rising when user is logged in and has no communities', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'rising',
+        time: 'all'
+      }
+    }
+
+    const user = {
+      username: 'testUser',
+      communities: [],
+      mutedCommunities: []
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getSortedHomeFeed = jest.fn().mockResolvedValue([])
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getHomeFeed(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.getSortedHomeFeed).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
   })
 })

@@ -252,7 +252,7 @@ PostSchema.statics.getComments = async function (postId, options) {
   ])
 }
 
-PostSchema.statics.getPost = async function (postId) {
+PostSchema.statics.getPost = async function (postId, bannedInCommunities) {
   return await this.aggregate([
     { $match: { _id: postId, isDeleted: false, isRemoved: false } },
     {
@@ -265,22 +265,22 @@ PostSchema.statics.getPost = async function (postId) {
     },
     {
       $lookup: {
-        from: 'users',
-        localField: 'username',
-        foreignField: 'username',
-        as: 'user'
+        from: 'communities',
+        localField: 'communityName',
+        foreignField: 'name',
+        as: 'community'
       }
     },
     {
       $addFields: {
         commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+        profilePicture: { $arrayElemAt: ['$community.icon', 0] }
       }
     },
     {
       $project: {
         comments: 0,
-        user: 0,
+        community: 0,
         __v: 0,
         followers: 0,
         upvote: 0,
@@ -344,32 +344,19 @@ PostSchema.statics.byCommunity = async function (communityName, options) {
   ])
 }
 
-PostSchema.statics.getRandomHomeFeed = async function (options, bannedInCommunities, mutedCommunities) {
+PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities) {
   const { limit } = options
 
   return await this.aggregate([
     {
       $match: {
-        $and: [
-          {
-            $expr: {
-              $cond: {
-                if: { $ne: [mutedCommunities, null] },
-                then: { $not: { $in: ['$communityName', mutedCommunities] } },
-                else: true
-              }
-            }
-          },
-          {
-            $expr: {
-              $cond: {
-                if: { $ne: [bannedInCommunities, null] },
-                then: { $not: { $in: ['$communityName', bannedInCommunities] } },
-                else: true
-              }
-            }
+        $expr: {
+          $cond: {
+            if: { $ne: [mutedCommunities, null] },
+            then: { $not: { $in: ['$communityName', mutedCommunities] } },
+            else: true
           }
-        ],
+        },
         isDeleted: false,
         isRemoved: false,
         type: { $ne: 'Comment' }
@@ -417,7 +404,7 @@ PostSchema.statics.getRandomHomeFeed = async function (options, bannedInCommunit
   ])
 }
 
-PostSchema.statics.getSortedHomeFeed = async function (options, communities, bannedInCommunities, mutedCommunities) {
+PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities) {
   const { page, limit, sortMethod, time } = options
 
   return await this.aggregate([
@@ -438,15 +425,6 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, ban
               $cond: {
                 if: { $ne: [mutedCommunities, null] },
                 then: { $not: { $in: ['$communityName', mutedCommunities] } },
-                else: true
-              }
-            }
-          },
-          {
-            $expr: {
-              $cond: {
-                if: { $ne: [bannedInCommunities, null] },
-                then: { $not: { $in: ['$communityName', bannedInCommunities] } },
                 else: true
               }
             }
