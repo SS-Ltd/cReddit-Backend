@@ -712,10 +712,21 @@ const getSortingMethod = (sort, time) => {
 
 const getPosts = async (req, res) => {
   try {
+    const decoded = req.decoded
+    let visitor = null
+
+    if (decoded) {
+      visitor = await UserModel.findOne({ username: decoded.username })
+      if (!visitor) {
+        return res.status(404).json({ message: 'Visitor not found' })
+      }
+    }
+
     const username = req.params.username
     if (!username) {
       throw new Error('Username is required')
     }
+
     const user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
@@ -728,6 +739,31 @@ const getPosts = async (req, res) => {
 
     const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time })
 
+    if (posts.length === 0) {
+      return res.status(404).json({ message: 'No posts found' })
+    }
+
+    posts.forEach((post) => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach((option) => {
+          option.votes = option.voters.length
+          option.isVoted = visitor ? option.voters.includes(visitor) : false
+          delete option.voters
+          delete option._id
+        })
+      }
+
+      post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = visitor ? visitor.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = visitor ? visitor.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = visitor ? visitor.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = visitor ? visitor.communities.includes(post.communityName) : false
+      post.isModerator = visitor ? visitor.moderatorInCommunities.includes(post.communityName) : false
+    })
+
     res.status(200).json(posts)
   } catch (error) {
     res.status(400).json({ message: 'Error getting user posts: ' + error.message })
@@ -736,10 +772,21 @@ const getPosts = async (req, res) => {
 
 const getComments = async (req, res) => {
   try {
+    const decoded = req.decoded
+    let visitor = null
+
+    if (decoded) {
+      visitor = await UserModel.findOne({ username: decoded.username })
+      if (!visitor) {
+        return res.status(404).json({ message: 'Visitor not found' })
+      }
+    }
+
     const username = req.params.username
     if (!username) {
       throw new Error('Username is required')
     }
+
     const user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
@@ -751,6 +798,18 @@ const getComments = async (req, res) => {
     const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
     const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time })
+
+    if (comments.length === 0) {
+      return res.status(404).json({ message: 'No posts found' })
+    }
+
+    comments.forEach((post) => {
+      post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = visitor ? visitor.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = visitor ? visitor.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = visitor ? visitor.communities.includes(post.communityName) : false
+      post.isModerator = visitor ? visitor.moderatorInCommunities.includes(post.communityName) : false
+    })
 
     res.status(200).json(comments)
   } catch (error) {
@@ -787,6 +846,15 @@ const getUpvotedPosts = async (req, res) => {
 
     const result = await user.getPosts(options)
 
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'No posts found' })
+    }
+
+    result.forEach((post) => {
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
     res.status(200).json(result)
   } catch (error) {
     res.status(400).json({ message: 'Error getting upvoted posts' })
@@ -821,6 +889,15 @@ const getDownvotedPosts = async (req, res) => {
     }
 
     const result = await user.getPosts(options)
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'No posts found' })
+    }
+
+    result.forEach((post) => {
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
 
     res.status(200).json(result)
   } catch (error) {
