@@ -626,22 +626,27 @@ const getSaved = async (req, res) => {
     const options = {
       username: username,
       unwind: '$savedPosts',
-      localField: 'savedPosts.postId',
+      localField: '$savedPosts.postId',
+      searchType: req.searchType || 'All', // values can be 'All', 'Post', 'Comment'
       savedAt: '$savedPosts.savedAt',
       page: page,
       limit: limit
     }
 
-    const savedPosts = await user.getPosts(options)
-    const savedComments = await user.getSavedComments()
-    const sortedArray = [...savedPosts, ...savedComments].sort((a, b) => {
-      return new Date(b.savedAt) - new Date(a.savedAt)
+    const savedContent = await user.getPosts(options)
+
+    savedContent.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
     })
 
-    const paginatedArray = sortedArray.slice((page - 1) * limit, page * limit)
-
-    res.status(200).json(paginatedArray)
+    res.status(200).json(savedContent)
   } catch (error) {
+    console.error('Error getting saved content:', error)
     res.status(500).json({ message: 'Error getting saved posts' })
   }
 }
@@ -664,13 +669,24 @@ const getHiddenPosts = async (req, res) => {
     const options = {
       username: username,
       unwind: '$hiddenPosts',
-      localField: 'hiddenPosts.postId',
+      localField: '$hiddenPosts.postId',
+      searchType: 'Post', // values can be 'All', 'Post', 'Comment'
       savedAt: '$hiddenPosts.savedAt',
       page: page,
       limit: limit
     }
 
     const result = await user.getPosts(options)
+
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
     res.status(200).json(result)
   } catch (error) {
     res.status(500).json({ message: 'Error getting hidden posts' })
@@ -822,7 +838,6 @@ const getUpvotedPosts = async (req, res) => {
 
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10
-    const sort = getSortingMethod(req.query.sort)
 
     const options = {
       username: username,
@@ -831,7 +846,6 @@ const getUpvotedPosts = async (req, res) => {
       savedAt: '$upvotedPosts.savedAt',
       page: page,
       limit: limit,
-      sort: sort,
       searchType: 'Post'
     }
 
