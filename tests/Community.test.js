@@ -122,7 +122,7 @@ describe('getSortedCommunityPosts', () => {
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
-    PostModel.byCommynuty = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
@@ -215,7 +215,7 @@ describe('getSortedCommunityPosts', () => {
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.byCommynuty = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
@@ -304,7 +304,7 @@ describe('getSortedCommunityPosts', () => {
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.byCommynuty = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
@@ -390,7 +390,7 @@ describe('getSortedCommunityPosts', () => {
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.byCommynuty = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
@@ -474,7 +474,7 @@ describe('getSortedCommunityPosts', () => {
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.byCommynuty = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
@@ -523,10 +523,10 @@ describe('getSortedCommunityPosts', () => {
     const user = {
       username: 'testUser',
       isDeleted: false,
-      upvotedPosts: ['post1'],
-      downvotedPosts: ['post2'],
-      savedPosts: ['post1'],
-      hiddenPosts: ['post2']
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [{ postId: 'post2' }],
+      savedPosts: [{ postId: 'post1' }],
+      hiddenPosts: [{ postId: 'post2' }]
     }
 
     const posts = [
@@ -554,7 +554,7 @@ describe('getSortedCommunityPosts', () => {
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.byCommynuty = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
@@ -611,15 +611,13 @@ describe('getSortedCommunityPosts', () => {
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.byCommynuty = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue([])
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue([])
 
     await getSortedCommunityPosts(req, res)
 
     expect(PostModel.byCommunity).toHaveBeenCalled()
-    expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.json).toHaveBeenCalledWith({
-      message: 'No posts found for the community'
-    })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
   })
 })
 
