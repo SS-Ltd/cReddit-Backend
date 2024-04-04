@@ -2081,7 +2081,7 @@ describe('getHiddenPosts', () => {
 
 describe('getPosts', () => {
   // Retrieve user posts with valid username and default pagination and sorting parameters
-  it('should retrieve user posts with valid username and default pagination and sorting parameters', async () => {
+  test('should retrieve user posts with valid username and default pagination and sorting parameters', async () => {
     const req = {
       params: {
         username: 'john_doe'
@@ -2107,7 +2107,7 @@ describe('getPosts', () => {
   })
 
   // Return 400 error when username is not provided
-  it('should return 400 error when username is not provided', async () => {
+  test('should return 400 error when username is not provided', async () => {
     const req = {
       params: {},
       query: {}
@@ -2125,7 +2125,7 @@ describe('getPosts', () => {
   })
 
   // Retrieve user posts with valid username and custom pagination and sorting parameters
-  it('should retrieve user posts with valid username and custom pagination and sorting parameters', async () => {
+  test('should retrieve user posts with valid username and custom pagination and sorting parameters', async () => {
     const req = {
       params: {
         username: 'john_doe'
@@ -2158,7 +2158,7 @@ describe('getPosts', () => {
   })
 
   // Return 404 error when user is not found or is deleted
-  it('should return a 404 error when the user is not found or is deleted', async () => {
+  test('should return a 404 error when the user is not found or is deleted', async () => {
     const req = {
       params: {
         username: 'john_doe'
