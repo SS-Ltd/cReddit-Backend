@@ -470,17 +470,21 @@ UserSchema.methods.getPosts = async function (options) {
     },
     {
       $project: {
-        _id: 1,
+        _id: '$post._id',
         postID: '$post.postID',
         type: '$post.type',
+        isImage: '$post.isImage',
         username: '$post.username',
         communityName: '$post.communityName',
-        communityPic: { $arrayElemAt: ['$community.icon', 0] },
-        title: '$post.title',
+        profilePicture: { $arrayElemAt: ['$community.icon', 0] },
         netVote: '$post.netVote',
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$post.isSpoiler',
-        isNSFW: '$post.isNSFW',
+        isNSFW: '$post.isNsfw',
         isApproved: '$post.isApproved',
+        isLocked: '$post.isLocked',
+        isEdited: '$post.isEdited',
+        title: '$post.title',
         content: '$post.content',
         pollOptions: {
           $map: {
@@ -495,11 +499,9 @@ UserSchema.methods.getPosts = async function (options) {
             }
           }
         },
-        isUpvoted: '$post.isUpvoted',
-        isDownvoted: '$post.isDownvoted',
-        isHidden: '$post.isHidden',
-        isSaved: '$post.isSaved',
-        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
+        expirationDate: '$post.expirationDate',
+        createdAt: '$post.createdAt',
+        updatedAt: '$post.updatedAt'
       }
     }
   ])

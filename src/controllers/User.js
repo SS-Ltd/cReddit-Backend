@@ -738,10 +738,6 @@ const getPosts = async (req, res) => {
 
     const posts = await user.getUserPosts({ username: username, page: page, limit: limit, sort: sort, time: time })
 
-    if (posts.length === 0) {
-      return res.status(404).json({ message: 'No posts found' })
-    }
-
     posts.forEach((post) => {
       if (post.type !== 'Poll') {
         delete post.pollOptions
@@ -798,10 +794,6 @@ const getComments = async (req, res) => {
 
     const comments = await user.getUserComments({ username: username, page: page, limit: limit, sort: sort, time: time })
 
-    if (comments.length === 0) {
-      return res.status(404).json({ message: 'No posts found' })
-    }
-
     comments.forEach((post) => {
       post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
       post.isDownvoted = visitor ? visitor.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
@@ -845,11 +837,11 @@ const getUpvotedPosts = async (req, res) => {
 
     const result = await user.getPosts(options)
 
-    if (result.length === 0) {
-      return res.status(404).json({ message: 'No posts found' })
-    }
-
     result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
       post.isJoined = user.communities.includes(post.communityName)
       post.isModerator = user.moderatorInCommunities.includes(post.communityName)
     })
@@ -889,11 +881,11 @@ const getDownvotedPosts = async (req, res) => {
 
     const result = await user.getPosts(options)
 
-    if (result.length === 0) {
-      return res.status(404).json({ message: 'No posts found' })
-    }
-
     result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
       post.isJoined = user.communities.includes(post.communityName)
       post.isModerator = user.moderatorInCommunities.includes(post.communityName)
     })
