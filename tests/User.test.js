@@ -1956,6 +1956,15 @@ describe('getUser', () => {
 
 describe('getSavedPosts', () => {
   // Function successfully retrieves saved posts for a valid user
+  let consoleErrorBackup
+  beforeAll(() => {
+    consoleErrorBackup = console.error
+    console.error = jest.fn()
+  })
+
+  afterAll(() => {
+    console.error = consoleErrorBackup
+  })
   test('should retrieve saved posts for a valid user with saved posts', async () => {
     const req = {
       decoded: {
@@ -1968,7 +1977,13 @@ describe('getSavedPosts', () => {
       json: jest.fn()
     }
     const user = {
-      getPosts: jest.fn().mockResolvedValue([{ postId: 'post1', savedAt: '2022-01-01' }, { postId: 'post2', savedAt: '2021-02-02' }])
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [],
+      savedPosts: [{ postId: 'post1' }, { postId: 'post2' }],
+      hiddenPosts: [],
+      communities: ['community1'],
+      moderatorInCommunities: [],
+      getPosts: jest.fn().mockResolvedValue([{ _id: 'post1', communityName: 'community1' }, { _id: 'post2', communityName: 'community2' }])
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
@@ -1984,10 +1999,9 @@ describe('getSavedPosts', () => {
       page: 1,
       limit: 10
     })
-    expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([
-      { postId: 'post1', savedAt: '2022-01-01' },
-      { postId: 'post2', savedAt: '2021-02-02' }
+      { _id: 'post1', communityName: 'community1', isUpvoted: true, isDownvoted: false, isSaved: true, isHidden: false, isJoined: true, isModerator: false },
+      { _id: 'post2', communityName: 'community2', isUpvoted: false, isDownvoted: false, isSaved: true, isHidden: false, isJoined: false, isModerator: false }
     ])
   })
 
@@ -2033,17 +2047,20 @@ describe('getHiddenPosts', () => {
       decoded: {
         username: 'testUser'
       },
-      query: {
-        page: 2,
-        limit: 5
-      }
+      query: {}
     }
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
     const user = {
-      getPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [],
+      savedPosts: [{ postId: 'post1' }, { postId: 'post2' }],
+      hiddenPosts: [],
+      communities: ['community1'],
+      moderatorInCommunities: [],
+      getPosts: jest.fn().mockResolvedValue([{ _id: 'post1', communityName: 'community1' }, { _id: 'post2', communityName: 'community2' }])
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
@@ -2056,11 +2073,13 @@ describe('getHiddenPosts', () => {
       localField: '$hiddenPosts.postId',
       searchType: 'Post',
       savedAt: '$hiddenPosts.savedAt',
-      page: 2,
-      limit: 5
+      page: 1,
+      limit: 10
     })
-    expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(['post1', 'post2'])
+    expect(res.json).toHaveBeenCalledWith([
+      { _id: 'post1', communityName: 'community1', isUpvoted: true, isDownvoted: false, isSaved: true, isHidden: false, isJoined: true, isModerator: false },
+      { _id: 'post2', communityName: 'community2', isUpvoted: false, isDownvoted: false, isSaved: true, isHidden: false, isJoined: false, isModerator: false }
+    ])
   })
 
   // Throw an error if UserModel.findOne() throws an error
