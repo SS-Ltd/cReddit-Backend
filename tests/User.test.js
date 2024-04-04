@@ -1968,8 +1968,7 @@ describe('getSavedPosts', () => {
       json: jest.fn()
     }
     const user = {
-      getPosts: jest.fn().mockResolvedValue([{ postId: 'post1', savedAt: '2022-01-01' }, { postId: 'post2', savedAt: '2022-01-02' }]),
-      getSavedComments: jest.fn().mockResolvedValue([{ commentId: 'comment1', savedAt: '2022-01-03' }, { commentId: 'comment2', savedAt: '2022-01-04' }])
+      getPosts: jest.fn().mockResolvedValue([{ postId: 'post1', savedAt: '2022-01-01' }, { postId: 'post2', savedAt: '2021-02-02' }])
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
@@ -1979,18 +1978,16 @@ describe('getSavedPosts', () => {
     expect(user.getPosts).toHaveBeenCalledWith({
       username: 'testUser',
       unwind: '$savedPosts',
-      localField: 'savedPosts.postId',
+      localField: '$savedPosts.postId',
+      searchType: 'All',
       savedAt: '$savedPosts.savedAt',
       page: 1,
       limit: 10
     })
-    expect(user.getSavedComments).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([
-      { commentId: 'comment2', savedAt: '2022-01-04' },
-      { commentId: 'comment1', savedAt: '2022-01-03' },
-      { postId: 'post2', savedAt: '2022-01-02' },
-      { postId: 'post1', savedAt: '2022-01-01' }
+      { postId: 'post1', savedAt: '2022-01-01' },
+      { postId: 'post2', savedAt: '2021-02-02' }
     ])
   })
 
@@ -2056,7 +2053,8 @@ describe('getHiddenPosts', () => {
     expect(user.getPosts).toHaveBeenCalledWith({
       username: 'testUser',
       unwind: '$hiddenPosts',
-      localField: 'hiddenPosts.postId',
+      localField: '$hiddenPosts.postId',
+      searchType: 'Post',
       savedAt: '$hiddenPosts.savedAt',
       page: 2,
       limit: 5

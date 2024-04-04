@@ -108,6 +108,7 @@ const getTopCommunities = async (req, res) => {
       .sort({ members: -1 })
       .skip(skip)
       .limit(limit)
+      .select('owner name icon topic members description')
 
     res.status(200).json(topCommunities)
   } catch (error) {

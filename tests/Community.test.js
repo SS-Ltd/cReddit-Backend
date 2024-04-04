@@ -628,7 +628,8 @@ jest.mock('../src/models/Community')
 const mockQuery = {
   sort: jest.fn().mockReturnThis(),
   skip: jest.fn().mockReturnThis(),
-  limit: jest.fn().mockImplementation(() => Promise.resolve(['community1', 'community2']))
+  limit: jest.fn().mockReturnThis(),
+  select: jest.fn().mockImplementation(() => Promise.resolve(['community1', 'community2']))
 }
 
 // Mock the find method to return the mock query
