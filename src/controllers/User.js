@@ -975,6 +975,35 @@ const clearHistory = async (req, res) => {
   }
 }
 
+const getJoinedCommunities = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
+    const options = {
+      username: username,
+      page: page,
+      limit: limit
+    }
+
+    const communities = await user.getJoinedCommunities(options)
+
+    res.status(200).json(communities)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting joined communities: ' + error.message })
+  }
+}
+
 module.exports = {
   getUser,
   follow,
@@ -998,5 +1027,6 @@ module.exports = {
   getUpvotedPosts,
   getDownvotedPosts,
   getHistory,
-  clearHistory
+  clearHistory,
+  getJoinedCommunities
 }

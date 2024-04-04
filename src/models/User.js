@@ -693,4 +693,46 @@ UserSchema.methods.getUserComments = async function (options) {
   ])
 }
 
+UserSchema.methods.getJoinedCommunities = async function (options) {
+  let { username, page, limit } = options
+
+  return await this.model('User').aggregate([
+    {
+      $match: { username: username }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'communities',
+        foreignField: 'name',
+        as: 'populatedCommunities'
+      }
+    },
+    {
+      $addFields: {
+        communities: '$populatedCommunities'
+      }
+    },
+    {
+      $unwind: {
+        path: '$populatedCommunities'
+      }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $project: {
+        _id: 0,
+        communityName: '$populatedCommunities.name',
+        profilePicture: '$populatedCommunities.icon',
+        members: '$populatedCommunities.members'
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('User', UserSchema)
