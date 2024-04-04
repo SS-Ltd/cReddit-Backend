@@ -1914,7 +1914,7 @@ describe('getUser', () => {
 
     await getUser(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith('validUsername')
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({
       username: 'validUsername',

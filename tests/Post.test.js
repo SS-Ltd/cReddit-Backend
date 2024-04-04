@@ -61,7 +61,7 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNSFW: false
+      isNsfw: false
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -103,7 +103,7 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNSFW: false
+      isNsfw: false
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -138,7 +138,7 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: true,
-      isNSFW: false
+      isNsfw: false
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -177,7 +177,7 @@ describe('createPost', () => {
       pollOptions: ['Option 1', 'Option 2'].map(option => ({ text: option, votes: 0 })),
       expirationDate: '2080-12-31T23:59:59.999Z',
       isSpoiler: false,
-      isNSFW: true
+      isNsfw: true
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -215,7 +215,7 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNSFW: true
+      isNsfw: true
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully while ignoring additional fields' })
