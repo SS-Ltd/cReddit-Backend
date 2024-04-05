@@ -530,28 +530,32 @@ const getSettings = async (req, res) => {
     }
 
     const blocked = []
-    for (const blockedUser of user.blockedUsers) {
-      const pfp = await UserModel.findOne({ username: blockedUser })
-      blocked.push({
-        username: blockedUser,
-        profilePicture: pfp.profilePicture
-      })
+    if (user.blockedUsers.length > 0) {
+      for (const blockedUser of user.blockedUsers) {
+        const pfp = await UserModel.findOne({ username: blockedUser })
+        blocked.push({
+          username: blockedUser,
+          profilePicture: pfp.profilePicture
+        })
+      }
     }
 
     const muted = []
-    for (const mutedCommunity of user.mutedCommunities) {
-      const pfp = await CommunityModel.findOne({ name: mutedCommunity })
-      muted.push({
-        name: mutedCommunity,
-        profilePicture: pfp.icon
-      })
+    if (user.mutedCommunities.length > 0) {
+      for (const mutedCommunity of user.mutedCommunities) {
+        const pfp = await CommunityModel.findOne({ name: mutedCommunity })
+        muted.push({
+          name: mutedCommunity,
+          profilePicture: pfp.icon
+        })
+      }
     }
 
     res.status(200).json({
       account: {
         email: user.email,
         gender: user.gender,
-        google: user.preferences.google !== null
+        google: user.preferences.google !== '' && user.preferences.google !== null
       },
       profile: {
         displayName: user.displayName,
@@ -604,8 +608,6 @@ const updateSettings = async (req, res) => {
       throw new Error('Username is required')
     }
 
-    console.log(req.body.profile)
-
     let user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
@@ -618,7 +620,6 @@ const updateSettings = async (req, res) => {
     }
 
     const blocked = [{}]
-
     user.blockedUsers.forEach(async (blockedUser) => {
       const pfp = await UserModel.findOne({ username: blockedUser })
       blocked.push({
@@ -648,10 +649,16 @@ const updateSettings = async (req, res) => {
         isContentVisible
       } = req.body.profile
 
-      const { avatar, banner } = req.files
       if (displayName) user.displayName = displayName
       if (about) user.about = about
       if (socialLinks) user.preferences.socialLinks = socialLinks
+      if (isNSFW !== undefined) user.preferences.isNSFW = isNSFW
+      if (allowFollow !== undefined) user.preferences.allowFollow = allowFollow
+      if (isContentVisible !== undefined) user.preferences.isContentVisible = isContentVisible
+    }
+
+    if (req.body.files) {
+      const { avatar, banner } = req.files
       if (avatar) {
         const urls = user.profilePicture ? [user.profilePicture] : []
         await MediaUtils.deleteImages(urls)
@@ -664,9 +671,6 @@ const updateSettings = async (req, res) => {
         const newBanner = await MediaUtils.uploadImages(banner)
         user.banner = newBanner[0]
       }
-      if (isNSFW !== undefined) user.preferences.isNSFW = isNSFW
-      if (allowFollow !== undefined) user.preferences.allowFollow = allowFollow
-      if (isContentVisible !== undefined) user.preferences.isContentVisible = isContentVisible
     }
 
     if (req.body.feedSettings) {

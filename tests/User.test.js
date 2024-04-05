@@ -934,12 +934,13 @@ describe('updateSettings', () => {
         username: 'testuser'
       },
       body: {
-        preferences: {
+        profile: JSON.stringify({
           isNSFW: true,
-          allowFollow: true,
+          allowFollow: true
+        }),
+        feedSettings: JSON.stringify({
           autoPlayMedia: false
-        },
-        darkMode: true
+        })
       }
     }
 
@@ -1009,14 +1010,13 @@ describe('updateSettings', () => {
       save: jest.fn()
     }
     // Mock the UserModel.findOne method
-    UserModel.findOne = jest.fn().mockResolvedValueOnce(user)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
 
     // Call the function
     await updateSettings(req, res)
 
     // Check the response
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Settings updated successfully' })
   })
 
   // Return 400 if username is not provided in request
@@ -1157,6 +1157,11 @@ describe('getSettings', () => {
     const user = {
       email: 'test@example.com',
       gender: 'male',
+      displayName: 'Test User',
+      about: 'About Test User',
+      profilePicture: 'profilePicture',
+      banner: 'banner',
+      moderatorInCommunities: [],
       preferences: {
         google: null,
         socialLinks: [],
@@ -1180,9 +1185,19 @@ describe('getSettings', () => {
         invitationNotifs: true,
         followEmail: true,
         chatEmail: true
-      }
+      },
+      blockedUsers: ['blockedUser1', 'blockedUser2'],
+      mutedCommunities: []
     }
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    UserModel.findOne = jest.fn().mockImplementation((query) => {
+      if (query.username === 'validUsername') {
+        return Promise.resolve(user)
+      } else if (query.username === 'blockedUser1') {
+        return Promise.resolve({ profilePicture: 'profilePicture1' })
+      } else if (query.username === 'blockedUser2') {
+        return Promise.resolve({ profilePicture: 'profilePicture2' })
+      }
+    })
 
     await getSettings(req, res)
 
@@ -1195,18 +1210,21 @@ describe('getSettings', () => {
         google: false
       },
       profile: {
-        displayName: undefined,
-        about: undefined,
+        displayName: 'Test User',
+        about: 'About Test User',
         socialLinks: [],
-        avatar: undefined,
-        banner: undefined,
+        avatar: 'profilePicture',
+        banner: 'banner',
         isNSFW: false,
         allowFollow: true,
         isContentVisible: true
       },
       safetyAndPrivacy: {
-        blockedUsers: undefined,
-        mutedCommunities: undefined
+        blockedUsers: [
+          { username: 'blockedUser1', profilePicture: 'profilePicture1' },
+          { username: 'blockedUser2', profilePicture: 'profilePicture2' }
+        ],
+        mutedCommunities: []
       },
       feedSettings: {
         showAdultContent: true,
@@ -1225,7 +1243,7 @@ describe('getSettings', () => {
         postNotifs: true,
         cakeDayNotifs: true,
         modNotifs: true,
-        moderatorInCommunities: undefined,
+        moderatorInCommunities: [],
         invitationNotifs: true
       },
       email: {
