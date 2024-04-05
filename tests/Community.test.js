@@ -91,7 +91,10 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
@@ -185,7 +188,10 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
@@ -272,7 +278,10 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
@@ -360,7 +369,10 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
@@ -446,7 +458,10 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
@@ -526,7 +541,10 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [{ postId: 'post1' }],
       downvotedPosts: [{ postId: 'post2' }],
       savedPosts: [{ postId: 'post1' }],
-      hiddenPosts: [{ postId: 'post2' }]
+      hiddenPosts: [{ postId: 'post2' }],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
@@ -606,7 +624,10 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)

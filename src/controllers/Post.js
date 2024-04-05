@@ -284,20 +284,6 @@ const getPost = async (req, res) => {
       })
     }
 
-    let post = await Post.getPost(new ObjectId(postId))
-    post = post[0]
-
-    if (!post) {
-      return res.status(404).json({
-        message: 'Post does not exist'
-      })
-    }
-
-    await Post.findOneAndUpdate(
-      { _id: postId, isDeleted: false, isRemoved: false },
-      { $inc: { views: 1 } }
-    )
-
     const decoded = req.decoded
     let user = null
 
@@ -310,7 +296,29 @@ const getPost = async (req, res) => {
           message: 'User does not exist'
         })
       }
+    }
 
+    let post = await Post.getPost(new ObjectId(postId))
+    post = post[0]
+
+    if (!post) {
+      return res.status(404).json({
+        message: 'Post does not exist'
+      })
+    }
+
+    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
+      return res.status(401).json({
+        message: 'Unable to view NSFW content'
+      })
+    }
+
+    await Post.findOneAndUpdate(
+      { _id: postId, isDeleted: false, isRemoved: false },
+      { $inc: { views: 1 } }
+    )
+
+    if (user && !post.isNsfw) {
       const history = await HistoryModel.findOne({ owner: user.username, post: postId })
 
       if (!history) {
@@ -368,11 +376,31 @@ const getComments = async (req, res) => {
       })
     }
 
-    const post = await Post.findOne({ _id: new ObjectId(postId), isDeleted: false })
+    let post = await Post.getPost(new ObjectId(postId))
+    post = post[0]
 
     if (!post) {
       return res.status(404).json({
         message: 'Post does not exist'
+      })
+    }
+
+    const decoded = req.decoded
+    let user = null
+
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+    }
+
+    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
+      return res.status(401).json({
+        message: 'Unable to view NSFW content'
       })
     }
 
@@ -397,24 +425,26 @@ const getComments = async (req, res) => {
 
     const comments = await Post.getComments(new ObjectId(postId), options)
 
-    const decoded = req.decoded
-    let user = null
-
-    if (decoded) {
-      user = await User.findOne({ username: decoded.username, isDeleted: false })
-
-      if (!user) {
-        return res.status(404).json({
-          message: 'User does not exist'
-        })
-      }
-    }
-
     comments.forEach((comment) => {
       comment.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
       comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
       comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
     })
+
+    if (user && !post.isNsfw) {
+      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
+
+      if (!history) {
+        await HistoryModel.create({
+          owner: user.username,
+          post: postId
+        })
+      } else {
+        console.log(history)
+        history.updatedAt = new Date()
+        await history.save()
+      }
+    }
 
     return res.status(200).json(comments)
   } catch (error) {
@@ -467,11 +497,12 @@ const getHomeFeed = async (req, res) => {
 
     const communities = (!user || user.communities.length === 0) ? null : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
+    const showAdultContent = user ? user.preferences.showAdultContent : false
 
     if (sort === 'best' || !user) {
-      posts = await Post.getRandomHomeFeed(options, mutedCommunities)
+      posts = await Post.getRandomHomeFeed(options, mutedCommunities, showAdultContent)
     } else {
-      posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities)
+      posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, showAdultContent)
     }
 
     posts.forEach(post => {

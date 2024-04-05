@@ -204,10 +204,17 @@ const getSortedCommunityPosts = async (req, res) => {
       }
     }
 
+    if (community.isNSFW && (!user || !user.preferences.showAdultContent)) {
+      return res.status(401).json({
+        message: 'Unable to view NSFW content'
+      })
+    }
+
     const page = req.query.page ? parseInt(req.query.page) - 1 : 0
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
     const sort = req.query.sort ? req.query.sort : 'hot'
     let time = req.query.time ? req.query.time : 'all'
+    const showAdultContent = user ? user.preferences.showAdultContent : false
 
     if (sort !== 'top') {
       time = 'all'
@@ -224,7 +231,7 @@ const getSortedCommunityPosts = async (req, res) => {
       time
     }
 
-    const posts = await PostModel.byCommunity(subreddit, options)
+    const posts = await PostModel.byCommunity(subreddit, options, showAdultContent)
 
     posts.forEach(post => {
       if (post.type !== 'Poll') {

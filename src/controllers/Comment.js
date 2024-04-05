@@ -1,5 +1,6 @@
 const PostModel = require('../models/Post')
 const UserModel = require('../models/User')
+const HistoryModel = require('../models/History')
 const ObjectId = require('mongoose').Types.ObjectId
 const mongoose = require('mongoose')
 
@@ -13,7 +14,8 @@ const getComment = async (req, res) => {
       })
     }
 
-    let comment = await PostModel.findOne({ _id: new ObjectId(commentId), isDeleted: false, type: 'Comment', isRemoved: false }).select('-isDeleted -updatedAt -createdAt -__v -upvote -downvote -views -isEdited -isRemoved -followers -mostRecentUpvote -pollOptions -actions -isNsfw')
+    let comment = await PostModel.getComment(new ObjectId(commentId))
+    comment = comment[0]
 
     if (!comment) {
       return res.status(404).json({
@@ -21,8 +23,14 @@ const getComment = async (req, res) => {
       })
     }
 
-    const userProfilePicture = await comment.getUserProfilePicture()
-    comment = comment.toObject()
+    let post = await PostModel.getPost(new ObjectId(comment.postID))
+    post = post[0]
+
+    if (!post) {
+      return res.status(404).json({
+        message: 'Post does not exist'
+      })
+    }
 
     const decoded = req.decoded
     let user = null
@@ -37,11 +45,29 @@ const getComment = async (req, res) => {
       }
     }
 
+    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
+      return res.status(401).json({
+        message: 'Unable to view NSFW content'
+      })
+    }
+
     comment.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
     comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
     comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
 
-    comment.profilePicture = userProfilePicture[0].profilePicture[0]
+    if (user && !post.isNsfw) {
+      const history = await HistoryModel.findOne({ owner: user.username, post: comment.postID })
+
+      if (!history) {
+        await HistoryModel.create({
+          owner: user.username,
+          post: comment.postID
+        })
+      } else {
+        history.updatedAt = new Date()
+        await history.save()
+      }
+    }
 
     return res.status(200).json(comment)
   } catch (error) {
