@@ -582,6 +582,11 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
+      $match: {
+        'community.isNSFW': showAdultContent
+      }
+    },
+    {
       $project: {
         _id: '$posts._id',
         type: '$posts.type',
@@ -673,6 +678,11 @@ UserSchema.methods.getUserComments = async function (options) {
       }
     },
     {
+      $match: {
+        'community.isNSFW': showAdultContent
+      }
+    },
+    {
       $project: {
         _id: '$posts._id',
         postID: '$posts.postID',
@@ -696,7 +706,7 @@ UserSchema.methods.getUserComments = async function (options) {
 }
 
 UserSchema.methods.getJoinedCommunities = async function (options) {
-  let { username, page, limit } = options
+  const { username, page, limit } = options
 
   return await this.model('User').aggregate([
     {
