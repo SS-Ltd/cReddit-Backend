@@ -22,7 +22,7 @@ function createRandomPosts () {
       netVote: upvotes - downvotes,
       views: faker.number.int(),
       isSpoiler: faker.datatype.boolean(0.2),
-      isNSFW: faker.datatype.boolean(0.2),
+      isNsfw: faker.datatype.boolean(0.2),
       isLocked: faker.datatype.boolean(0.2),
       isDeleted: faker.datatype.boolean(0.05),
       isApproved: faker.datatype.boolean(0.4),

@@ -494,7 +494,7 @@ UserSchema.methods.getSavedComments = async function (options) {
 }
 
 UserSchema.methods.getUserPosts = async function (options) {
-  let { username, page, limit, sort, time, mutedCommunities } = options
+  let { username, page, limit, sort, time, mutedCommunities, showAdultContent } = options
 
   switch (sort) {
     case 'new':
@@ -533,6 +533,7 @@ UserSchema.methods.getUserPosts = async function (options) {
         'posts.isDeleted': false,
         'posts.isRemoved': false,
         'posts.type': { $ne: 'Comment' },
+        'posts.isNsfw': showAdultContent,
         $expr: {
           $and: [
             { $not: { $in: ['$posts.communityName', mutedCommunities] } }
@@ -606,7 +607,7 @@ UserSchema.methods.getUserPosts = async function (options) {
 }
 
 UserSchema.methods.getUserComments = async function (options) {
-  let { username, page, limit, sort, time, mutedCommunities } = options
+  let { username, page, limit, sort, time, mutedCommunities, showAdultContent } = options
 
   switch (sort) {
     case 'new':
@@ -645,6 +646,7 @@ UserSchema.methods.getUserComments = async function (options) {
         'posts.isDeleted': false,
         'posts.isRemoved': false,
         'posts.type': 'Comment',
+        'posts.isNsfw': showAdultContent,
         $expr: {
           $and: [
             { $not: { $in: ['$posts.communityName', mutedCommunities] } }
