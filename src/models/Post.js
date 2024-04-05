@@ -252,7 +252,7 @@ PostSchema.statics.getComments = async function (postId, options) {
   ])
 }
 
-PostSchema.statics.getPost = async function (postId, bannedInCommunities) {
+PostSchema.statics.getPost = async function (postId) {
   return await this.aggregate([
     { $match: { _id: postId, isDeleted: false, isRemoved: false } },
     {
@@ -296,10 +296,61 @@ PostSchema.statics.getPost = async function (postId, bannedInCommunities) {
   ])
 }
 
-PostSchema.statics.byCommunity = async function (communityName, options) {
+PostSchema.statics.getComment = async function (commentId) {
+  return await this.aggregate([
+    { $match: { _id: commentId, isDeleted: false, isRemoved: false, type: 'Comment' } },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $addFields: {
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+      }
+    },
+    {
+      $project: {
+        user: 0,
+        __v: 0,
+        followers: 0,
+        upvote: 0,
+        downvote: 0,
+        views: 0,
+        isImage: 0,
+        isDeleted: 0,
+        mostRecentUpvote: 0,
+        actions: 0,
+        isRemoved: 0,
+        pollOptions: 0,
+        isNsfw: 0,
+        expirationDate: 0
+      }
+    }
+  ])
+}
+
+PostSchema.statics.byCommunity = async function (communityName, options, showAdultContent) {
   const { page, limit, sortMethod, time } = options
   return await this.aggregate([
-    { $match: { communityName: communityName, createdAt: time, isDeleted: false, isRemoved: false } },
+    {
+      $match: {
+        communityName: communityName,
+        createdAt: time,
+        isDeleted: false,
+        isRemoved: false,
+        $expr: {
+          $cond: {
+            if: { $eq: [showAdultContent, false] },
+            then: { $eq: ['$isNsfw', false] },
+            else: true
+          }
+        }
+      }
+    },
     {
       $lookup: {
         from: 'posts',
@@ -344,22 +395,36 @@ PostSchema.statics.byCommunity = async function (communityName, options) {
   ])
 }
 
-PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities) {
+PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities, showAdultContent) {
   const { limit } = options
 
   return await this.aggregate([
     {
       $match: {
-        $expr: {
-          $cond: {
-            if: { $ne: [mutedCommunities, null] },
-            then: { $not: { $in: ['$communityName', mutedCommunities] } },
-            else: true
+        $and: [
+          {
+            $expr: {
+              $cond: {
+                if: { $ne: [mutedCommunities, null] },
+                then: { $not: { $in: ['$communityName', mutedCommunities] } },
+                else: true
+              }
+            }
+          },
+          {
+            $expr: {
+              $cond: {
+                if: { $eq: [showAdultContent, false] },
+                then: { $eq: ['$isNsfw', false] },
+                else: true
+              }
+            }
           }
-        },
+        ],
         isDeleted: false,
         isRemoved: false,
-        type: { $ne: 'Comment' }
+        type: { $ne: 'Comment' },
+        isNsfw: showAdultContent
       }
     },
     {
@@ -404,8 +469,9 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
   ])
 }
 
-PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities) {
+PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities, showAdultContent) {
   const { page, limit, sortMethod, time } = options
+  console.log(showAdultContent)
 
   return await this.aggregate([
     {
@@ -425,6 +491,15 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
               $cond: {
                 if: { $ne: [mutedCommunities, null] },
                 then: { $not: { $in: ['$communityName', mutedCommunities] } },
+                else: true
+              }
+            }
+          },
+          {
+            $expr: {
+              $cond: {
+                if: { $eq: [showAdultContent, false] },
+                then: { $eq: ['$isNsfw', false] },
                 else: true
               }
             }
