@@ -283,7 +283,7 @@ describe('logout', () => {
       }
     }
     const res = {
-      clearCookie: jest.fn(),
+      cookie: jest.fn(),
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
@@ -298,8 +298,19 @@ describe('logout', () => {
     expect(User.findOne).toHaveBeenCalledWith({ username: 'testuser' })
     expect(user.refreshToken).toBe('')
     expect(user.save).toHaveBeenCalled()
-    expect(res.clearCookie).toHaveBeenCalledWith('accessToken')
-    expect(res.clearCookie).toHaveBeenCalledWith('refreshToken')
+    expect(res.cookie).toHaveBeenCalledWith('accessToken', '', {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 0
+    })
+    expect(res.cookie).toHaveBeenCalledWith('refreshToken', '', {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 0,
+      path: '/user/refresh-token'
+    })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'User logged out successfully' })
   })
