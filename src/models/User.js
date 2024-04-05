@@ -533,8 +533,12 @@ UserSchema.methods.getUserPosts = async function (options) {
         'posts.isDeleted': false,
         'posts.isRemoved': false,
         'posts.type': { $ne: 'Comment' },
-        'posts.isNsfw': showAdultContent,
         $expr: {
+          $cond: {
+            if: { $eq: [showAdultContent, false] },
+            then: { $eq: ['$posts.isNsfw', false] },
+            else: true
+          },
           $and: [
             { $not: { $in: ['$posts.communityName', mutedCommunities] } }
           ]
@@ -651,8 +655,12 @@ UserSchema.methods.getUserComments = async function (options) {
         'posts.isDeleted': false,
         'posts.isRemoved': false,
         'posts.type': 'Comment',
-        'posts.isNsfw': showAdultContent,
         $expr: {
+          $cond: {
+            if: { $eq: [showAdultContent, false] },
+            then: { $eq: ['$posts.isNsfw', false] },
+            else: true
+          },
           $and: [
             { $not: { $in: ['$posts.communityName', mutedCommunities] } }
           ]

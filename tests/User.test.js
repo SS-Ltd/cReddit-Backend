@@ -861,8 +861,26 @@ describe('isUsernameAvailable', () => {
 describe('getUserView', () => {
   // Returns user data when valid username is provided
   test('should return user data when valid username is provided', async () => {
-    const req = { params: { username: 'validUsername' } }
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+    const req = {
+      decoded: {
+        username: 'viewerUsername'
+      },
+      params: {
+        username: 'validUsername'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const viewer = {
+      username: 'viewerUsername',
+      follows: [],
+      blockedUsers: [],
+      preferences: {
+        showAdultContent: true
+      }
+    }
     const user = {
       username: 'validUsername',
       displayName: 'John Doe',
@@ -871,13 +889,23 @@ describe('getUserView', () => {
       profilePicture: 'profile.jpg',
       banner: 'banner.jpg',
       followers: ['follower1', 'follower2'],
-      createdAt: '2022-01-01'
+      createdAt: '2022-01-01',
+      preferences: {
+        isNSFW: true
+      }
     }
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    UserModel.findOne = jest.fn().mockImplementation(async (query) => {
+      if (query.username === 'validUsername') {
+        return user
+      } else if (query.username === 'viewerUsername') {
+        return viewer
+      }
+    })
 
     await getUserView(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'viewerUsername' })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({
       username: 'validUsername',
@@ -887,7 +915,10 @@ describe('getUserView', () => {
       profilePicture: 'profile.jpg',
       banner: 'banner.jpg',
       followers: 2,
-      cakeDay: '2022-01-01'
+      cakeDay: '2022-01-01',
+      isNSFW: true,
+      isFollowed: false,
+      isBlocked: false
     })
   })
 

@@ -87,6 +87,10 @@ const getCommunityView = async (req, res) => {
     if (req.decoded) {
       const user = await UserModel.findOne({ username: req.decoded.username })
 
+      if (user && user.preferences.showAdultContent !== community.isNSFW) {
+        return res.status(401).json({ message: 'Unable to view NSFW content' })
+      }
+
       if (user) {
         communityData.isModerator = community.moderators.includes(req.decoded.username)
         communityData.isMember = user.communities.includes(community.name)
@@ -104,7 +108,29 @@ const getTopCommunities = async (req, res) => {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10
     const skip = (page - 1) * limit
-    const topCommunities = await CommunityModel.find({ isDeleted: false })
+
+    if (req.decoded) {
+      const user = await UserModel.findOne({ username: req.decoded.username })
+      if (user) {
+        if (user.preferences.showAdultContent === false) {
+          const topCommunities = await CommunityModel.find({ isDeleted: false, isNSFW: false })
+            .sort({ members: -1 })
+            .skip(skip)
+            .limit(limit)
+            .select('owner name icon topic members description')
+          return res.status(200).json(topCommunities)
+        } else {
+          const topCommunities = await CommunityModel.find({ isDeleted: false })
+            .sort({ members: -1 })
+            .skip(skip)
+            .limit(limit)
+            .select('owner name icon topic members description')
+          return res.status(200).json(topCommunities)
+        }
+      }
+    }
+
+    const topCommunities = await CommunityModel.find({ isDeleted: false, isNSFW: false })
       .sort({ members: -1 })
       .skip(skip)
       .limit(limit)

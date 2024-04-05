@@ -30,7 +30,8 @@ const getUser = async (req, res) => {
       profilePicture: user.profilePicture,
       banner: user.banner,
       followers: user.followers.length,
-      cakeDay: user.createdAt
+      cakeDay: user.createdAt,
+      isNSFW: user.preferences.isNSFW
     })
   } catch (error) {
     res.status(400).json({ message: 'Error getting user: ' + error.message })
@@ -503,10 +504,15 @@ const getUserView = async (req, res) => {
       profilePicture: user.profilePicture,
       banner: user.banner,
       followers: user.followers.length,
-      cakeDay: user.createdAt
+      cakeDay: user.createdAt,
+      isNSFW: user.preferences.isNSFW
     }
     if (req.decoded) {
       const viewer = await UserModel.findOne({ username: req.decoded.username })
+      if (viewer && viewer.preferences.showAdultContent !== user.preferences.isNSFW) {
+        return res.status(401).json({ message: 'Unable to view NSFW content' })
+      }
+
       if (viewer && viewer.username !== user.username) {
         userData.isFollowed = viewer.follows.includes(user.username)
         userData.isBlocked = viewer.blockedUsers.includes(user.username)
