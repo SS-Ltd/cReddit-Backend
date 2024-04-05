@@ -1966,7 +1966,10 @@ describe('getUser', () => {
       profilePicture: 'profile.jpg',
       banner: 'banner.jpg',
       followers: ['follower1', 'follower2'],
-      createdAt: '2022-01-01'
+      createdAt: '2022-01-01',
+      preferences: {
+        isNSFW: false
+      }
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
@@ -1982,7 +1985,8 @@ describe('getUser', () => {
       profilePicture: 'profile.jpg',
       banner: 'banner.jpg',
       followers: 2,
-      cakeDay: '2022-01-01'
+      cakeDay: '2022-01-01',
+      isNSFW: false
     })
   })
 
