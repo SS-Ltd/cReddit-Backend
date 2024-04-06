@@ -35,7 +35,9 @@ const createPost = async (req, res) => {
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
       expirationDate: post.expirationDate || null,
       isSpoiler: post.isSpoiler || false,
-      isNsfw: post.isNSFW || false
+      isNsfw: post.isNSFW || false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
 
     const user = await User.findOne({ username: post.username })

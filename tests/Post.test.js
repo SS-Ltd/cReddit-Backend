@@ -49,6 +49,7 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
 
     await PostController.createPost(req, res)
@@ -62,10 +63,12 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNsfw: false
+      isNsfw: false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
-    expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
+    expect(res.status).toHaveBeenCalledWith(201)
   })
 
   test('should create a post of type "Images & Video" with required fields', async () => {
@@ -85,6 +88,7 @@ describe('createPost', () => {
       ]
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     MediaUtils.cloudinary.uploader.upload = jest.fn().mockResolvedValue({ secure_url: 'secure_url' })
 
     const res = {
@@ -104,7 +108,9 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNsfw: false
+      isNsfw: false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -128,6 +134,8 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+
     await PostController.createPost(req, res)
 
     expect(PostModel).toHaveBeenCalledWith({
@@ -139,7 +147,9 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: true,
-      isNsfw: false
+      isNsfw: false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -165,6 +175,7 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
 
     await PostController.createPost(req, res)
@@ -178,10 +189,12 @@ describe('createPost', () => {
       pollOptions: ['Option 1', 'Option 2'].map(option => ({ text: option, votes: 0 })),
       expirationDate: '2080-12-31T23:59:59.999Z',
       isSpoiler: false,
-      isNsfw: true
+      isNsfw: true,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
-    expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
+    expect(res.status).toHaveBeenCalledWith(201)
   })
 
   test('should create a post with additional fields and send back warning', async () => {
@@ -203,6 +216,7 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
 
     await PostController.createPost(req, res)
@@ -216,7 +230,9 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNsfw: true
+      isNsfw: true,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully while ignoring additional fields' })

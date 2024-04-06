@@ -1,5 +1,6 @@
 const comment = require('../src/controllers/Comment')
 const PostModel = require('../src/models/Post')
+const UserModel = require('../src/models/User')
 const MediaUtils = require('../src/utils/Media')
 
 jest.mock('../src/models/Post', () => {
@@ -31,6 +32,7 @@ describe('createComment', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community' })
 
     await comment.createComment(req, res)
@@ -41,7 +43,9 @@ describe('createComment', () => {
       communityName: 'Test Community',
       content: 'Test Comment',
       postID: '660d7e17baa5c72965311c7f',
-      isImage: false
+      isImage: false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Comment created successfully' })
@@ -61,6 +65,7 @@ describe('createComment', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community' })
 
     MediaUtils.cloudinary.uploader.upload = jest.fn().mockResolvedValue({ secure_url: 'secure_url' })
@@ -73,7 +78,9 @@ describe('createComment', () => {
       communityName: 'Test Community',
       content: 'secure_url',
       postID: '660d7e17baa5c72965311c7f',
-      isImage: true
+      isImage: true,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Comment created successfully' })

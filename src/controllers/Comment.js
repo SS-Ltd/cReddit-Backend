@@ -43,7 +43,9 @@ const createComment = async (req, res) => {
       username: comment.username,
       content: comment.content,
       postID: comment.postId,
-      isImage: comment.isImage || false
+      isImage: comment.isImage || false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
 
     const user = await UserModel.findOne({ username: comment.username, isDeleted: false })
