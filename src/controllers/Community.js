@@ -118,6 +118,9 @@ const getTopCommunities = async (req, res) => {
             .skip(skip)
             .limit(limit)
             .select('owner name icon topic members description')
+          topCommunities.forEach(community => {
+            community.isJoined = user.communities.includes(community.name)
+          })
           return res.status(200).json(topCommunities)
         } else {
           const topCommunities = await CommunityModel.find({ isDeleted: false })
@@ -125,6 +128,9 @@ const getTopCommunities = async (req, res) => {
             .skip(skip)
             .limit(limit)
             .select('owner name icon topic members description')
+          topCommunities.forEach(community => {
+            community.isJoined = user.communities.includes(community.name)
+          })
           return res.status(200).json(topCommunities)
         }
       }
@@ -135,6 +141,10 @@ const getTopCommunities = async (req, res) => {
       .skip(skip)
       .limit(limit)
       .select('owner name icon topic members description')
+
+    topCommunities.forEach(community => {
+      community.isJoined = false
+    })
 
     res.status(200).json(topCommunities)
   } catch (error) {
