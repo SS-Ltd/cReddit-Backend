@@ -35,7 +35,7 @@ const createPost = async (req, res) => {
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
       expirationDate: post.expirationDate || null,
       isSpoiler: post.isSpoiler || false,
-      isNSFW: post.isNSFW || false
+      isNsfw: post.isNSFW || false
     })
 
     await createdPost.save()
@@ -311,6 +311,39 @@ const getPost = async (req, res) => {
   }
 }
 
+const votePost = async (req, res) => {
+  const postId = req.params.postId
+  const username = req.decoded.username
+  const pollOption = req.body?.pollOption
+
+  try {
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      throw new Error('Invalid post id')
+    }
+
+    const postToVote = await Post.findOne({ _id: postId, isDeleted: false })
+    if (!postToVote) {
+      throw new Error('Post does not exist')
+    }
+
+    const user = await User.findOne({ username, isDeleted: false })
+
+    if (req.type === 'upvote') {
+      PostUtils.upvotePost(postToVote, user)
+    } else if (req.type === 'downvote') {
+      PostUtils.downvotePost(postToVote, user)
+    } else if (req.type === 'votePoll') {
+      PostUtils.votePoll(postToVote, user, pollOption)
+    }
+
+    await postToVote.save()
+    await user.save()
+    res.status(200).json({ message: 'Post voted successfully', postVotes: postToVote.netVote })
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+}
+
 module.exports = {
   getPost,
   createPost,
@@ -318,5 +351,6 @@ module.exports = {
   editPost,
   savePost,
   hidePost,
-  lockPost
+  lockPost,
+  votePost
 }
