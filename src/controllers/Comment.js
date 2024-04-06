@@ -101,7 +101,33 @@ const editComment = async (req, res) => {
   }
 }
 
+const deleteComment = async (req, res) => {
+  const commentId = req.params.commentId
+
+  try {
+    if (!commentId || !mongoose.Types.ObjectId.isValid(commentId)) {
+      throw new Error('Comment ID is invalid')
+    }
+
+    const comment = await PostModel.findOne({ _id: commentId, isDeleted: false })
+    if (!comment || comment.type !== 'Comment') {
+      throw new Error('Cannot delete a non-existing comment')
+    }
+
+    if (comment.username !== req.decoded.username) {
+      throw new Error('You are not authorized to delete this comment')
+    }
+
+    comment.isDeleted = true
+    await comment.save()
+    res.status(200).json({ message: 'Comment deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+}
+
 module.exports = {
   createComment,
-  editComment
+  editComment,
+  deleteComment
 }
