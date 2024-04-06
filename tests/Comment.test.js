@@ -371,3 +371,120 @@ describe('editComment', () => {
     })
   })
 })
+
+describe('deleteComment', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should delete the comment when the comment ID is valid and the user is authorized', async () => {
+    const req = {
+      params: {
+        commentId: 'edc7d65f92ccd6c400f07df0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const commentToDelete = {
+      _id: 'edc7d65f92ccd6c400f07df0',
+      type: 'Comment',
+      username: 'authorizedUser',
+      isDeleted: false,
+      save: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(commentToDelete)
+
+    await comment.deleteComment(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'edc7d65f92ccd6c400f07df0', isDeleted: false })
+    expect(commentToDelete.isDeleted).toBe(true)
+    expect(commentToDelete.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Comment deleted successfully' })
+  })
+
+  test('should throw an error if the commentId is invalid', async () => {
+    const req = {
+      params: {
+        commentId: 'InvalidCommentId'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await comment.deleteComment(req, res)
+
+    expect(PostModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Comment ID is invalid' })
+  })
+
+  test('should throw an error message when the comment ID does not exist (deleted or non-existing)', async () => {
+    const req = {
+      params: {
+        commentId: 'edc7d65f92ccd6c400f07df0'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await comment.deleteComment(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'edc7d65f92ccd6c400f07df0', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Cannot delete a non-existing comment' })
+  })
+
+  test('should throw an error when the user is not authorized to delete the comment', async () => {
+    const req = {
+      params: {
+        commentId: 'edc7d65f92ccd6c400f07df0'
+      },
+      decoded: {
+        username: 'unauthorizedUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const commentToDelete = {
+      _id: 'edc7d65f92ccd6c400f07df0',
+      type: 'Comment',
+      username: 'authorizedUser',
+      isDeleted: false,
+      save: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(commentToDelete)
+
+    await comment.deleteComment(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'edc7d65f92ccd6c400f07df0', isDeleted: false })
+    expect(commentToDelete.isDeleted).toBe(false)
+    expect(commentToDelete.save).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to delete this comment' })
+  })
+})
