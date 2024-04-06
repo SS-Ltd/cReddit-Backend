@@ -1,6 +1,8 @@
 const mongoose = require('mongoose')
 const PostModel = require('../models/Post')
+const UserModel = require('../models/User')
 const MediaUtils = require('../utils/Media')
+const PostUtils = require('../utils/Post')
 
 const createComment = async (req, res) => {
   const comment = req.body
@@ -24,7 +26,7 @@ const createComment = async (req, res) => {
       throw new Error('Comment can only have one image')
     }
 
-    const post = await PostModel.findOne(comment.postId)
+    const post = await PostModel.findOne({ _id: comment.postId })
     if (!post || post.type === 'Comment') {
       throw new Error('Cannot comment on a non-existing post')
     }
@@ -44,7 +46,11 @@ const createComment = async (req, res) => {
       isImage: comment.isImage || false
     })
 
+    const user = await UserModel.findOne({ username: comment.username, isDeleted: false })
+    PostUtils.upvotePost(newComment, user)
+
     await newComment.save()
+    await user.save()
     res.status(201).json({
       message: 'Comment created successfully',
       commentId: newComment._id

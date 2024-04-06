@@ -38,7 +38,11 @@ const createPost = async (req, res) => {
       isNsfw: post.isNSFW || false
     })
 
+    const user = await User.findOne({ username: post.username })
+    PostUtils.upvotePost(createdPost, user)
+
     await createdPost.save()
+    await user.save()
     res.status(201).json({
       message: 'Post created successfully' + (post.unusedData ? ' while ignoring additional fields' : ''),
       postId: createdPost._id
