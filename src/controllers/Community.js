@@ -109,48 +109,43 @@ const getTopCommunities = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
     const skip = (page - 1) * limit
 
+    const topCommunitiesQuery = { isDeleted: false }
     if (req.decoded) {
       const user = await UserModel.findOne({ username: req.decoded.username })
       if (user) {
         if (user.preferences.showAdultContent === false) {
-          const topCommunities = await CommunityModel.find({ isDeleted: false, isNSFW: false })
-            .sort({ members: -1 })
-            .skip(skip)
-            .limit(limit)
-            .select('owner name icon topic members description')
-          topCommunities.forEach(community => {
-            community.isJoined = user.communities.includes(community.name)
-          })
-          return res.status(200).json(topCommunities)
-        } else {
-          const topCommunities = await CommunityModel.find({ isDeleted: false })
-            .sort({ members: -1 })
-            .skip(skip)
-            .limit(limit)
-            .select('owner name icon topic members description')
-          topCommunities.forEach(community => {
-            community.isJoined = user.communities.includes(community.name)
-          })
-          return res.status(200).json(topCommunities)
+          topCommunitiesQuery.isNSFW = false
         }
       }
     }
 
-    const topCommunities = await CommunityModel.find({ isDeleted: false, isNSFW: false })
+    let topCommunities = await CommunityModel.find(topCommunitiesQuery)
       .sort({ members: -1 })
       .skip(skip)
       .limit(limit)
       .select('owner name icon topic members description')
 
-    topCommunities.forEach(community => {
-      community.isJoined = false
-    })
+    topCommunities = topCommunities.map(community => { return community.toObject() })
+
+    if (req.decoded) {
+      const user = await UserModel.findOne({ username: req.decoded.username })
+      if (user) {
+        topCommunities.forEach(community => {
+          community.isJoined = user.communities.includes(community.name)
+        })
+      }
+    } else {
+      topCommunities.forEach(community => {
+        community.isJoined = false
+      })
+    }
 
     res.status(200).json(topCommunities)
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error getting top communities' })
   }
 }
+
 
 const getEditedPosts = async (req, res) => {
   try {
