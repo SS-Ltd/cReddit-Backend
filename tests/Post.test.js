@@ -3,7 +3,9 @@ const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
 const MediaUtils = require('../src/utils/Media')
+const PostUtils = require('../src/utils/Post')
 const { getSortedCommunityPosts } = require('../src/controllers/Community')
+const { ObjectId } = require('mongodb')
 
 jest.mock('../src/models/Post', () => {
   return jest.fn().mockImplementation(() => {
@@ -60,7 +62,7 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNSFW: false
+      isNsfw: false
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -102,7 +104,7 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNSFW: false
+      isNsfw: false
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -137,7 +139,7 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: true,
-      isNSFW: false
+      isNsfw: false
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -176,7 +178,7 @@ describe('createPost', () => {
       pollOptions: ['Option 1', 'Option 2'].map(option => ({ text: option, votes: 0 })),
       expirationDate: '2080-12-31T23:59:59.999Z',
       isSpoiler: false,
-      isNSFW: true
+      isNsfw: true
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -214,7 +216,7 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNSFW: true
+      isNsfw: true
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully while ignoring additional fields' })
@@ -1989,5 +1991,253 @@ describe('getSortedCommunityPosts', () => {
     expect(res.json).toHaveBeenCalledWith({
       message: 'No posts found for the community'
     })
+  })
+})
+
+describe('votePost', () => {
+  test('should upvote a post when req.type is upvote', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      body: {},
+      type: 'upvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, upvote: 0, downvote: 0, netVote: 0, save: jest.fn() }
+    const user = { username, upvotedPosts: [], downvotedPosts: [], save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'upvotePost')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.upvotePost).toHaveBeenCalledWith(postToVote, user)
+    expect(postToVote.upvote).toBe(1)
+    expect(postToVote.downvote).toBe(0)
+    expect(postToVote.netVote).toBe(1)
+    expect(user.upvotedPosts.length).toBe(1)
+    expect(user.downvotedPosts.length).toBe(0)
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should downvote a post when req.type is downvote', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'downvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, upvote: 0, downvote: 0, netVote: 0, save: jest.fn() }
+    const user = { username, upvotedPosts: [], downvotedPosts: [], save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'downvotePost')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.downvotePost).toHaveBeenCalledWith(postToVote, user)
+    expect(postToVote.upvote).toBe(0)
+    expect(postToVote.downvote).toBe(1)
+    expect(postToVote.netVote).toBe(-1)
+    expect(user.upvotedPosts.length).toBe(0)
+    expect(user.downvotedPosts.length).toBe(1)
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should vote a pollOption for a poll when req.type is votePoll', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      body: { pollOption: 'option2' },
+      type: 'votePoll'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, type: 'Poll', pollOptions: [{ text: 'option1', voters: [] }, { text: 'option2', voters: [] }], save: jest.fn() }
+    const user = { username, save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'votePoll')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.votePoll).toHaveBeenCalledWith(postToVote, user, 'option2')
+    expect(postToVote.pollOptions).toStrictEqual([
+      { text: 'option1', voters: [] },
+      { text: 'option2', voters: [username] }
+    ])
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should reverse upvote before downvoting a post when req.type is downvote', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'downvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, upvote: 1, downvote: 0, netVote: 1, save: jest.fn() }
+    const user = { username, upvotedPosts: [{ postId: new ObjectId('660460b9e212f19e0a5c274b'), savedAt: new Date() }], downvotedPosts: [], save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'downvotePost')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.downvotePost).toHaveBeenCalledWith(postToVote, user)
+    expect(postToVote.upvote).toBe(0)
+    expect(postToVote.downvote).toBe(1)
+    expect(postToVote.netVote).toBe(-1)
+    expect(user.upvotedPosts.length).toBe(0)
+    expect(user.downvotedPosts.length).toBe(1)
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should reverse upvote when already upvoted', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'upvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, upvote: 1, downvote: 0, netVote: 1, save: jest.fn() }
+    const user = { username, upvotedPosts: [{ postId: new ObjectId('660460b9e212f19e0a5c274b'), savedAt: new Date() }], downvotedPosts: [], save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'downvotePost')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.upvotePost).toHaveBeenCalledWith(postToVote, user)
+    expect(postToVote.upvote).toBe(0)
+    expect(postToVote.downvote).toBe(0)
+    expect(postToVote.netVote).toBe(0)
+    expect(user.upvotedPosts.length).toBe(0)
+    expect(user.downvotedPosts.length).toBe(0)
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should return an error message when post is not found', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'upvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.votePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post does not exist' }))
+  })
+
+  test('should return an error message when pollOption does not exist', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      body: { pollOption: 'option3' },
+      type: 'votePoll'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, type: 'Poll', pollOptions: [{ text: 'option1', voters: [] }, { text: 'option2', voters: [] }], save: jest.fn() }
+    const user = { username, save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'votePoll')
+
+    await PostController.votePost(req, res)
+
+    expect(PostUtils.votePoll).toHaveBeenCalled()
+    expect(postToVote.save).not.toHaveBeenCalled()
+    expect(user.save).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Invalid poll option' }))
   })
 })
