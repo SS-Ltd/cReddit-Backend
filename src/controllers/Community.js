@@ -295,11 +295,77 @@ const getSortedCommunityPosts = async (req, res) => {
   }
 }
 
+const joinCommunity = async (req, res) => {
+  try {
+    const subreddit = req.params.subreddit
+    const username = req.decoded.username
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    const isMember = user.communities.includes(subreddit)
+    if (isMember) {
+      return res.status(400).json({
+        message: 'User is already a member of the community'
+      })
+    }
+
+    user.communities.push(subreddit)
+    community.members++
+
+    await user.save()
+    await community.save()
+
+    res.status(200).json({
+      message: 'User joined the community successfully'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'An error occurred while joining the community'
+    })
+  }
+}
+
+const leaveCommunity = async (req, res) => {
+  try {
+    const subreddit = req.params.subreddit
+    const username = req.decoded.username
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    const isMember = user.communities.includes(subreddit)
+    if (!isMember) {
+      return res.status(400).json({
+        message: 'User is not a member of the community'
+      })
+    }
+
+    user.communities = user.communities.filter(item => item !== subreddit)
+    community.members--
+
+    await user.save()
+    await community.save()
+
+    res.status(200).json({
+      message: 'User left the community successfully'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'An error occurred while leaving the community'
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
   isNameAvailable,
   getTopCommunities,
   getEditedPosts,
-  getSortedCommunityPosts
+  getSortedCommunityPosts,
+  joinCommunity,
+  leaveCommunity
 }
