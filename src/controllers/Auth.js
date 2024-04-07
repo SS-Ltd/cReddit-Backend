@@ -259,7 +259,6 @@ const loginGoogle = async (req, res) => {
     })
 
     await newUser.save()
-    await sendVerificationEmail(email, username)
     res.status(201).json({
       message: 'User created successfully',
       username: newUser.username,
