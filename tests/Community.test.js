@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -13,13 +13,15 @@ jest.mock('../src/models/Post', () => {
     sort: jest.fn(),
     skip: jest.fn(),
     limit: jest.fn(),
-    byCommunity: jest.fn()
+    byCommunity: jest.fn(),
+    save: jest.fn()
   }
 })
 
 jest.mock('../src/models/User', () => {
   return {
-    findOne: jest.fn()
+    findOne: jest.fn(),
+    save: jest.fn()
   }
 })
 
@@ -689,5 +691,65 @@ describe('getEditedPosts', () => {
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'invalidCommunity', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
+  })
+})
+
+describe('joinCommunity', () => {
+  // User successfully joins a community
+  beforeEach(() => {
+    UserModel.findOne.mockClear()
+  })
+
+  it('should return a 200 status code and a success message when user successfully joins a community', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'testUser', isDeleted: false, communities: [], save: jest.fn() })
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'testSubreddit', isDeleted: false, members: 5, save: jest.fn() })
+
+    await joinCommunity(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User joined the community successfully'
+    })
+  })
+
+  // Community does not exist, returns 500 error
+  it('should return a 500 status code and an error message when the community does not exist', async () => {
+    const req = {
+      params: {
+        subreddit: 'nonExistentSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await joinCommunity(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'An error occurred while joining the community'
+    })
   })
 })
