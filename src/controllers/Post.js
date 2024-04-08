@@ -61,14 +61,15 @@ const deletePost = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({ message: 'Invalid post id' })
     }
-    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const post = await Post.findOne({ _id: postId, isDeleted: false })
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
     if (post.username !== req.decoded.username) {
       return res.status(403).json({ message: 'You are not authorized to delete this post' })
     }
-    await post.deleteOne()
+    post.isDeleted = true
+    await post.save()
     res.status(200).json({ message: 'Post deleted successfully' })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error deleting post' })
@@ -136,7 +137,7 @@ const savePost = async (req, res) => {
       user.savedPosts = user.savedPosts.filter(id => id.toString() !== postId)
     }
     await user.save()
-    res.status(200).json({ message: ('Post ' + (isSaved ? 'saved' : 'unsaved') + ' successfully') })
+    res.status(200).json({ message: ('Post/comment ' + (isSaved ? 'saved' : 'unsaved') + ' successfully') })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error saving post' })
   }
