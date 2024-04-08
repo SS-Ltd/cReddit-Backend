@@ -1,14 +1,13 @@
 const { faker } = require('@faker-js/faker')
 const HistoryModel = require('../models/History')
 const { usernames, postIDs } = require('./SeedUtils')
-const { HISTORY } = require('./SeedConfig')
 
 const histories = []
 
 function createRandomHistories () {
-  for (let i = 0; i < HISTORY; i++) {
+  for (let i = 0; i < usernames.length; i++) {
     histories.push({
-      owner: faker.helpers.arrayElement(usernames),
+      owner: usernames[i],
       post: faker.helpers.arrayElement(postIDs)
     })
   }
