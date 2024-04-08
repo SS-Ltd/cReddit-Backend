@@ -54,6 +54,7 @@ const getComment = async (req, res) => {
     comment.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
     comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
     comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+    comment.isModerator = user ? user.moderatorInCommunities.includes(post.community) : false
 
     if (user && !post.isNsfw) {
       const history = await HistoryModel.findOne({ owner: user.username, post: comment.postID })

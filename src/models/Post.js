@@ -224,12 +224,51 @@ PostSchema.statics.getComments = async function (postId, options) {
         as: 'user'
       }
     },
+    {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
     { $sort: sort },
     { $skip: page * limit },
     { $limit: limit },
     {
       $addFields: {
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        reports: '$reports'
       }
     },
     {
@@ -280,6 +319,44 @@ PostSchema.statics.getPost = async function (postId) {
       }
     },
     {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
+    {
       $addFields: {
         profilePicture: {
           $cond: {
@@ -288,7 +365,8 @@ PostSchema.statics.getPost = async function (postId) {
             else: { $arrayElemAt: ['$community.icon', 0] }
           }
         },
-        commentCount: { $size: '$comments' }
+        commentCount: { $size: '$comments' },
+        reports: '$reports'
       }
     },
     {
@@ -305,7 +383,8 @@ PostSchema.statics.getPost = async function (postId) {
         isDeleted: 0,
         mostRecentUpvote: 0,
         actions: 0,
-        isRemoved: 0
+        isRemoved: 0,
+        reportUser: 0
       }
     }
   ])
@@ -323,8 +402,47 @@ PostSchema.statics.getComment = async function (commentId) {
       }
     },
     {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
+    {
       $addFields: {
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        reports: '$reports'
       }
     },
     {
@@ -382,13 +500,52 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
         as: 'user'
       }
     },
+    {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
     { $sort: sortMethod },
     { $skip: page * limit },
     { $limit: limit },
     {
       $addFields: {
         commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        reports: '$reports'
       }
     },
     {
