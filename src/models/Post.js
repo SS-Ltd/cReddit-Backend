@@ -265,6 +265,14 @@ PostSchema.statics.getPost = async function (postId) {
     },
     {
       $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
         from: 'communities',
         localField: 'communityName',
         foreignField: 'name',
@@ -273,14 +281,21 @@ PostSchema.statics.getPost = async function (postId) {
     },
     {
       $addFields: {
-        commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] }
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        commentCount: { $size: '$comments' }
       }
     },
     {
       $project: {
         comments: 0,
         community: 0,
+        user: 0,
         __v: 0,
         followers: 0,
         upvote: 0,
@@ -437,6 +452,14 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
     },
     {
       $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
         from: 'communities',
         localField: 'communityName',
         foreignField: 'name',
@@ -446,14 +469,21 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
     { $sample: { size: limit } },
     {
       $addFields: {
-        commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] }
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        commentCount: { $size: '$comments' }
       }
     },
     {
       $project: {
         comments: 0,
         community: 0,
+        user: 0,
         __v: 0,
         followers: 0,
         upvote: 0,
@@ -469,7 +499,7 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
   ])
 }
 
-PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities, showAdultContent) {
+PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities, follows, showAdultContent) {
   const { page, limit, sortMethod, time } = options
   console.log(showAdultContent)
 
@@ -478,13 +508,26 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
       $match: {
         $and: [
           {
-            $expr: {
-              $cond: {
-                if: { $ne: [communities, null] },
-                then: { $in: ['$communityName', communities] },
-                else: true
+            $or: [
+              {
+                $expr: {
+                  $cond: {
+                    if: { $ne: [communities, null] },
+                    then: { $in: ['$communityName', communities] },
+                    else: true
+                  }
+                }
+              },
+              {
+                $expr: {
+                  $cond: {
+                    if: { $ne: [follows, null] },
+                    then: { $and: [{ $in: ['$username', follows] }, { $eq: ['$communityName', null] }] },
+                    else: true
+                  }
+                }
               }
-            }
+            ]
           },
           {
             $expr: {
@@ -521,6 +564,14 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
     },
     {
       $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
         from: 'communities',
         localField: 'communityName',
         foreignField: 'name',
@@ -532,14 +583,21 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
     { $limit: limit },
     {
       $addFields: {
-        commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] }
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        commentCount: { $size: '$comments' }
       }
     },
     {
       $project: {
         comments: 0,
         community: 0,
+        user: 0,
         __v: 0,
         followers: 0,
         upvote: 0,
