@@ -61,16 +61,12 @@ const deletePost = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({ message: 'Invalid post id' })
     }
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
     if (post.username !== req.decoded.username) {
       return res.status(403).json({ message: 'You are not authorized to delete this post' })
-    }
-    if (post.type === 'Images & Video') {
-      const urls = post.content.split(' ')
-      await MediaUtils.deleteImages(urls)
     }
     await post.deleteOne()
     res.status(200).json({ message: 'Post deleted successfully' })
@@ -90,7 +86,7 @@ const editPost = async (req, res) => {
     return res.status(400).json({ message: 'No content to update' })
   }
   try {
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -120,19 +116,19 @@ const savePost = async (req, res) => {
     return res.status(400).json({ message: 'isSaved field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!post) {
-      return res.status(400).json({ message: 'Post is not found' })
+      return res.status(400).json({ message: 'Post/comment is not found' })
     }
     const user = await User.findOne({ username })
     if (!user) {
       return res.status(400).json({ message: 'User is not found' })
     }
     if (isSaved && user.savedPosts.includes(postId)) {
-      return res.status(400).json({ message: 'Post is already saved' })
+      return res.status(400).json({ message: 'Post/comment is already saved' })
     }
     if (!isSaved && !user.savedPosts.includes(postId)) {
-      return res.status(400).json({ message: 'Post is not saved' })
+      return res.status(400).json({ message: 'Post/comment is not saved' })
     }
     if (isSaved) {
       user.savedPosts.push(postId)
@@ -157,7 +153,7 @@ const hidePost = async (req, res) => {
     return res.status(400).json({ message: 'isHidden field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -194,7 +190,7 @@ const lockPost = async (req, res) => {
     return res.status(400).json({ message: 'isLocked field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -240,7 +236,7 @@ const getPost = async (req, res) => {
       })
     }
 
-    let post = await Post.findOne({ _id: postId, isDeleted: false })
+    let post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
 
     if (!post) {
       return res.status(404).json({
@@ -327,7 +323,7 @@ const votePost = async (req, res) => {
       throw new Error('Invalid post id')
     }
 
-    const postToVote = await Post.findOne({ _id: postId, isDeleted: false })
+    const postToVote = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
     if (!postToVote) {
       throw new Error('Post does not exist')
     }
