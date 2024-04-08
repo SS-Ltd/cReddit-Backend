@@ -442,7 +442,8 @@ describe('deletePost', () => {
       username: 'authorizedUser',
       type: 'Images & Video',
       content: 'cReddit/image1.jpg cReddit/video1.mp4',
-      deleteOne: jest.fn()
+      isDeleted: false,
+      save: jest.fn(),
     }
     MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
@@ -451,10 +452,8 @@ describe('deletePost', () => {
 
     expect(res.json).toHaveBeenCalledWith({ message: 'Post deleted successfully' })
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
-    expect(post.deleteOne).toHaveBeenCalled()
-    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/image1')
-    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+    expect(post.isDeleted).toBe(true)
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0', isDeleted: false })
   })
 
   test('should not delete a post when unauthorized user', async () => {
@@ -484,7 +483,7 @@ describe('deletePost', () => {
 
     expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to delete this post' })
     expect(res.status).toHaveBeenCalledWith(403)
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0', isDeleted: false })
     expect(post.deleteOne).not.toHaveBeenCalled()
     expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
     expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
@@ -517,7 +516,7 @@ describe('deletePost', () => {
 
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid post id' })
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(PostModel.findOne).not.toHaveBeenCalledWith({ _id: 'InvalidPostId' })
+    expect(PostModel.findOne).not.toHaveBeenCalledWith({ _id: 'InvalidPostId', isDeleted: false })
     expect(post.deleteOne).not.toHaveBeenCalled()
     expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
     expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
@@ -543,40 +542,9 @@ describe('deletePost', () => {
 
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is not found' })
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0', isDeleted: false })
     expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
     expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
-  })
-
-  test('should not delete a post when invalid image url', async () => {
-    const req = {
-      params: {
-        postId: '65fcc9307932c5551dfd88e0'
-      },
-      decoded: {
-        username: 'authorizedUser'
-      }
-    }
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn()
-    }
-    const post = {
-      _id: '65fcc9307932c5551dfd88e0',
-      username: 'authorizedUser',
-      type: 'Images & Video',
-      content: 'cRedditimage1.jpg cReddit/video1.mp4',
-      deleteOne: jest.fn()
-    }
-    MediaUtils.cloudinary.uploader.destroy = jest.fn()
-    PostModel.findOne = jest.fn().mockResolvedValue(post)
-
-    await PostController.deletePost(req, res)
-
-    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid image or video URLs found in post' })
-    expect(res.status).toHaveBeenCalledWith(500)
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
-    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cRedditimage1')
   })
 })
 
@@ -775,7 +743,7 @@ describe('savePost', () => {
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post saved successfully' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment saved successfully' })
     expect(user.savedPosts).toContain('65fcc9307932c5551dfd88e0')
     expect(user.save).toHaveBeenCalled()
   })
@@ -809,7 +777,7 @@ describe('savePost', () => {
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post unsaved successfully' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment unsaved successfully' })
     expect(user.savedPosts).not.toContain('65fcc9307932c5551dfd88e0')
     expect(user.save).toHaveBeenCalled()
   })
@@ -899,7 +867,7 @@ describe('savePost', () => {
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post is already saved' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment is already saved' })
   })
 
   test('should return an error message for an already unsaved post', async () => {
@@ -931,7 +899,7 @@ describe('savePost', () => {
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post is not saved' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment is not saved' })
   })
 })
 
@@ -2036,7 +2004,7 @@ describe('votePost', () => {
 
     await PostController.votePost(req, res)
 
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
     expect(PostUtils.upvotePost).toHaveBeenCalledWith(postToVote, user)
     expect(postToVote.upvote).toBe(1)
@@ -2074,7 +2042,7 @@ describe('votePost', () => {
 
     await PostController.votePost(req, res)
 
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
     expect(PostUtils.downvotePost).toHaveBeenCalledWith(postToVote, user)
     expect(postToVote.upvote).toBe(0)
@@ -2113,7 +2081,7 @@ describe('votePost', () => {
 
     await PostController.votePost(req, res)
 
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
     expect(PostUtils.votePoll).toHaveBeenCalledWith(postToVote, user, 'option2')
     expect(postToVote.pollOptions).toStrictEqual([
@@ -2150,7 +2118,7 @@ describe('votePost', () => {
 
     await PostController.votePost(req, res)
 
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
     expect(PostUtils.downvotePost).toHaveBeenCalledWith(postToVote, user)
     expect(postToVote.upvote).toBe(0)
@@ -2188,7 +2156,7 @@ describe('votePost', () => {
 
     await PostController.votePost(req, res)
 
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
     expect(PostUtils.upvotePost).toHaveBeenCalledWith(postToVote, user)
     expect(postToVote.upvote).toBe(0)
