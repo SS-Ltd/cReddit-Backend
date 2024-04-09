@@ -30,7 +30,8 @@ function createRandomPosts () {
       isRemoved: faker.datatype.boolean(0.05),
       followers: faker.helpers.shuffle(usernames).slice(0, 5),
       mostRecentUpvote: faker.date.recent(),
-      type: 'Post'
+      type: 'Post',
+      createdAt: faker.date.recent({ days: 450 })
     })
   }
 }
@@ -68,7 +69,7 @@ function createRandomImages () {
       netVote: upvotes - downvotes,
       views: faker.number.int({ min: 0, max: 100000 }),
       isSpoiler: faker.datatype.boolean(0.2),
-      isNSFW: faker.datatype.boolean(0.2),
+      isNsfw: faker.datatype.boolean(0.2),
       isLocked: faker.datatype.boolean(0.2),
       isDeleted: faker.datatype.boolean(0.05),
       isApproved: faker.datatype.boolean(0.4),
@@ -76,7 +77,8 @@ function createRandomImages () {
       isRemoved: faker.datatype.boolean(0.05),
       followers: faker.helpers.shuffle(usernames).slice(0, 5),
       mostRecentUpvote: faker.date.recent(),
-      type: 'Images & Video'
+      type: 'Images & Video',
+      createdAt: faker.date.recent({ days: 450 })
     })
   }
 }
@@ -103,6 +105,14 @@ function createRandomPolls () {
       voters: []
     }]
 
+    let potentialVoters = usernames
+    for (let i = 0; i < pollOptions.length; i++) {
+      const randomNumOfUsers = faker.number.int({ min: 0, max: potentialVoters.length })
+      const selectedUsers = faker.helpers.shuffle(potentialVoters).slice(0, randomNumOfUsers)
+      pollOptions[i].voters = selectedUsers
+      potentialVoters = potentialVoters.filter(user => !selectedUsers.includes(user))
+    }
+
     posts.push({
       _id: postIDs[i],
       username: faker.helpers.arrayElement(usernames),
@@ -110,13 +120,13 @@ function createRandomPolls () {
       title: faker.lorem.sentence(),
       content: faker.lorem.paragraph(),
       pollOptions: pollOptions.slice(0, faker.number.int({ min: 2, max: 5 })),
-      expirationDate: faker.date.future(),
+      expirationDate: faker.date.soon({ min: 0, max: 7 }),
       upvote: upvotes,
       downvote: downvotes,
       netVote: upvotes - downvotes,
       views: faker.number.int({ min: 0, max: 100000 }),
       isSpoiler: faker.datatype.boolean(0.2),
-      isNSFW: faker.datatype.boolean(0.2),
+      isNsfw: faker.datatype.boolean(0.2),
       isLocked: faker.datatype.boolean(0.2),
       isDeleted: faker.datatype.boolean(0.05),
       isApproved: faker.datatype.boolean(0.4),
@@ -124,7 +134,8 @@ function createRandomPolls () {
       isRemoved: faker.datatype.boolean(0.05),
       followers: faker.helpers.shuffle(usernames).slice(0, 5),
       mostRecentUpvote: faker.date.recent(),
-      type: 'Poll'
+      type: 'Poll',
+      createdAt: faker.date.recent({ days: 450 })
     })
   }
 }
@@ -162,7 +173,7 @@ function createRandomLinks () {
       netVote: upvotes - downvotes,
       views: faker.number.int({ min: 0, max: 100000 }),
       isSpoiler: faker.datatype.boolean(0.2),
-      isNSFW: faker.datatype.boolean(0.2),
+      isNsfw: faker.datatype.boolean(0.2),
       isLocked: faker.datatype.boolean(0.2),
       isDeleted: faker.datatype.boolean(0.05),
       isApproved: faker.datatype.boolean(0.4),
@@ -170,7 +181,8 @@ function createRandomLinks () {
       isRemoved: faker.datatype.boolean(0.05),
       followers: faker.helpers.shuffle(usernames).slice(0, 5),
       mostRecentUpvote: faker.date.recent(),
-      type: 'Link'
+      type: 'Link',
+      createdAt: faker.date.recent({ days: 450 })
     })
   }
 }
