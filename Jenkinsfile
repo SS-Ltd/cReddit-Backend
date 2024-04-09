@@ -2,12 +2,21 @@ pipeline {
     agent any
     stages {
         stage('cp env file'){
+            when {
+                branch 'main'
+            }
             steps {
                 sh 'cp /home/jenkins/.env .'
             }
         }
 
         stage('Build & test') {
+            when {
+                anyOf {
+                    changeRequest target: 'main'
+                    branch 'main'
+                }
+            }
             steps {
                  sh 'docker build . -t moa234/creddit_backend'
             }
