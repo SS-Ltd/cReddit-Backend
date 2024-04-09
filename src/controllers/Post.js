@@ -351,7 +351,8 @@ const getComments = async (req, res) => {
       })
     }
 
-    let post = await Post.findOne({ _id: postId, isDeleted: false })
+    let post = await Post.getPost(new ObjectId(postId))
+    post = post[0]
 
     if (!post) {
       return res.status(404).json({
