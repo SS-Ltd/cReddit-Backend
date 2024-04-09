@@ -588,15 +588,6 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
-      $match: {
-        $cond: {
-          if: { $eq: [showAdultContent, false] },
-          then: { $eq: ['$community.isNSFW', false] },
-          else: true
-        }
-      }
-    },
-    {
       $project: {
         _id: '$posts._id',
         type: '$posts.type',
@@ -691,15 +682,6 @@ UserSchema.methods.getUserComments = async function (options) {
         localField: 'posts.communityName',
         foreignField: 'name',
         as: 'community'
-      }
-    },
-    {
-      $match: {
-        $cond: {
-          if: { $eq: [showAdultContent, false] },
-          then: { $eq: ['$community.isNSFW', false] },
-          else: true
-        }
       }
     },
     {
