@@ -534,12 +534,14 @@ UserSchema.methods.getUserPosts = async function (options) {
         'posts.isRemoved': false,
         'posts.type': { $ne: 'Comment' },
         $expr: {
-          $cond: {
-            if: { $eq: [showAdultContent, false] },
-            then: { $eq: ['$posts.isNsfw', false] },
-            else: true
-          },
           $and: [
+            {
+              $cond: {
+                if: { $eq: [showAdultContent, false] },
+                then: { $eq: ['$posts.isNsfw', false] },
+                else: true
+              }
+            },
             { $not: { $in: ['$posts.communityName', mutedCommunities] } }
           ]
         },
@@ -587,7 +589,11 @@ UserSchema.methods.getUserPosts = async function (options) {
     },
     {
       $match: {
-        'community.isNSFW': showAdultContent
+        $cond: {
+          if: { $eq: [showAdultContent, false] },
+          then: { $eq: ['$community.isNSFW', false] },
+          else: true
+        }
       }
     },
     {
@@ -656,12 +662,14 @@ UserSchema.methods.getUserComments = async function (options) {
         'posts.isRemoved': false,
         'posts.type': 'Comment',
         $expr: {
-          $cond: {
-            if: { $eq: [showAdultContent, false] },
-            then: { $eq: ['$posts.isNsfw', false] },
-            else: true
-          },
           $and: [
+            {
+              $cond: {
+                if: { $eq: [showAdultContent, false] },
+                then: { $eq: ['$posts.isNsfw', false] },
+                else: true
+              }
+            },
             { $not: { $in: ['$posts.communityName', mutedCommunities] } }
           ]
         },
@@ -687,7 +695,11 @@ UserSchema.methods.getUserComments = async function (options) {
     },
     {
       $match: {
-        'community.isNSFW': showAdultContent
+        $cond: {
+          if: { $eq: [showAdultContent, false] },
+          then: { $eq: ['$community.isNSFW', false] },
+          else: true
+        }
       }
     },
     {
