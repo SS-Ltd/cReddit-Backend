@@ -2,16 +2,21 @@ const PostController = require('../src/controllers/Post')
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
+const HistoryModel = require('../src/models/History')
 const MediaUtils = require('../src/utils/Media')
 const PostUtils = require('../src/utils/Post')
-const { getSortedCommunityPosts } = require('../src/controllers/Community')
+const { getPost, getHomeFeed, getComments, getSortedCommunityPosts } = require('../src/controllers/Post')
 const { ObjectId } = require('mongodb')
 
 jest.mock('../src/models/Post', () => {
   return jest.fn().mockImplementation(() => {
     return {
       save: jest.fn(),
-      deleteOne: jest.fn()
+      deleteOne: jest.fn(),
+      getPost: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      getRandomHomeFeed: jest.fn(),
+      getSortedHomeFeed: jest.fn()
     }
   })
 })
@@ -25,6 +30,13 @@ jest.mock('../src/models/Community', () => {
 jest.mock('../src/models/User', () => {
   return {
     findOne: jest.fn()
+  }
+})
+
+jest.mock('../src/models/History', () => {
+  return {
+    findOne: jest.fn(),
+    create: jest.fn()
   }
 })
 
@@ -1326,6 +1338,346 @@ describe('lockPost', () => {
   })
 })
 
+describe('getPost', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should retrieve a post by ID for a guest', async () => {
+    const req = {
+      params: {
+        postId: '55bb126babb335677998fbca'
+      },
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = [{
+      _id: '55bb126babb335677998fbca',
+      isDeleted: false,
+      communityName: 'community1',
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isNsfw: false
+    }]
+
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    PostModel.findOneAndUpdate = jest.fn().mockResolvedValue(post)
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      _id: '55bb126babb335677998fbca',
+      isDeleted: false,
+      communityName: 'community1',
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isDownvoted: false,
+      isHidden: false,
+      isSaved: false,
+      isUpvoted: false,
+      isNSFW: false,
+      isJoined: false,
+      isModerator: false
+    })
+  })
+
+  test('should retrieve a post by ID for a logged in user', async () => {
+    const req = {
+      params: {
+        postId: '55bb126babb335677998fbca'
+      },
+      query: {},
+      decoded: {
+        username: 'user1'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = [{
+      _id: '55bb126babb335677998fbca',
+      isDeleted: false,
+      communityName: 'community1',
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isNsfw: false
+    }]
+
+    const user = {
+      username: 'user1',
+      isDeleted: false,
+      upvotedPosts: [{ postId: '55bb126babb335677998fbca' }],
+      downvotedPosts: [],
+      savedPosts: [{ postId: '55bb126babb335677998fbca' }],
+      hiddenPosts: [],
+      communities: [],
+      moderatorInCommunities: [],
+      isNsfw: false,
+      type: 'Post'
+    }
+
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    PostModel.findOneAndUpdate = jest.fn().mockResolvedValue(post)
+    UserModel.findOne.mockResolvedValue(user)
+    HistoryModel.findOne = jest.fn().mockResolvedValue(null)
+    HistoryModel.create = jest.fn()
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(HistoryModel.findOne).toHaveBeenCalledWith({ post: '55bb126babb335677998fbca', owner: 'user1' })
+    expect(HistoryModel.create).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      _id: '55bb126babb335677998fbca',
+      isDeleted: false,
+      communityName: 'community1',
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isDownvoted: false,
+      isHidden: false,
+      isSaved: true,
+      isUpvoted: true,
+      isNSFW: false,
+      isJoined: false,
+      isModerator: false
+    })
+  })
+
+  test('should return 400 if post ID is not provided', async () => {
+    const req = {
+      params: {},
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.getPost = jest.fn()
+    PostModel.findOneAndUpdate = jest.fn()
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).not.toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).not.toHaveBeenCalled()
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Post ID is wrong'
+    })
+  })
+
+  test('should return 404 if post does not exist', async () => {
+    const req = {
+      params: {
+        postId: '55bb126babb335677998fbca'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = []
+
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    PostModel.findOneAndUpdate = jest.fn()
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).not.toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Post does not exist'
+    })
+  })
+
+  test('should return 404 if user does not exist', async () => {
+    const req = {
+      params: {
+        postId: '55bb126babb335677998fbca'
+      },
+      query: {},
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = null
+
+    UserModel.findOne.mockResolvedValue(user)
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).not.toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
+    })
+  })
+})
+
+describe('getHomeFeed', () => {
+  test('should return an error message when user does not exist', async () => {
+    const req = {
+      decoded: { username: 'nonexistentuser' },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'best',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getHomeFeed(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
+    })
+  })
+
+  test('should return a list of posts sorted by best when user is not logged in', async () => {
+    const req = {
+      decoded: null,
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'best',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.getRandomHomeFeed = jest.fn().mockResolvedValue([])
+
+    await getHomeFeed(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  test('should return a list of posts sorted by best when user is logged in and has no communities', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'best',
+        time: 'all'
+      }
+    }
+
+    const user = {
+      username: 'testUser',
+      communities: [],
+      mutedCommunities: [],
+      preferences: {
+        showAdultContent: false
+      },
+      follows: []
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getRandomHomeFeed = jest.fn().mockResolvedValue([])
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getHomeFeed(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.getRandomHomeFeed).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
+  })
+
+  test('should return a list of posts sorted by rising when user is logged in and has no communities', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'rising',
+        time: 'all'
+      }
+    }
+
+    const user = {
+      username: 'testUser',
+      communities: [],
+      mutedCommunities: [],
+      preferences: {
+        showAdultContent: false
+      },
+      follows: []
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getSortedHomeFeed = jest.fn().mockResolvedValue([])
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getHomeFeed(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.getSortedHomeFeed).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
+  })
+})
+
 describe('getSortedCommunityPosts', () => {
   let req
   let res
@@ -1977,6 +2329,187 @@ describe('getSortedCommunityPosts', () => {
     })
   })
 })
+
+describe('getComments', () => {
+  test('should return 200 status code and an array of comments when valid post ID is provided', async () => {
+    const req = {
+      params: {
+        postId: '2972dbbf638edddc2eea00ab'
+      },
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: '2972dbbf638edddc2eea00ab',
+      communityName: 'validCommunityName',
+      isNsfw: false
+    }
+
+    const comments = [
+      { _id: 'comment1', content: 'comment1 content' },
+      { _id: 'comment2', content: 'comment2 content' }
+    ]
+
+    PostModel.getPost = jest.fn().mockResolvedValue([post])
+    PostModel.getComments = jest.fn().mockResolvedValue(comments)
+
+    await getComments(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.getComments).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(comments)
+  })
+
+  test('should return 401 status code and an error message when post is NSFW and user has not enabled adult content preference', async () => {
+    const req = {
+      params: {
+        postId: '2972dbbf638edddc2eea00ab'
+      },
+      query: {},
+      decoded: {
+        username: 'validUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: '2972dbbf638edddc2eea00ab',
+      communityName: 'validCommunityName',
+      isNsfw: true
+    }
+    const user = {
+      preferences: {
+        showAdultContent: false
+      }
+    }
+    PostModel.getPost = jest.fn().mockResolvedValue([post])
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getComments(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Unable to view NSFW content'
+    })
+  })
+
+  test('should return 400 status code and an error message when invalid post ID is provided', async () => {
+    const req = {
+      params: {
+        postId: 'invalidPostId'
+      },
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.getPost = jest.fn().mockResolvedValue(null)
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Post ID is wrong'
+    })
+  })
+
+  test('should return 404 status code and an error message when valid post ID is provided but post does not exist', async () => {
+    const req = {
+      params: {
+        postId: '2972dbbf638edddc2eea00ab'
+      },
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = null
+    PostModel.getPost = jest.fn().mockResolvedValue([post])
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Post does not exist'
+    })
+  })
+
+  test('should return 404 status code and an error message when valid post ID is provided but community does not exist', async () => {
+    const req = {
+      params: {
+        postId: '2972dbbf638edddc2eea00ab'
+      },
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: '2972dbbf638edddc2eea00ab',
+      communityName: 'validCommunityName',
+      isNsfw: false
+    }
+
+    PostModel.getPost = jest.fn().mockResolvedValue([post])
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community does not exist'
+    })
+  })
+
+  test('should return 404 status code and an error message when user is authenticated but does not exist', async () => {
+    const req = {
+      params: {
+        postId: '2972dbbf638edddc2eea00ab'
+      },
+      query: {},
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: '2972dbbf638edddc2eea00ab',
+      communityName: 'validCommunityName',
+      isNsfw: false
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    PostModel.getPost = jest.fn().mockResolvedValue([post])
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
+    })
+  })
+})
+
 
 describe('votePost', () => {
   test('should upvote a post when req.type is upvote', async () => {

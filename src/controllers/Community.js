@@ -87,6 +87,10 @@ const getCommunityView = async (req, res) => {
     if (req.decoded) {
       const user = await UserModel.findOne({ username: req.decoded.username })
 
+      if (user && user.preferences.showAdultContent !== community.isNSFW) {
+        return res.status(401).json({ message: 'Unable to view NSFW content' })
+      }
+
       if (user) {
         communityData.isModerator = community.moderators.includes(req.decoded.username)
         communityData.isMember = user.communities.includes(community.name)
@@ -104,16 +108,44 @@ const getTopCommunities = async (req, res) => {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10
     const skip = (page - 1) * limit
-    const topCommunities = await CommunityModel.find({ isDeleted: false })
+
+    const topCommunitiesQuery = { isDeleted: false }
+    if (req.decoded) {
+      const user = await UserModel.findOne({ username: req.decoded.username })
+      if (user) {
+        if (user.preferences.showAdultContent === false) {
+          topCommunitiesQuery.isNSFW = false
+        }
+      }
+    }
+
+    let topCommunities = await CommunityModel.find(topCommunitiesQuery)
       .sort({ members: -1 })
       .skip(skip)
       .limit(limit)
+      .select('owner name icon topic members description')
+
+    topCommunities = topCommunities.map(community => { return community.toObject() })
+
+    if (req.decoded) {
+      const user = await UserModel.findOne({ username: req.decoded.username })
+      if (user) {
+        topCommunities.forEach(community => {
+          community.isJoined = user.communities.includes(community.name)
+        })
+      }
+    } else {
+      topCommunities.forEach(community => {
+        community.isJoined = false
+      })
+    }
 
     res.status(200).json(topCommunities)
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error getting top communities' })
   }
 }
+
 
 const getEditedPosts = async (req, res) => {
   try {
@@ -203,51 +235,55 @@ const getSortedCommunityPosts = async (req, res) => {
       }
     }
 
+    if (community.isNSFW && (!user || !user.preferences.showAdultContent)) {
+      return res.status(401).json({
+        message: 'Unable to view NSFW content'
+      })
+    }
+
     const page = req.query.page ? parseInt(req.query.page) - 1 : 0
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
     const sort = req.query.sort ? req.query.sort : 'hot'
     let time = req.query.time ? req.query.time : 'all'
+    const showAdultContent = user ? user.preferences.showAdultContent : false
 
     if (sort !== 'top') {
       time = 'all'
     }
 
-    const sortMethod = getSortingMethod(sort, time)
+    const sortMethod = getSortingMethod(sort)
 
-    let posts = await PostModel.find({
-      communityName: subreddit,
-      isDeleted: false,
-      isRemoved: false,
-      createdAt: filterWithTime(time)
-    })
-      .select('-__v -followers')
-      .sort(sortMethod)
-      .skip(page * limit)
-      .limit(limit)
+    time = filterWithTime(time)
 
-    if (posts.length === 0) {
-      if (posts.length === 0) {
-        return res.status(404).json({
-          message: 'No posts found for the community'
-        })
-      }
+    const options = {
+      page: page,
+      limit,
+      sortMethod,
+      time
     }
 
-    const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
-    const userProfilePictures = await Promise.all(posts.map(post => post.getUserProfilePicture()))
+    const posts = await PostModel.byCommunity(subreddit, options, showAdultContent)
 
-    posts = posts.map(post => post.toObject())
-    let count = 0
     posts.forEach(post => {
-      if (user) {
-        post.isUpvoted = user.upvotedPosts.includes(post._id)
-        post.isDownvoted = user.downvotedPosts.includes(post._id)
-        post.isSaved = user.savedPosts.includes(post._id)
-        post.isHidden = user.hiddenPosts.includes(post._id)
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
       }
-      post.commentCount = commentCounts[count][0].commentCount
-      post.profilePicture = userProfilePictures[count][0].profilePicture[0]
-      count++
+
+      post.isNSFW = post.isNsfw
+      delete post.isNsfw
+
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
     })
 
     return res.status(200).json(posts)
@@ -259,11 +295,120 @@ const getSortedCommunityPosts = async (req, res) => {
   }
 }
 
+const joinCommunity = async (req, res) => {
+  try {
+    const subreddit = req.params.subreddit
+    const username = req.decoded.username
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    const isMember = user.communities.includes(subreddit)
+    if (isMember) {
+      return res.status(400).json({
+        message: 'User is already a member of the community'
+      })
+    }
+
+    user.communities.push(subreddit)
+    community.members++
+
+    await user.save()
+    await community.save()
+
+    res.status(200).json({
+      message: 'User joined the community successfully'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'Error joining community: ' + error
+    })
+  }
+}
+
+const leaveCommunity = async (req, res) => {
+  try {
+    const subreddit = req.params.subreddit
+    const username = req.decoded.username
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    const isMember = user.communities.includes(subreddit)
+    if (!isMember) {
+      return res.status(400).json({
+        message: 'User is not a member of the community'
+      })
+    }
+
+    user.communities = user.communities.filter(item => item !== subreddit)
+    community.members--
+
+    await user.save()
+    await community.save()
+
+    res.status(200).json({
+      message: 'User left the community successfully'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'Error leaving community: ' + error
+    })
+  }
+}
+
+const muteCommunity = async (req, res) => {
+  try {
+    const subreddit = req.params.subreddit
+    const username = req.decoded.username
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    const isMuted = user.mutedCommunities.includes(subreddit)
+
+    if (isMuted) {
+      user.mutedCommunities = user.mutedCommunities.filter(item => item !== subreddit)
+
+      await user.save()
+      return res.status(200).json({
+        message: 'Community unmuted successfully'
+      })
+    }
+
+    user.mutedCommunities.push(subreddit)
+    await user.save()
+
+    res.status(200).json({
+      message: 'Community muted successfully'
+    })
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error muting community: ' + error
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
   isNameAvailable,
   getTopCommunities,
   getEditedPosts,
-  getSortedCommunityPosts
+  getSortedCommunityPosts,
+  joinCommunity,
+  leaveCommunity,
+  muteCommunity
 }

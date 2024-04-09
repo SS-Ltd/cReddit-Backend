@@ -5,6 +5,7 @@ const mongoose = require('mongoose')
 const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
 const HistoryModel = require('../models/History')
+const ObjectId = require('mongoose').Types.ObjectId
 
 const createPost = async (req, res) => {
   const post = req.body
@@ -219,6 +220,10 @@ const getSortingMethod = (sort) => {
       return { createdAt: -1, _id: -1 }
     case 'top':
       return { netVote: -1, createdAt: -1, _id: -1 }
+    case 'hot':
+      return { views: -1, createdAt: -1, _id: -1 }
+    case 'rising':
+      return { mostRecentUpvote: -1, _id: -1 }
     case 'old':
       return { createdAt: 1, _id: 1 }
     default:
@@ -226,18 +231,51 @@ const getSortingMethod = (sort) => {
   }
 }
 
+const filterWithTime = (time) => {
+  switch (time) {
+    case 'now':
+      return { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+    case 'today':
+      return { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    case 'week':
+      return { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    case 'month':
+      return { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+    case 'year':
+      return { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+    case 'all':
+      return { $gte: new Date(0) }
+    default:
+      return { $gte: new Date(0) }
+  }
+}
+
 const getPost = async (req, res) => {
   try {
     const postId = req.params.postId
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
 
-    if (!postId) {
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({
-        message: 'Post ID is required'
+        message: 'Post ID is wrong'
       })
     }
 
-    let post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
+    const decoded = req.decoded
+    let user = null
+
+    // User may be a guest
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+    }
+
+    let post = await Post.getPost(new ObjectId(postId))
+    post = post[0]
 
     if (!post) {
       return res.status(404).json({
@@ -245,71 +283,237 @@ const getPost = async (req, res) => {
       })
     }
 
-    const community = await Community.findOne({ name: post.communityName, isDeleted: false })
-
-    if (!community) {
-      return res.status(404).json({
-        message: 'Community does not exist'
+    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
+      return res.status(401).json({
+        message: 'Unable to view NSFW content'
       })
     }
 
-    post.views += 1
-    await post.save()
+    await Post.findOneAndUpdate(
+      { _id: postId, isDeleted: false, isRemoved: false },
+      { $inc: { views: 1 } }
+    )
 
-    const communitySuggestedSort = community.suggestedSort
-    const sort = getSortingMethod(communitySuggestedSort)
+    if (user && !post.isNsfw) {
+      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
 
-    const options = { sort }
-    options.random = false
-    options.limit = limit
-    if (communitySuggestedSort === 'best') {
-      options.random = true
+      if (!history) {
+        await HistoryModel.create({
+          owner: user.username,
+          post: postId
+        })
+      } else {
+        history.updatedAt = new Date()
+        await history.save()
+      }
     }
 
-    let comments = await post.getComments(options)
-    const commentCount = await post.getCommentCount()
-    const userProfilePicture = await post.getUserProfilePicture()
-    comments = comments[0].comments
+    post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    post.isJoined = user ? user.communities.includes(post.communityName) : false
+    post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
 
-    post = post.toObject()
+    post.isNSFW = post.isNsfw
+    delete post.isNsfw
+
+    if (post.type !== 'Poll') {
+      delete post.pollOptions
+      delete post.expirationDate
+    } else {
+      post.pollOptions.forEach(option => {
+        option.votes = option.voters.length
+        option.isVoted = user ? option.voters.includes(user.username) : false
+        delete option.voters
+        delete option._id
+      })
+    }
+
+    return res.status(200).json(post)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting post'
+    })
+  }
+}
+
+const getComments = async (req, res) => {
+  try {
+    const postId = req.params.postId
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({
+        message: 'Post ID is wrong'
+      })
+    }
+
+    let post = await Post.findOne({ _id: postId, isDeleted: false })
+
+    if (!post) {
+      return res.status(404).json({
+        message: 'Post does not exist'
+      })
+    }
 
     const decoded = req.decoded
+    let user = null
 
-    // User may be a guest
     if (decoded) {
-      const user = await User.findOne({ username: decoded.username, isDeleted: false })
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
 
       if (!user) {
         return res.status(404).json({
           message: 'User does not exist'
         })
       }
+    }
 
-      post.isUpvoted = user.upvotedPosts.includes(postId)
-      post.isDownvoted = user.downvotedPosts.includes(postId)
-      post.isSaved = user.savedPosts.includes(postId)
-      post.isHidden = user.hiddenPosts.includes(postId)
-
-      comments.forEach((comment) => {
-        comment.isUpvoted = user.upvotedComments.includes(comment._id)
-        comment.isDownvoted = user.downvotedComments.includes(comment._id)
-        comment.isSaved = user.savedComments.includes(comment._id)
-      })
-
-      await HistoryModel.create({
-        owner: user.username,
-        post: post._id
+    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
+      return res.status(401).json({
+        message: 'Unable to view NSFW content'
       })
     }
 
-    post.comments = comments
-    post.commentCount = commentCount[0].commentCount
-    post.profilePicture = userProfilePicture[0].profilePicture[0]
+    const communityName = post.communityName
+    let community = null
+    if (communityName) {
+      community = await Community.findOne({ name: communityName, isDeleted: false })
+    }
 
-    return res.status(200).json(post)
+    if (!community && communityName) {
+      return res.status(404).json({
+        message: 'Community does not exist'
+      })
+    }
+
+    let sortChoice = community ? community.suggestedSort : 'best'
+    sortChoice = req.query.sort ? req.query.sort : sortChoice
+    const sort = getSortingMethod(sortChoice)
+
+    const options = { sort }
+    options.random = false
+    options.page = page
+    options.limit = limit
+    if (sortChoice === 'best') {
+      options.random = true
+    }
+
+    const comments = await Post.getComments(new ObjectId(postId), options)
+
+    comments.forEach((comment) => {
+      comment.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+      comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+      comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+    })
+
+    if (user && !post.isNsfw) {
+      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
+
+      if (!history) {
+        await HistoryModel.create({
+          owner: user.username,
+          post: postId
+        })
+      } else {
+        console.log(history)
+        history.updatedAt = new Date()
+        await history.save()
+      }
+    }
+
+    return res.status(200).json(comments)
   } catch (error) {
+    console.log(error)
     return res.status(500).json({
-      message: 'An error occurred while getting post'
+      message: 'An error occurred while getting comments of post'
+    })
+  }
+}
+
+const getHomeFeed = async (req, res) => {
+  try {
+    const decoded = req.decoded
+    let user = null
+
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    let sort = req.query.sort ? req.query.sort : 'best'
+    let time = req.query.time ? req.query.time : 'all'
+
+    if (sort !== 'top') {
+      time = 'all'
+    }
+
+    if (!user) {
+      sort = 'best'
+    }
+
+    const sortMethod = getSortingMethod(sort)
+
+    time = filterWithTime(time)
+
+    let posts = []
+
+    const options = { sortMethod }
+    options.random = false
+    options.page = page
+    options.limit = limit
+    options.time = time
+
+    const communities = (!user || user.communities.length === 0) ? null : user.communities
+    const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
+    const follows = (!user || user.follows.length === 0) ? null : user.follows
+    const showAdultContent = user ? user.preferences.showAdultContent : false
+
+    if (sort === 'best' || !user) {
+      posts = await Post.getRandomHomeFeed(options, mutedCommunities, showAdultContent)
+    } else {
+      posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, follows, showAdultContent)
+    }
+
+    posts.forEach(post => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
+
+      post.isNSFW = post.isNsfw
+      delete post.isNsfw
+
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = user ? user.communities.includes(post.communityName) : false
+      post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
+    })
+
+    return res.status(200).json(posts)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting home feed'
     })
   }
 }
@@ -355,5 +559,7 @@ module.exports = {
   savePost,
   hidePost,
   lockPost,
+  getComments,
+  getHomeFeed,
   votePost
 }

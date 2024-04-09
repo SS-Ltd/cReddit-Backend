@@ -158,8 +158,19 @@ const logout = async (req, res) => {
     user.refreshToken = ''
     await user.save()
 
-    res.clearCookie('accessToken')
-    res.clearCookie('refreshToken')
+    res.cookie('accessToken', '', {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 0
+    })
+    res.cookie('refreshToken', '', {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 0,
+      path: '/user/refresh-token'
+    })
     res.status(200).json({ message: 'User logged out successfully' })
   } catch (error) {
     res.status(400).json({ message: error.message || 'Error logging out' })
@@ -248,7 +259,6 @@ const loginGoogle = async (req, res) => {
     })
 
     await newUser.save()
-    await sendVerificationEmail(email, username)
     res.status(201).json({
       message: 'User created successfully',
       username: newUser.username,

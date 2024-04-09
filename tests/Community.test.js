@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -12,13 +12,16 @@ jest.mock('../src/models/Post', () => {
     select: jest.fn(),
     sort: jest.fn(),
     skip: jest.fn(),
-    limit: jest.fn()
+    limit: jest.fn(),
+    byCommunity: jest.fn(),
+    save: jest.fn()
   }
 })
 
 jest.mock('../src/models/User', () => {
   return {
-    findOne: jest.fn()
+    findOne: jest.fn(),
+    save: jest.fn()
   }
 })
 
@@ -90,7 +93,10 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
@@ -101,7 +107,9 @@ describe('getSortedCommunityPosts', () => {
         communityName: 'testSubreddit',
         isDeleted: false,
         isRemoved: false,
-        views: 10
+        views: 10,
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       },
       {
         _id: 'post2',
@@ -110,29 +118,20 @@ describe('getSortedCommunityPosts', () => {
         communityName: 'testSubreddit',
         isDeleted: false,
         isRemoved: false,
-        views: 20
+        views: 20,
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       }
     ]
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.find = jest.fn().mockImplementation(() => {
-      return {
-        select: jest.fn().mockReturnThis(),
-        sort: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(posts.map(post => ({
-          ...post,
-          toObject: jest.fn().mockReturnValue(post),
-          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }])),
-          getUserProfilePicture: jest.fn().mockReturnValue(Promise.resolve([{ profilePicture: ['profilePicture'] }]))
-        })))
-      }
-    })
+
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
-    // expect(PostModel.find().select().sort).toHaveBeenCalledWith({ views: -1, createdAt: -1, _id: -1 })
+    expect(PostModel.byCommunity).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(
       [
@@ -191,18 +190,23 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
       {
         _id: 'post1',
         title: 'Post 1',
-        createdAt: new Date('2021-01-02T00:00:00Z'),
+        createdAt: new Date('2021-01-01T00:00:00Z'),
         communityName: 'testSubreddit',
         isDeleted: false,
         isRemoved: false,
-        views: 10
+        views: 10,
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       },
       {
         _id: 'post2',
@@ -211,28 +215,19 @@ describe('getSortedCommunityPosts', () => {
         communityName: 'testSubreddit',
         isDeleted: false,
         isRemoved: false,
-        views: 20
+        views: 20,
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       }
     ]
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.find = jest.fn().mockImplementation(() => {
-      return {
-        select: jest.fn().mockReturnThis(),
-        sort: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(posts.map(post => ({
-          ...post,
-          toObject: jest.fn().mockReturnValue(post),
-          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }])),
-          getUserProfilePicture: jest.fn().mockReturnValue(Promise.resolve([{ profilePicture: ['profilePicture'] }]))
-        })))
-      }
-    })
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
+    expect(PostModel.byCommunity).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([
       {
@@ -285,50 +280,46 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
       {
         _id: 'post1',
         title: 'Post 1',
+        createdAt: new Date('2021-01-01T00:00:00Z'),
         communityName: 'testSubreddit',
-        createdAt: new Date(),
-        netVote: 5,
         isDeleted: false,
         isRemoved: false,
-        views: 10
+        views: 10,
+        commentCount: 0,
+        profilePicture: 'profilePicture',
+        netVote: 5
       },
       {
         _id: 'post2',
         title: 'Post 2',
+        createdAt: new Date('2021-01-01T00:00:00Z'),
         communityName: 'testSubreddit',
-        createdAt: new Date(),
-        netVote: 10,
         isDeleted: false,
         isRemoved: false,
-        views: 20
+        views: 20,
+        commentCount: 0,
+        profilePicture: 'profilePicture',
+        netVote: 10
       }
     ]
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.find = jest.fn().mockImplementation(() => {
-      return {
-        select: jest.fn().mockReturnThis(),
-        sort: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(posts.map(post => ({
-          ...post,
-          toObject: jest.fn().mockReturnValue(post),
-          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }])),
-          getUserProfilePicture: jest.fn().mockReturnValue(Promise.resolve([{ profilePicture: ['profilePicture'] }]))
-        })))
-      }
-    })
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
+    expect(PostModel.byCommunity).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([{
       _id: 'post1',
@@ -380,48 +371,44 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
       {
         _id: 'post1',
         title: 'Post 1',
+        createdAt: new Date('2021-01-01T00:00:00Z'),
         communityName: 'testSubreddit',
-        createdAt: new Date(),
-        views: 50,
         isDeleted: false,
-        isRemoved: false
+        isRemoved: false,
+        views: 50,
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       },
       {
         _id: 'post2',
         title: 'Post 2',
+        createdAt: new Date('2021-01-01T00:00:00Z'),
         communityName: 'testSubreddit',
-        createdAt: new Date(),
-        views: 100,
         isDeleted: false,
-        isRemoved: false
+        isRemoved: false,
+        views: 100,
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       }
     ]
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.find = jest.fn().mockImplementation(() => {
-      return {
-        select: jest.fn().mockReturnThis(),
-        sort: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(posts.map(post => ({
-          ...post,
-          toObject: jest.fn().mockReturnValue(post),
-          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }])),
-          getUserProfilePicture: jest.fn().mockReturnValue(Promise.resolve([{ profilePicture: ['profilePicture'] }]))
-        })))
-      }
-    })
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
+    expect(PostModel.byCommunity).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([
       {
@@ -473,46 +460,42 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
       {
         _id: 'post1',
         title: 'Post 1',
-        createdAt: new Date(),
+        createdAt: new Date('2021-01-01T00:00:00Z'),
+        communityName: 'testSubreddit',
         isDeleted: false,
         isRemoved: false,
-        mostRecentUpvote: new Date('2021-01-01T00:00:00Z')
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       },
       {
         _id: 'post2',
         title: 'Post 2',
-        createdAt: new Date(),
+        createdAt: new Date('2021-01-01T00:00:00Z'),
+        communityName: 'testSubreddit',
         isDeleted: false,
         isRemoved: false,
-        mostRecentUpvote: new Date('2021-01-02T00:00:00Z')
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       }
     ]
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.find = jest.fn().mockImplementation(() => {
-      return {
-        select: jest.fn().mockReturnThis(),
-        sort: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(posts.map(post => ({
-          ...post,
-          toObject: jest.fn().mockReturnValue(post),
-          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }])),
-          getUserProfilePicture: jest.fn().mockReturnValue(Promise.resolve([{ profilePicture: ['profilePicture'] }]))
-        })))
-      }
-    })
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
+    expect(PostModel.byCommunity).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([
       {
@@ -521,13 +504,13 @@ describe('getSortedCommunityPosts', () => {
         createdAt: expect.any(Date),
         isDeleted: false,
         isRemoved: false,
-        mostRecentUpvote: expect.any(Date),
         isUpvoted: false,
         isDownvoted: false,
         isSaved: false,
         isHidden: false,
         commentCount: 0,
-        profilePicture: 'profilePicture'
+        profilePicture: 'profilePicture',
+        communityName: 'testSubreddit'
       },
       {
         _id: 'post2',
@@ -535,13 +518,13 @@ describe('getSortedCommunityPosts', () => {
         createdAt: expect.any(Date),
         isDeleted: false,
         isRemoved: false,
-        mostRecentUpvote: expect.any(Date),
         isUpvoted: false,
         isDownvoted: false,
         isSaved: false,
         isHidden: false,
         commentCount: 0,
-        profilePicture: 'profilePicture'
+        profilePicture: 'profilePicture',
+        communityName: 'testSubreddit'
       }
     ])
   })
@@ -557,49 +540,45 @@ describe('getSortedCommunityPosts', () => {
     const user = {
       username: 'testUser',
       isDeleted: false,
-      upvotedPosts: ['post1'],
-      downvotedPosts: ['post2'],
-      savedPosts: ['post1'],
-      hiddenPosts: ['post2']
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [{ postId: 'post2' }],
+      savedPosts: [{ postId: 'post1' }],
+      hiddenPosts: [{ postId: 'post2' }],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     const posts = [
       {
         _id: 'post1',
         title: 'Post 1',
-        createdAt: new Date(),
+        createdAt: new Date('2021-01-01T00:00:00Z'),
         communityName: 'testSubreddit',
         isDeleted: false,
-        isRemoved: false
+        isRemoved: false,
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       },
       {
         _id: 'post2',
         title: 'Post 2',
-        createdAt: new Date(),
+        createdAt: new Date('2021-01-01T00:00:00Z'),
         communityName: 'testSubreddit',
         isDeleted: false,
-        isRemoved: false
+        isRemoved: false,
+        commentCount: 0,
+        profilePicture: 'profilePicture'
       }
     ]
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.find = jest.fn().mockImplementation(() => {
-      return {
-        select: jest.fn().mockReturnThis(),
-        sort: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(posts.map(post => ({
-          ...post,
-          toObject: jest.fn().mockReturnValue(post),
-          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }])),
-          getUserProfilePicture: jest.fn().mockReturnValue(Promise.resolve([{ profilePicture: ['profilePicture'] }]))
-        })))
-      }
-    })
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue(posts)
 
     await getSortedCommunityPosts(req, res)
 
+    expect(PostModel.byCommunity).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([
       {
@@ -647,30 +626,21 @@ describe('getSortedCommunityPosts', () => {
       upvotedPosts: [],
       downvotedPosts: [],
       savedPosts: [],
-      hiddenPosts: []
+      hiddenPosts: [],
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.find = jest.fn().mockImplementation(() => {
-      return {
-        select: jest.fn().mockReturnThis(),
-        sort: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue([].map(post => ({
-          ...post,
-          toObject: jest.fn().mockReturnValue([]),
-          getCommentCount: jest.fn().mockReturnValue(Promise.resolve([{ commentCount: 0 }]))
-        })))
-      }
-    })
+    PostModel.byCommunity = jest.spyOn(PostModel, 'byCommunity').mockResolvedValue([])
 
     await getSortedCommunityPosts(req, res)
 
-    expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.json).toHaveBeenCalledWith({
-      message: 'No posts found for the community'
-    })
+    expect(PostModel.byCommunity).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
   })
 })
 
@@ -681,7 +651,8 @@ jest.mock('../src/models/Community')
 const mockQuery = {
   sort: jest.fn().mockReturnThis(),
   skip: jest.fn().mockReturnThis(),
-  limit: jest.fn().mockImplementation(() => Promise.resolve(['community1', 'community2']))
+  limit: jest.fn().mockReturnThis(),
+  select: jest.fn().mockImplementation(() => Promise.resolve(['community1', 'community2']))
 }
 
 // Mock the find method to return the mock query
@@ -741,5 +712,65 @@ describe('getEditedPosts', () => {
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'invalidCommunity', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
+  })
+})
+
+describe('joinCommunity', () => {
+  // User successfully joins a community
+  beforeEach(() => {
+    UserModel.findOne.mockClear()
+  })
+
+  it('should return a 200 status code and a success message when user successfully joins a community', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'testUser', isDeleted: false, communities: [], save: jest.fn() })
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'testSubreddit', isDeleted: false, members: 5, save: jest.fn() })
+
+    await joinCommunity(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User joined the community successfully'
+    })
+  })
+
+  // Community does not exist, returns 500 error
+  it('should return a 404 status code and an error message when the community does not exist', async () => {
+    const req = {
+      params: {
+        subreddit: 'nonExistentSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await joinCommunity(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
+    })
   })
 })

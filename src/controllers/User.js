@@ -2,7 +2,9 @@ const bcrypt = require('bcrypt')
 const crypto = require('crypto')
 const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
-const PostModel = require('../models/Post')
+const HistoryModel = require('../models/History')
+const CommunityModel = require('../models/Community')
+const MediaUtils = require('../utils/Media')
 const { sendEmail, sendVerificationEmail } = require('../utils/Email')
 const { faker } = require('@faker-js/faker')
 const dotenv = require('dotenv')
@@ -16,7 +18,7 @@ const getUser = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized, user must be logged in' })
     }
 
-    const user = await UserModel.findOne(username)
+    const user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
     }
@@ -28,7 +30,8 @@ const getUser = async (req, res) => {
       profilePicture: user.profilePicture,
       banner: user.banner,
       followers: user.followers.length,
-      cakeDay: user.createdAt
+      cakeDay: user.createdAt,
+      isNSFW: user.preferences.isNSFW
     })
   } catch (error) {
     res.status(400).json({ message: 'Error getting user: ' + error.message })
@@ -287,10 +290,16 @@ const isUsernameAvailable = async (req, res) => {
 const generateUsername = async (req, res) => {
   try {
     let username = faker.internet.userName()
+    if (username.includes('.')) {
+      username = username.replace('.', '_')
+    }
     let user = await UserModel.findOne({ username })
 
     while (user) {
       username = faker.internet.userName()
+      if (username.includes('.')) {
+        username = username.replace('.', '_')
+      }
       user = await UserModel.findOne({ username })
     }
 
@@ -325,7 +334,6 @@ const forgotPassword = async (req, res) => {
 
   const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
-  console.log(resetToken)
 
   try {
     await sendEmail(user.email, 'Ask and you shall receive a password reset', message)
@@ -496,10 +504,15 @@ const getUserView = async (req, res) => {
       profilePicture: user.profilePicture,
       banner: user.banner,
       followers: user.followers.length,
-      cakeDay: user.createdAt
+      cakeDay: user.createdAt,
+      isNSFW: user.preferences.isNSFW
     }
     if (req.decoded) {
       const viewer = await UserModel.findOne({ username: req.decoded.username })
+      if (viewer && viewer.preferences.showAdultContent !== user.preferences.isNSFW) {
+        return res.status(401).json({ message: 'Unable to view NSFW content' })
+      }
+
       if (viewer && viewer.username !== user.username) {
         userData.isFollowed = viewer.follows.includes(user.username)
         userData.isBlocked = viewer.blockedUsers.includes(user.username)
@@ -522,11 +535,33 @@ const getSettings = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const blocked = []
+    if (user.blockedUsers.length > 0) {
+      for (const blockedUser of user.blockedUsers) {
+        const pfp = await UserModel.findOne({ username: blockedUser })
+        blocked.push({
+          username: blockedUser,
+          profilePicture: pfp.profilePicture
+        })
+      }
+    }
+
+    const muted = []
+    if (user.mutedCommunities.length > 0) {
+      for (const mutedCommunity of user.mutedCommunities) {
+        const pfp = await CommunityModel.findOne({ name: mutedCommunity })
+        muted.push({
+          name: mutedCommunity,
+          profilePicture: pfp.icon
+        })
+      }
+    }
+
     res.status(200).json({
       account: {
         email: user.email,
         gender: user.gender,
-        google: user.preferences.google !== null
+        google: user.preferences.google !== '' && user.preferences.google !== null
       },
       profile: {
         displayName: user.displayName,
@@ -539,8 +574,8 @@ const getSettings = async (req, res) => {
         isContentVisible: user.preferences.isContentVisible
       },
       safetyAndPrivacy: {
-        blockedUsers: user.blockedUsers,
-        mutedCommunities: user.mutedCommunities
+        blockedUsers: blocked,
+        mutedCommunities: muted
       },
       feedSettings: {
         showAdultContent: user.preferences.showAdultContent,
@@ -579,31 +614,171 @@ const updateSettings = async (req, res) => {
       throw new Error('Username is required')
     }
 
-    const user = await UserModel.findOne({ username: username })
+    let user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    if (req.body.preferences && typeof req.body.preferences === 'object') {
-      if (req.body.preferences.socialLinks && typeof req.body.preferences.socialLinks !== 'object') {
-        throw new Error('Invalid socialLinks type')
-      }
-
-      // Update preferences
-      user.preferences = { ...user.preferences, ...req.body.preferences }
+    if (req.body.account) {
+      req.body.account = JSON.parse(req.body.account)
+      const { gender } = req.body.account
+      if (gender) user.gender = gender
     }
 
-    // Update other user fields
-    for (const key in req.body) {
-      if (key !== 'preferences') {
-        user[key] = req.body[key]
+    const blocked = [{}]
+    user.blockedUsers.forEach(async (blockedUser) => {
+      const pfp = await UserModel.findOne({ username: blockedUser })
+      blocked.push({
+        username: blockedUser,
+        profilePicture: pfp.profilePicture
+      })
+    })
+
+    const muted = [{}]
+
+    user.mutedCommunities.forEach(async (mutedCommunity) => {
+      const pfp = await CommunityModel.findOne({ name: mutedCommunity })
+      muted.push({
+        name: mutedCommunity,
+        banner: pfp.banner
+      })
+    })
+
+    if (req.body.profile) {
+      req.body.profile = JSON.parse(req.body.profile)
+      const {
+        displayName,
+        about,
+        socialLinks,
+        isNSFW,
+        allowFollow,
+        isContentVisible
+      } = req.body.profile
+
+      if (displayName) user.displayName = displayName
+      if (about) user.about = about
+      if (socialLinks) user.preferences.socialLinks = socialLinks
+      if (isNSFW !== undefined) user.preferences.isNSFW = isNSFW
+      if (allowFollow !== undefined) user.preferences.allowFollow = allowFollow
+      if (isContentVisible !== undefined) user.preferences.isContentVisible = isContentVisible
+    }
+
+    if (req.body.files) {
+      const { avatar, banner } = req.files
+      if (avatar) {
+        const urls = user.profilePicture ? [user.profilePicture] : []
+        await MediaUtils.deleteImages(urls)
+        const newAvatar = await MediaUtils.uploadImages(avatar)
+        user.profilePicture = newAvatar[0]
       }
+      if (banner) {
+        const urls = user.banner ? [user.banner] : []
+        await MediaUtils.deleteImages(urls)
+        const newBanner = await MediaUtils.uploadImages(banner)
+        user.banner = newBanner[0]
+      }
+    }
+
+    if (req.body.feedSettings) {
+      req.body.feedSettings = JSON.parse(req.body.feedSettings)
+      const {
+        showAdultContent,
+        autoPlayMedia,
+        communityThemes,
+        communityContentSort,
+        globalContentView,
+        openNewTab
+      } = req.body.feedSettings
+      if (showAdultContent !== undefined) user.preferences.showAdultContent = showAdultContent
+      if (autoPlayMedia !== undefined) user.preferences.autoPlayMedia = autoPlayMedia
+      if (communityThemes !== undefined) user.preferences.communityThemes = communityThemes
+      if (communityContentSort) user.preferences.communityContentSort = communityContentSort
+      if (globalContentView) user.preferences.globalContentView = globalContentView
+      if (openNewTab !== undefined) user.preferences.openNewTab = openNewTab
+    }
+
+    if (req.body.notifications) {
+      req.body.notifications = JSON.parse(req.body.notifications)
+      const {
+        mentionsNotifs,
+        commentsNotifs,
+        postsUpvotesNotifs,
+        repliesNotifs,
+        newFollowersNotifs,
+        postNotifs,
+        cakeDayNotifs,
+        modNotifs,
+        moderatorInCommunities,
+        invitationNotifs
+      } = req.body.notifications
+      if (mentionsNotifs !== undefined) user.preferences.mentionsNotifs = mentionsNotifs
+      if (commentsNotifs !== undefined) user.preferences.commentsNotifs = commentsNotifs
+      if (postsUpvotesNotifs !== undefined) user.preferences.postsUpvotesNotifs = postsUpvotesNotifs
+      if (repliesNotifs !== undefined) user.preferences.repliesNotifs = repliesNotifs
+      if (newFollowersNotifs !== undefined) user.preferences.newFollowersNotifs = newFollowersNotifs
+      if (postNotifs !== undefined) user.preferences.postNotifs = postNotifs
+      if (cakeDayNotifs !== undefined) user.preferences.cakeDayNotifs = cakeDayNotifs
+      if (modNotifs !== undefined) user.preferences.modNotifs = modNotifs
+      if (moderatorInCommunities) user.moderatorInCommunities = moderatorInCommunities
+      if (invitationNotifs !== undefined) user.preferences.invitationNotifs = invitationNotifs
+    }
+
+    if (req.body.email) {
+      req.body.email = JSON.parse(req.body.email)
+      const { followEmail, chatEmail } = req.body.email
+      if (followEmail !== undefined) user.preferences.followEmail = followEmail
+      if (chatEmail !== undefined) user.preferences.chatEmail = chatEmail
     }
 
     // Save user changes
     await user.save()
+    user = await UserModel.findOne({ username: username })
 
-    res.status(200).json({ message: 'Settings updated successfully' })
+    res.status(200).json({
+      account: {
+        email: user.email,
+        gender: user.gender,
+        google: user.preferences.google !== null
+      },
+      profile: {
+        displayName: user.displayName,
+        about: user.about,
+        socialLinks: user.preferences.socialLinks,
+        avatar: user.profilePicture,
+        banner: user.banner,
+        isNSFW: user.preferences.isNSFW,
+        allowFollow: user.preferences.allowFollow,
+        isContentVisible: user.preferences.isContentVisible
+      },
+      safetyAndPrivacy: {
+        blockedUsers: blocked,
+        mutedCommunities: muted
+      },
+      feedSettings: {
+        showAdultContent: user.preferences.showAdultContent,
+        autoPlayMedia: user.preferences.autoPlayMedia,
+        communityThemes: user.preferences.communityThemes,
+        communityContentSort: user.preferences.communityContentSort,
+        globalContentView: user.preferences.globalContentView,
+        openNewTab: user.preferences.openNewTab
+      },
+      notifications: {
+        mentionsNotifs: user.preferences.mentionsNotifs,
+        commentsNotifs: user.preferences.commentsNotifs,
+        postsUpvotesNotifs: user.preferences.postsUpvotesNotifs,
+        repliesNotifs: user.preferences.repliesNotifs,
+        newFollowersNotifs: user.preferences.newFollowersNotifs,
+        postNotifs: user.preferences.postNotifs,
+        cakeDayNotifs: user.preferences.cakeDayNotifs,
+        modNotifs: user.preferences.modNotifs,
+        moderatorInCommunities: user.moderatorInCommunities,
+        invitationNotifs: user.preferences.invitationNotifs
+      },
+      email: {
+        followEmail: user.preferences.followEmail,
+        chatEmail: user.preferences.chatEmail
+      }
+    })
   } catch (error) {
     console.error('Error updating user settings:', error)
     res.status(400).json({ message: 'Error updating settings: ' + error.message })
@@ -628,22 +803,27 @@ const getSaved = async (req, res) => {
     const options = {
       username: username,
       unwind: '$savedPosts',
-      localField: 'savedPosts.postId',
+      localField: '$savedPosts.postId',
+      searchType: req.searchType || 'All', // values can be 'All', 'Post', 'Comment'
       savedAt: '$savedPosts.savedAt',
       page: page,
       limit: limit
     }
 
-    const savedPosts = await user.getPosts(options)
-    const savedComments = await user.getSavedComments()
-    const sortedArray = [...savedPosts, ...savedComments].sort((a, b) => {
-      return new Date(b.savedAt) - new Date(a.savedAt)
+    const savedContent = await user.getPosts(options)
+
+    savedContent.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
     })
 
-    const paginatedArray = sortedArray.slice((page - 1) * limit, page * limit)
-
-    res.status(200).json(paginatedArray)
+    res.status(200).json(savedContent)
   } catch (error) {
+    console.error('Error getting saved content:', error)
     res.status(500).json({ message: 'Error getting saved posts' })
   }
 }
@@ -666,13 +846,24 @@ const getHiddenPosts = async (req, res) => {
     const options = {
       username: username,
       unwind: '$hiddenPosts',
-      localField: 'hiddenPosts.postId',
+      localField: '$hiddenPosts.postId',
+      searchType: 'Post', // values can be 'All', 'Post', 'Comment'
       savedAt: '$hiddenPosts.savedAt',
       page: page,
       limit: limit
     }
 
     const result = await user.getPosts(options)
+
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
     res.status(200).json(result)
   } catch (error) {
     res.status(500).json({ message: 'Error getting hidden posts' })
@@ -713,41 +904,116 @@ const getSortingMethod = (sort, time) => {
 
 const getPosts = async (req, res) => {
   try {
+    const decoded = req.decoded
+    let visitor = null
+
+    if (decoded) {
+      visitor = await UserModel.findOne({ username: decoded.username })
+      if (!visitor) {
+        return res.status(404).json({ message: 'Visitor not found' })
+      }
+    }
+
     const username = req.params.username
     if (!username) {
       throw new Error('Username is required')
     }
+
     const user = await UserModel.findOne({ username: username })
     if (!user || user.isDeleted) {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
+    const page = req.query.page ? parseInt(req.query.page) : 1
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
-    const time = filterWithTime(req.query.time || 'all')
+    const sort = req.query.sort
+    const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
 
-    let posts = await PostModel.find({ username: username, isDeleted: false, createdAt: time }).select('-__v -followers')
-      .sort(sort)
-      .skip(page * limit)
-      .limit(limit)
+    const posts = await user.getUserPosts({
+      username: username,
+      page: page,
+      limit: limit,
+      sort: sort,
+      time: time,
+      mutedCommunities: !visitor || visitor.username === username ? [] : visitor.mutedCommunities,
+      showAdultContent: !visitor ? false : visitor.preferences.showAdultContent
+    })
 
-    const commentCounts = await Promise.all(posts.map(post => post.getCommentCount()))
+    posts.forEach((post) => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach((option) => {
+          option.votes = option.voters.length
+          option.isVoted = visitor ? option.voters.includes(visitor) : false
+          delete option.voters
+          delete option._id
+        })
+      }
 
-    posts = posts.map(post => post.toObject())
-    let count = 0
-    posts.forEach(post => {
-      post.isUpvoted = user.upvotedPosts.includes(post._id)
-      post.isDownvoted = user.downvotedPosts.includes(post._id)
-      post.isSaved = user.savedPosts.includes(post._id)
-      post.isHidden = user.hiddenPosts.includes(post._id)
-      post.commentCount = commentCounts[count][0].commentCount
-      count++
+      post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = visitor ? visitor.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = visitor ? visitor.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = visitor ? visitor.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = visitor ? visitor.communities.includes(post.communityName) : false
+      post.isModerator = visitor ? visitor.moderatorInCommunities.includes(post.communityName) : false
     })
 
     res.status(200).json(posts)
   } catch (error) {
     res.status(400).json({ message: 'Error getting user posts: ' + error.message })
+  }
+}
+
+const getComments = async (req, res) => {
+  try {
+    const decoded = req.decoded
+    let visitor = null
+
+    if (decoded) {
+      visitor = await UserModel.findOne({ username: decoded.username })
+      if (!visitor) {
+        return res.status(404).json({ message: 'Visitor not found' })
+      }
+    }
+
+    const username = req.params.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+
+    const user = await UserModel.findOne({ username: username })
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 1
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = req.query.sort
+    const time = filterWithTime(req.query.sort === 'top' ? req.query.time || 'all' : 'all')
+
+    const comments = await user.getUserComments({
+      username: username,
+      page: page,
+      limit: limit,
+      sort: sort,
+      time: time,
+      mutedCommunities: !visitor || visitor.username === username ? [] : visitor.mutedCommunities,
+      showAdultContent: !visitor ? false : visitor.preferences.showAdultContent
+    })
+
+    comments.forEach((post) => {
+      post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = visitor ? visitor.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = visitor ? visitor.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = visitor ? visitor.communities.includes(post.communityName) : false
+      post.isModerator = visitor ? visitor.moderatorInCommunities.includes(post.communityName) : false
+    })
+
+    res.status(200).json(comments)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user comments: ' + error.message })
   }
 }
 
@@ -763,19 +1029,29 @@ const getUpvotedPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
     const options = {
       username: username,
       unwind: '$upvotedPosts',
-      localField: 'upvotedPosts.postId',
-      savedAt: '$upvotedPosts.savedAt'
+      localField: '$upvotedPosts.postId',
+      savedAt: '$upvotedPosts.savedAt',
+      page: page,
+      limit: limit,
+      searchType: 'Post'
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
-
-    // TODO: fix sorting and pagination
     const result = await user.getPosts(options)
+
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
 
     res.status(200).json(result)
   } catch (error) {
@@ -795,24 +1071,122 @@ const getDownvotedPosts = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const sort = getSortingMethod(req.query.sort)
+
     const options = {
       username: username,
       unwind: '$downvotedPosts',
-      localField: 'downvotedPosts.postId',
-      savedAt: '$downvotedPosts.savedAt'
+      localField: '$downvotedPosts.postId',
+      savedAt: '$downvotedPosts.savedAt',
+      page: page,
+      limit: limit,
+      sort: sort,
+      searchType: 'Post'
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 0
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10
-    const sort = getSortingMethod(req.query.sort)
+    const result = await user.getPosts(options)
 
-    const result = await user.getPosts(options).select('-__v -followers')
-      .sort(sort)
-      .skip(page * limit)
-      .limit(limit)
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
     res.status(200).json(result)
   } catch (error) {
     res.status(400).json({ message: 'Error getting downvoted posts' })
+  }
+}
+
+const getHistory = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
+    const options = {
+      username: username,
+      page: page,
+      limit: limit
+    }
+
+    const result = await HistoryModel.getUserHistory(options)
+
+    result.forEach((post) => {
+      post.isUpvoted = user.upvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isDownvoted = user.downvotedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isSaved = user.savedPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
+      post.isJoined = user.communities.includes(post.communityName)
+      post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+    })
+
+    res.status(200).json(result)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting history: ' + error.message })
+  }
+}
+
+const clearHistory = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    await HistoryModel.deleteMany({ owner: username })
+
+    res.status(200).json({ message: 'History cleared successfully' })
+  } catch (error) {
+    res.status(400).json({ message: 'Error clearing history: ' + error.message })
+  }
+}
+
+const getJoinedCommunities = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+
+    const options = {
+      username: username,
+      page: page,
+      limit: limit
+    }
+
+    const communities = await user.getJoinedCommunities(options)
+
+    res.status(200).json(communities)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting joined communities: ' + error.message })
   }
 }
 
@@ -835,6 +1209,10 @@ module.exports = {
   getSaved,
   getHiddenPosts,
   getPosts,
+  getComments,
   getUpvotedPosts,
-  getDownvotedPosts
+  getDownvotedPosts,
+  getHistory,
+  clearHistory,
+  getJoinedCommunities
 }

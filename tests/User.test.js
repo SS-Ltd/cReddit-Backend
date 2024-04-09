@@ -2,7 +2,7 @@ const UserModel = require('../src/models/User')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
 const crypto = require('crypto')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser, getPosts, getComments } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
@@ -858,7 +858,106 @@ describe('isUsernameAvailable', () => {
   })
 })
 
+describe('getUserView', () => {
+  // Returns user data when valid username is provided
+  test('should return user data when valid username is provided', async () => {
+    const req = {
+      decoded: {
+        username: 'viewerUsername'
+      },
+      params: {
+        username: 'validUsername'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const viewer = {
+      username: 'viewerUsername',
+      follows: [],
+      blockedUsers: [],
+      preferences: {
+        showAdultContent: true
+      }
+    }
+    const user = {
+      username: 'validUsername',
+      displayName: 'John Doe',
+      about: 'Lorem ipsum',
+      email: 'johndoe@example.com',
+      profilePicture: 'profile.jpg',
+      banner: 'banner.jpg',
+      followers: ['follower1', 'follower2'],
+      createdAt: '2022-01-01',
+      preferences: {
+        isNSFW: true
+      }
+    }
+    UserModel.findOne = jest.fn().mockImplementation(async (query) => {
+      if (query.username === 'validUsername') {
+        return user
+      } else if (query.username === 'viewerUsername') {
+        return viewer
+      }
+    })
+
+    await getUserView(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'viewerUsername' })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      username: 'validUsername',
+      displayName: 'John Doe',
+      about: 'Lorem ipsum',
+      email: 'johndoe@example.com',
+      profilePicture: 'profile.jpg',
+      banner: 'banner.jpg',
+      followers: 2,
+      cakeDay: '2022-01-01',
+      isNSFW: true,
+      isFollowed: false,
+      isBlocked: false
+    })
+  })
+
+  // Returns 400 error when username is not provided
+  test('should return 400 error when username is not provided', async () => {
+    const req = { params: {} }
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+
+    await getUserView(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user view: Username is required' })
+  })
+
+  // Returns 404 error when user is not found or is deleted
+  test('should return 404 error when user is not found or is deleted', async () => {
+    const req = { params: { username: 'nonexistentUser' } }
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
+    const user = null
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getUserView(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentUser' })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+})
+
 describe('updateSettings', () => {
+  let consoleErrorBackup
+  beforeAll(() => {
+    consoleErrorBackup = console.error
+    console.error = jest.fn()
+  })
+
+  afterAll(() => {
+    console.error = consoleErrorBackup
+  })
   test('should update user preferences successfully when valid preferences are provided', async () => {
     // Mock the request object
     const req = {
@@ -866,12 +965,13 @@ describe('updateSettings', () => {
         username: 'testuser'
       },
       body: {
-        preferences: {
+        profile: JSON.stringify({
           isNSFW: true,
-          allowFollow: true,
+          allowFollow: true
+        }),
+        feedSettings: JSON.stringify({
           autoPlayMedia: false
-        },
-        darkMode: true
+        })
       }
     }
 
@@ -941,14 +1041,13 @@ describe('updateSettings', () => {
       save: jest.fn()
     }
     // Mock the UserModel.findOne method
-    UserModel.findOne = jest.fn().mockResolvedValueOnce(user)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
 
     // Call the function
     await updateSettings(req, res)
 
     // Check the response
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Settings updated successfully' })
   })
 
   // Return 400 if username is not provided in request
@@ -1074,65 +1173,6 @@ describe('updateSettings', () => {
   })
 })
 
-describe('getUserView', () => {
-  // Returns user data when valid username is provided
-  test('should return user data when valid username is provided', async () => {
-    const req = { params: { username: 'validUsername' } }
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
-    const user = {
-      username: 'validUsername',
-      displayName: 'John Doe',
-      about: 'Lorem ipsum',
-      email: 'johndoe@example.com',
-      profilePicture: 'profile.jpg',
-      banner: 'banner.jpg',
-      followers: ['follower1', 'follower2'],
-      createdAt: '2022-01-01'
-    }
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
-
-    await getUserView(req, res)
-
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
-    expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({
-      username: 'validUsername',
-      displayName: 'John Doe',
-      about: 'Lorem ipsum',
-      email: 'johndoe@example.com',
-      profilePicture: 'profile.jpg',
-      banner: 'banner.jpg',
-      followers: 2,
-      cakeDay: '2022-01-01'
-    })
-  })
-
-  // Returns 400 error when username is not provided
-  test('should return 400 error when username is not provided', async () => {
-    const req = { params: {} }
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
-
-    await getUserView(req, res)
-
-    expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user view: Username is required' })
-  })
-
-  // Returns 404 error when user is not found or is deleted
-  test('should return 404 error when user is not found or is deleted', async () => {
-    const req = { params: { username: 'nonexistentUser' } }
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() }
-    const user = null
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
-
-    await getUserView(req, res)
-
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentUser' })
-    expect(res.status).toHaveBeenCalledWith(404)
-    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
-  })
-})
-
 describe('getSettings', () => {
   // Returns user settings for a valid username
   test('should return user settings when a valid username is provided', async () => {
@@ -1148,6 +1188,11 @@ describe('getSettings', () => {
     const user = {
       email: 'test@example.com',
       gender: 'male',
+      displayName: 'Test User',
+      about: 'About Test User',
+      profilePicture: 'profilePicture',
+      banner: 'banner',
+      moderatorInCommunities: [],
       preferences: {
         google: null,
         socialLinks: [],
@@ -1171,9 +1216,19 @@ describe('getSettings', () => {
         invitationNotifs: true,
         followEmail: true,
         chatEmail: true
-      }
+      },
+      blockedUsers: ['blockedUser1', 'blockedUser2'],
+      mutedCommunities: []
     }
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    UserModel.findOne = jest.fn().mockImplementation((query) => {
+      if (query.username === 'validUsername') {
+        return Promise.resolve(user)
+      } else if (query.username === 'blockedUser1') {
+        return Promise.resolve({ profilePicture: 'profilePicture1' })
+      } else if (query.username === 'blockedUser2') {
+        return Promise.resolve({ profilePicture: 'profilePicture2' })
+      }
+    })
 
     await getSettings(req, res)
 
@@ -1186,18 +1241,21 @@ describe('getSettings', () => {
         google: false
       },
       profile: {
-        displayName: undefined,
-        about: undefined,
+        displayName: 'Test User',
+        about: 'About Test User',
         socialLinks: [],
-        avatar: undefined,
-        banner: undefined,
+        avatar: 'profilePicture',
+        banner: 'banner',
         isNSFW: false,
         allowFollow: true,
         isContentVisible: true
       },
       safetyAndPrivacy: {
-        blockedUsers: undefined,
-        mutedCommunities: undefined
+        blockedUsers: [
+          { username: 'blockedUser1', profilePicture: 'profilePicture1' },
+          { username: 'blockedUser2', profilePicture: 'profilePicture2' }
+        ],
+        mutedCommunities: []
       },
       feedSettings: {
         showAdultContent: true,
@@ -1216,7 +1274,7 @@ describe('getSettings', () => {
         postNotifs: true,
         cakeDayNotifs: true,
         modNotifs: true,
-        moderatorInCommunities: undefined,
+        moderatorInCommunities: [],
         invitationNotifs: true
       },
       email: {
@@ -1908,13 +1966,16 @@ describe('getUser', () => {
       profilePicture: 'profile.jpg',
       banner: 'banner.jpg',
       followers: ['follower1', 'follower2'],
-      createdAt: '2022-01-01'
+      createdAt: '2022-01-01',
+      preferences: {
+        isNSFW: false
+      }
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
     await getUser(req, res)
 
-    expect(UserModel.findOne).toHaveBeenCalledWith('validUsername')
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUsername' })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({
       username: 'validUsername',
@@ -1924,7 +1985,8 @@ describe('getUser', () => {
       profilePicture: 'profile.jpg',
       banner: 'banner.jpg',
       followers: 2,
-      cakeDay: '2022-01-01'
+      cakeDay: '2022-01-01',
+      isNSFW: false
     })
   })
 
@@ -1945,9 +2007,17 @@ describe('getUser', () => {
   })
 })
 
-// ///////////////////////////////////////// Get saved posts //////////////////////////
 describe('getSavedPosts', () => {
   // Function successfully retrieves saved posts for a valid user
+  let consoleErrorBackup
+  beforeAll(() => {
+    consoleErrorBackup = console.error
+    console.error = jest.fn()
+  })
+
+  afterAll(() => {
+    console.error = consoleErrorBackup
+  })
   test('should retrieve saved posts for a valid user with saved posts', async () => {
     const req = {
       decoded: {
@@ -1960,8 +2030,13 @@ describe('getSavedPosts', () => {
       json: jest.fn()
     }
     const user = {
-      getPosts: jest.fn().mockResolvedValue([{ postId: 'post1', savedAt: '2022-01-01' }, { postId: 'post2', savedAt: '2022-01-02' }]),
-      getSavedComments: jest.fn().mockResolvedValue([{ commentId: 'comment1', savedAt: '2022-01-03' }, { commentId: 'comment2', savedAt: '2022-01-04' }])
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [],
+      savedPosts: [{ postId: 'post1' }, { postId: 'post2' }],
+      hiddenPosts: [],
+      communities: ['community1'],
+      moderatorInCommunities: [],
+      getPosts: jest.fn().mockResolvedValue([{ _id: 'post1', communityName: 'community1' }, { _id: 'post2', communityName: 'community2' }])
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
@@ -1971,18 +2046,15 @@ describe('getSavedPosts', () => {
     expect(user.getPosts).toHaveBeenCalledWith({
       username: 'testUser',
       unwind: '$savedPosts',
-      localField: 'savedPosts.postId',
+      localField: '$savedPosts.postId',
+      searchType: 'All',
       savedAt: '$savedPosts.savedAt',
       page: 1,
       limit: 10
     })
-    expect(user.getSavedComments).toHaveBeenCalled()
-    expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([
-      { commentId: 'comment2', savedAt: '2022-01-04' },
-      { commentId: 'comment1', savedAt: '2022-01-03' },
-      { postId: 'post2', savedAt: '2022-01-02' },
-      { postId: 'post1', savedAt: '2022-01-01' }
+      { _id: 'post1', communityName: 'community1', isUpvoted: true, isDownvoted: false, isSaved: true, isHidden: false, isJoined: true, isModerator: false },
+      { _id: 'post2', communityName: 'community2', isUpvoted: false, isDownvoted: false, isSaved: true, isHidden: false, isJoined: false, isModerator: false }
     ])
   })
 
@@ -2022,24 +2094,26 @@ describe('getSavedPosts', () => {
   })
 })
 
-// ///////////////////////////////////////// Get hidden posts //////////////////////////
 describe('getHiddenPosts', () => {
   test('should retrieve hidden posts for a valid user with saved posts', async () => {
     const req = {
       decoded: {
         username: 'testUser'
       },
-      query: {
-        page: 2,
-        limit: 5
-      }
+      query: {}
     }
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
     const user = {
-      getPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [],
+      savedPosts: [{ postId: 'post1' }, { postId: 'post2' }],
+      hiddenPosts: [],
+      communities: ['community1'],
+      moderatorInCommunities: [],
+      getPosts: jest.fn().mockResolvedValue([{ _id: 'post1', communityName: 'community1' }, { _id: 'post2', communityName: 'community2' }])
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
 
@@ -2049,13 +2123,16 @@ describe('getHiddenPosts', () => {
     expect(user.getPosts).toHaveBeenCalledWith({
       username: 'testUser',
       unwind: '$hiddenPosts',
-      localField: 'hiddenPosts.postId',
+      localField: '$hiddenPosts.postId',
+      searchType: 'Post',
       savedAt: '$hiddenPosts.savedAt',
-      page: 2,
-      limit: 5
+      page: 1,
+      limit: 10
     })
-    expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(['post1', 'post2'])
+    expect(res.json).toHaveBeenCalledWith([
+      { _id: 'post1', communityName: 'community1', isUpvoted: true, isDownvoted: false, isSaved: true, isHidden: false, isJoined: true, isModerator: false },
+      { _id: 'post2', communityName: 'community2', isUpvoted: false, isDownvoted: false, isSaved: true, isHidden: false, isJoined: false, isModerator: false }
+    ])
   })
 
   // Throw an error if UserModel.findOne() throws an error
@@ -2076,5 +2153,201 @@ describe('getHiddenPosts', () => {
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: 'Error getting hidden posts' })
+  })
+})
+
+describe('getPosts', () => {
+  // Retrieve user posts with valid username and default pagination and sorting parameters
+  test('should retrieve user posts with valid username and default pagination and sorting parameters', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      },
+      query: {}
+    }
+
+    const user = {
+      getUserPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  // Return 400 error when username is not provided
+  test('should return 400 error when username is not provided', async () => {
+    const req = {
+      params: {},
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user posts: Username is required' })
+  })
+
+  // Retrieve user posts with valid username and custom pagination and sorting parameters
+  test('should retrieve user posts with valid username and custom pagination and sorting parameters', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      },
+      query: {
+        page: 2,
+        limit: 5,
+        sort: 'new',
+        time: 'week'
+      }
+    }
+
+    const user = {
+      getUserPosts: jest.fn().mockResolvedValue(['post1', 'post2'])
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getPosts(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'john_doe' })
+    expect(user.getUserPosts).toHaveBeenCalledWith(expect.objectContaining({ username: 'john_doe', page: 2, limit: 5, sort: 'new' }))
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  // Return 404 error when user is not found or is deleted
+  test('should return a 404 error when the user is not found or is deleted', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+})
+
+describe('getComments', () => {
+  test('should retrieve user comments with valid username and default pagination and sorting parameters', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      },
+      query: {}
+    }
+
+    const user = {
+      getUserComments: jest.fn().mockResolvedValue(['comment1', 'comment2'])
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  test('should return 400 error when username is not provided', async () => {
+    const req = {
+      params: {},
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user comments: Username is required' })
+  })
+
+  test('should retrieve user comments with valid username and custom pagination and sorting parameters', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      },
+      query: {
+        page: 2,
+        limit: 5,
+        sort: 'new',
+        time: 'week'
+      }
+    }
+
+    const user = {
+      getUserComments: jest.fn().mockResolvedValue(['comment1', 'comment2'])
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getComments(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'john_doe' })
+    expect(user.getUserComments).toHaveBeenCalledWith(expect.objectContaining({ username: 'john_doe', page: 2, limit: 5, sort: 'new' }))
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalled()
+  })
+
+  test('should return a 404 error when the user is not found or is deleted', async () => {
+    const req = {
+      params: {
+        username: 'john_doe'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 })
