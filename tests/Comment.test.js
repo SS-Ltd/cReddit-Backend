@@ -6,12 +6,14 @@ const comment = require('../src/controllers/Comment')
 const MediaUtils = require('../src/utils/Media')
 
 jest.mock('../src/models/Post', () => {
-  return {
-    getComment: jest.fn(),
-    getPost: jest.fn(),
-    save: jest.fn(),
-    deleteOne: jest.fn()
-  }
+  return jest.fn().mockImplementation(() => {
+    return {
+      getComment: jest.fn(),
+      getPost: jest.fn(),
+      save: jest.fn(),
+      deleteOne: jest.fn()
+    }
+  })
 })
 
 jest.mock('../src/models/User', () => {
@@ -69,8 +71,8 @@ describe('getComment', () => {
     }
 
     UserModel.findOne.mockResolvedValue(user)
-    PostModel.getComment.mockResolvedValue([comment])
-    PostModel.getPost.mockResolvedValue([post])
+    PostModel.getComment = jest.fn().mockResolvedValue([comment])
+    PostModel.getPost = jest.fn().mockResolvedValue([post])
     HistoryModel.findOne.mockResolvedValue(history)
 
     await getComment(req, res)
