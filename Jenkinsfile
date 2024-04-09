@@ -14,6 +14,9 @@ pipeline {
         }
 
         stage('push to registery') {
+            when{
+                branch 'main'
+            }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'creddit-dockerhub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]) {
                     sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
@@ -23,6 +26,9 @@ pipeline {
         }
 
         stage('rebuild docker compose'){
+            when{
+                branch 'main'
+            }
             steps {
                 sh '/home/jenkins/rebuild_backend.sh'
             }
