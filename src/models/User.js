@@ -422,11 +422,14 @@ UserSchema.methods.getPosts = async function (options) {
         username: '$post.username',
         communityName: '$post.communityName',
         profilePicture: { $arrayElemAt: ['$community.icon', 0] },
-        title: '$post.title',
         netVote: '$post.netVote',
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$post.isSpoiler',
         isNSFW: '$post.isNsfw',
         isApproved: '$post.isApproved',
+        isLocked: '$post.isLocked',
+        isEdited: '$post.isEdited',
+        title: '$post.title',
         content: '$post.content',
         pollOptions: {
           $map: {
@@ -441,7 +444,9 @@ UserSchema.methods.getPosts = async function (options) {
             }
           }
         },
-        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
+        expirationDate: '$post.expirationDate',
+        createdAt: '$post.createdAt',
+        updatedAt: '$post.updatedAt'
       }
     }
   ])
