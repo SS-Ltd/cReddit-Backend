@@ -51,6 +51,72 @@ const validatePost = (post) => {
   }
 }
 
+const upvotePost = (post, user) => {
+  const postId = post._id
+  if (user.upvotedPosts.find(upvotedPost => upvotedPost.postId.equals(postId))) {
+    post.upvote -= 1
+    post.netVote -= 1
+    user.upvotedPosts = user.upvotedPosts.filter(upvotedPost => !upvotedPost.postId.equals(postId))
+  } else if (user.downvotedPosts.find(downvotedPost => downvotedPost.postId.equals(postId))) {
+    post.upvote += 1
+    post.downvote -= 1
+    post.netVote += 2
+    user.upvotedPosts.push({ postId, SavedAt: new Date() })
+    user.downvotedPosts = user.downvotedPosts.filter(downvotedPost => !downvotedPost.postId.equals(postId))
+  } else {
+    post.upvote += 1
+    post.netVote += 1
+    user.upvotedPosts.push({ postId, SavedAt: new Date() })
+  }
+}
+
+const downvotePost = (post, user) => {
+  const postId = post._id
+  if (user.downvotedPosts.find(downvotedPost => downvotedPost.postId.equals(postId))) {
+    post.downvote -= 1
+    post.netVote += 1
+    user.downvotedPosts = user.downvotedPosts.filter(downvotedPost => !downvotedPost.postId.equals(postId))
+  } else if (user.upvotedPosts.find(upvotedPost => upvotedPost.postId.equals(postId))) {
+    post.upvote -= 1
+    post.downvote += 1
+    post.netVote -= 2
+    user.downvotedPosts.push({ postId: postId, SavedAt: new Date() })
+    user.upvotedPosts = user.upvotedPosts.filter(upvotedPost => !upvotedPost.postId.equals(postId))
+  } else {
+    post.downvote += 1
+    post.netVote -= 1
+    user.downvotedPosts.push({ postId, SavedAt: new Date() })
+  }
+}
+
+const votePoll = (post, user, pollOption) => {
+  if (post.type !== 'Poll') {
+    throw new Error('Post is not a poll')
+  }
+
+  if (post.expirationDate < new Date()) {
+    throw new Error('Poll has expired')
+  }
+
+  if (!post.pollOptions.find(option => option.text === pollOption)) {
+    throw new Error('Invalid poll option')
+  }
+
+  if (post.pollOptions.find(option => option.voters.includes(user.username))) {
+    throw new Error('User has already voted')
+  }
+
+  post.pollOptions = post.pollOptions.map(option => {
+    if (option.text === pollOption) {
+      option.voters.push(user.username)
+    }
+    return option
+  })
+}
+
 module.exports = {
-  validatePost
+  validatePost,
+  upvotePost,
+  downvotePost,
+  votePoll
 }

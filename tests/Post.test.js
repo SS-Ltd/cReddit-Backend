@@ -3,8 +3,10 @@ const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
 const HistoryModel = require('../src/models/History')
-const cloudinary = require('../src/utils/Cloudinary')
-const { getPost, getHomeFeed, getComments } = require('../src/controllers/Post')
+const MediaUtils = require('../src/utils/Media')
+const PostUtils = require('../src/utils/Post')
+const { getPost, getHomeFeed, getComments, votePost } = require('../src/controllers/Post')
+const { ObjectId } = require('mongodb')
 
 jest.mock('../src/models/Post', () => {
   return jest.fn().mockImplementation(() => {
@@ -59,6 +61,7 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
 
     await PostController.createPost(req, res)
@@ -72,10 +75,12 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNsfw: false
+      isNsfw: false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
-    expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
+    expect(res.status).toHaveBeenCalledWith(201)
   })
 
   test('should create a post of type "Images & Video" with required fields', async () => {
@@ -95,7 +100,8 @@ describe('createPost', () => {
       ]
     }
 
-    cloudinary.uploader.upload = jest.fn().mockResolvedValue({ secure_url: 'secure_url' })
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    MediaUtils.cloudinary.uploader.upload = jest.fn().mockResolvedValue({ secure_url: 'secure_url' })
 
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -104,7 +110,7 @@ describe('createPost', () => {
 
     await PostController.createPost(req, res)
 
-    expect(cloudinary.uploader.upload).toHaveBeenCalledTimes(5)
+    expect(MediaUtils.cloudinary.uploader.upload).toHaveBeenCalledTimes(5)
     expect(PostModel).toHaveBeenCalledWith({
       type: 'Images & Video',
       username: 'Test User',
@@ -114,7 +120,9 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNsfw: false
+      isNsfw: false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -138,6 +146,8 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+
     await PostController.createPost(req, res)
 
     expect(PostModel).toHaveBeenCalledWith({
@@ -149,7 +159,9 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: true,
-      isNsfw: false
+      isNsfw: false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -175,6 +187,7 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
 
     await PostController.createPost(req, res)
@@ -188,10 +201,12 @@ describe('createPost', () => {
       pollOptions: ['Option 1', 'Option 2'].map(option => ({ text: option, votes: 0 })),
       expirationDate: '2080-12-31T23:59:59.999Z',
       isSpoiler: false,
-      isNsfw: true
+      isNsfw: true,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
-    expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
+    expect(res.status).toHaveBeenCalledWith(201)
   })
 
   test('should create a post with additional fields and send back warning', async () => {
@@ -213,6 +228,7 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
 
     await PostController.createPost(req, res)
@@ -226,7 +242,9 @@ describe('createPost', () => {
       pollOptions: [],
       expirationDate: null,
       isSpoiler: false,
-      isNsfw: true
+      isNsfw: true,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully while ignoring additional fields' })
@@ -436,19 +454,18 @@ describe('deletePost', () => {
       username: 'authorizedUser',
       type: 'Images & Video',
       content: 'cReddit/image1.jpg cReddit/video1.mp4',
-      deleteOne: jest.fn()
+      isDeleted: false,
+      save: jest.fn(),
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
 
     await PostController.deletePost(req, res)
 
     expect(res.json).toHaveBeenCalledWith({ message: 'Post deleted successfully' })
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
-    expect(post.deleteOne).toHaveBeenCalled()
-    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/image1')
-    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+    expect(post.isDeleted).toBe(true)
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0', isDeleted: false })
   })
 
   test('should not delete a post when unauthorized user', async () => {
@@ -471,17 +488,17 @@ describe('deletePost', () => {
       content: 'cReddit/image1.jpg cReddit/video1.mp4',
       deleteOne: jest.fn()
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
 
     await PostController.deletePost(req, res)
 
     expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to delete this post' })
     expect(res.status).toHaveBeenCalledWith(403)
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0', isDeleted: false })
     expect(post.deleteOne).not.toHaveBeenCalled()
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
   })
 
   test('should not delete a post when invalid post id', async () => {
@@ -504,17 +521,17 @@ describe('deletePost', () => {
       content: 'cReddit/image1.jpg cReddit/video1.mp4',
       deleteOne: jest.fn()
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
 
     await PostController.deletePost(req, res)
 
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid post id' })
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(PostModel.findOne).not.toHaveBeenCalledWith({ _id: 'InvalidPostId' })
+    expect(PostModel.findOne).not.toHaveBeenCalledWith({ _id: 'InvalidPostId', isDeleted: false })
     expect(post.deleteOne).not.toHaveBeenCalled()
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
   })
 
   test('should not delete a post when non-existing post id', async () => {
@@ -530,47 +547,16 @@ describe('deletePost', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
-    cloudinary.uploader.destroy = jest.fn()
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(null)
 
     await PostController.deletePost(req, res)
 
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is not found' })
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
-  })
-
-  test('should not delete a post when invalid image url', async () => {
-    const req = {
-      params: {
-        postId: '65fcc9307932c5551dfd88e0'
-      },
-      decoded: {
-        username: 'authorizedUser'
-      }
-    }
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn()
-    }
-    const post = {
-      _id: '65fcc9307932c5551dfd88e0',
-      username: 'authorizedUser',
-      type: 'Images & Video',
-      content: 'cRedditimage1.jpg cReddit/video1.mp4',
-      deleteOne: jest.fn()
-    }
-    cloudinary.uploader.destroy = jest.fn()
-    PostModel.findOne = jest.fn().mockResolvedValue(post)
-
-    await PostController.deletePost(req, res)
-
-    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid image or video URLs found in post' })
-    expect(res.status).toHaveBeenCalledWith(500)
-    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0' })
-    expect(cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cRedditimage1')
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0', isDeleted: false })
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
+    expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
   })
 })
 
@@ -769,7 +755,7 @@ describe('savePost', () => {
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post saved successfully' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment saved successfully' })
     expect(user.savedPosts).toContain('65fcc9307932c5551dfd88e0')
     expect(user.save).toHaveBeenCalled()
   })
@@ -803,7 +789,7 @@ describe('savePost', () => {
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post unsaved successfully' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment unsaved successfully' })
     expect(user.savedPosts).not.toContain('65fcc9307932c5551dfd88e0')
     expect(user.save).toHaveBeenCalled()
   })
@@ -893,7 +879,7 @@ describe('savePost', () => {
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post is already saved' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment is already saved' })
   })
 
   test('should return an error message for an already unsaved post', async () => {
@@ -925,7 +911,7 @@ describe('savePost', () => {
     await PostController.savePost(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'Post is not saved' })
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment is not saved' })
   })
 })
 
@@ -1632,7 +1618,8 @@ describe('getHomeFeed', () => {
       mutedCommunities: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      follows: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
@@ -1670,7 +1657,8 @@ describe('getHomeFeed', () => {
       mutedCommunities: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      follows: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
@@ -1867,5 +1855,254 @@ describe('getComments', () => {
     expect(res.json).toHaveBeenCalledWith({
       message: 'User does not exist'
     })
+  })
+})
+
+
+describe('votePost', () => {
+  test('should upvote a post when req.type is upvote', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      body: {},
+      type: 'upvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, upvote: 0, downvote: 0, netVote: 0, save: jest.fn() }
+    const user = { username, upvotedPosts: [], downvotedPosts: [], save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'upvotePost')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.upvotePost).toHaveBeenCalledWith(postToVote, user)
+    expect(postToVote.upvote).toBe(1)
+    expect(postToVote.downvote).toBe(0)
+    expect(postToVote.netVote).toBe(1)
+    expect(user.upvotedPosts.length).toBe(1)
+    expect(user.downvotedPosts.length).toBe(0)
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should downvote a post when req.type is downvote', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'downvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, upvote: 0, downvote: 0, netVote: 0, save: jest.fn() }
+    const user = { username, upvotedPosts: [], downvotedPosts: [], save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'downvotePost')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.downvotePost).toHaveBeenCalledWith(postToVote, user)
+    expect(postToVote.upvote).toBe(0)
+    expect(postToVote.downvote).toBe(1)
+    expect(postToVote.netVote).toBe(-1)
+    expect(user.upvotedPosts.length).toBe(0)
+    expect(user.downvotedPosts.length).toBe(1)
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should vote a pollOption for a poll when req.type is votePoll', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      body: { pollOption: 'option2' },
+      type: 'votePoll'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, type: 'Poll', pollOptions: [{ text: 'option1', voters: [] }, { text: 'option2', voters: [] }], save: jest.fn() }
+    const user = { username, save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'votePoll')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.votePoll).toHaveBeenCalledWith(postToVote, user, 'option2')
+    expect(postToVote.pollOptions).toStrictEqual([
+      { text: 'option1', voters: [] },
+      { text: 'option2', voters: [username] }
+    ])
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should reverse upvote before downvoting a post when req.type is downvote', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'downvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, upvote: 1, downvote: 0, netVote: 1, save: jest.fn() }
+    const user = { username, upvotedPosts: [{ postId: new ObjectId('660460b9e212f19e0a5c274b'), savedAt: new Date() }], downvotedPosts: [], save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'downvotePost')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.downvotePost).toHaveBeenCalledWith(postToVote, user)
+    expect(postToVote.upvote).toBe(0)
+    expect(postToVote.downvote).toBe(1)
+    expect(postToVote.netVote).toBe(-1)
+    expect(user.upvotedPosts.length).toBe(0)
+    expect(user.downvotedPosts.length).toBe(1)
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should reverse upvote when already upvoted', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'upvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, upvote: 1, downvote: 0, netVote: 1, save: jest.fn() }
+    const user = { username, upvotedPosts: [{ postId: new ObjectId('660460b9e212f19e0a5c274b'), savedAt: new Date() }], downvotedPosts: [], save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'downvotePost')
+
+    await PostController.votePost(req, res)
+
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: postId, isDeleted: false, isRemoved: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username, isDeleted: false })
+    expect(PostUtils.upvotePost).toHaveBeenCalledWith(postToVote, user)
+    expect(postToVote.upvote).toBe(0)
+    expect(postToVote.downvote).toBe(0)
+    expect(postToVote.netVote).toBe(0)
+    expect(user.upvotedPosts.length).toBe(0)
+    expect(user.downvotedPosts.length).toBe(0)
+    expect(postToVote.save).toHaveBeenCalled()
+    expect(user.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post voted successfully' }))
+  })
+
+  test('should return an error message when post is not found', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'upvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.votePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Post does not exist' }))
+  })
+
+  test('should return an error message when pollOption does not exist', async () => {
+    const postId = '660460b9e212f19e0a5c274b'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      body: { pollOption: 'option3' },
+      type: 'votePoll'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const postToVote = { _id: postId, type: 'Poll', pollOptions: [{ text: 'option1', voters: [] }, { text: 'option2', voters: [] }], save: jest.fn() }
+    const user = { username, save: jest.fn() }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    jest.spyOn(PostUtils, 'votePoll')
+
+    await PostController.votePost(req, res)
+
+    expect(PostUtils.votePoll).toHaveBeenCalled()
+    expect(postToVote.save).not.toHaveBeenCalled()
+    expect(user.save).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Invalid poll option' }))
   })
 })
