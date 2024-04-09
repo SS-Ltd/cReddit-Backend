@@ -433,6 +433,9 @@ describe('editComment', () => {
       body: {
         content: 'new comment content'
       },
+      decoded: {
+        username: 'authorizedUser'
+      },
       files: []
     }
 
@@ -444,6 +447,7 @@ describe('editComment', () => {
     PostModel.findOne = jest.fn().mockResolvedValue({
       _id: 'validCommentId',
       type: 'Comment',
+      username: 'authorizedUser',
       isImage: false,
       save: jest.fn()
     })
@@ -455,11 +459,11 @@ describe('editComment', () => {
     expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '660d7e17baa5c72965311c7f' })
     expect(MediaUtils.deleteImages).not.toHaveBeenCalled()
     expect(MediaUtils.uploadImages).not.toHaveBeenCalled()
-    expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Comment edited successfully',
       commentId: 'validCommentId'
     })
+    expect(res.status).toHaveBeenCalledWith(201)
   })
 
   it('should throw an error when attempting to edit a non-existing comment', async () => {
@@ -469,6 +473,9 @@ describe('editComment', () => {
       },
       body: {
         content: 'new comment content'
+      },
+      decoded: {
+        username: 'authorizedUser'
       },
       files: []
     }
@@ -494,6 +501,9 @@ describe('editComment', () => {
         commentId: '660d7e17baa5c72965311c7f'
       },
       body: {},
+      decoded: {
+        username: 'authorizedUser'
+      },
       files: [{ filename: 'image.jpg' }]
     }
     const res = {
@@ -504,6 +514,7 @@ describe('editComment', () => {
     PostModel.findOne = jest.fn().mockResolvedValue({
       _id: '660d7e17baa5c72965311c7f',
       type: 'Comment',
+      username: 'authorizedUser',
       isImage: true,
       content: 'oldImageUrl',
       save: jest.fn()
@@ -529,6 +540,9 @@ describe('editComment', () => {
         commentId: '660d7e17baa5c72965311c7f'
       },
       body: {},
+      decoded: {
+        username: 'authorizedUser'
+      },
       files: [{ filename: 'image.jpg' }]
     }
     const res = {
@@ -539,6 +553,7 @@ describe('editComment', () => {
     PostModel.findOne = jest.fn().mockResolvedValue({
       _id: '660d7e17baa5c72965311c7f',
       type: 'Comment',
+      username: 'authorizedUser',
       isImage: false,
       content: 'text content',
       save: jest.fn()
@@ -565,6 +580,9 @@ describe('editComment', () => {
       body: {
         content: 'new comment content'
       },
+      decoded: {
+        username: 'authorizedUser'
+      },
       files: []
     }
     const res = {
@@ -575,6 +593,7 @@ describe('editComment', () => {
     PostModel.findOne = jest.fn().mockResolvedValue({
       _id: '660d7e17baa5c72965311c7f',
       type: 'Comment',
+      username: 'authorizedUser',
       isImage: true,
       content: 'oldImageUrl',
       save: jest.fn()
