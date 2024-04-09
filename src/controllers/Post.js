@@ -1,6 +1,7 @@
 const Post = require('../models/Post')
 const User = require('../models/User')
 const Community = require('../models/Community')
+const Report = require('../models/Report')
 const mongoose = require('mongoose')
 const cloudinary = require('../utils/Cloudinary')
 const PostUtils = require('../utils/Post')
@@ -558,13 +559,29 @@ const reportPost = async (req, res) => {
       return res.status(404).json({ message: 'Community not found' })
     }
 
-    const ruleExits = community.rules.some(rule => rule.text === communityRule)
+    const isComment = post.type === 'Comment'
+
+    const ruleExits = community.rules.some(rule => (rule.text === communityRule && !isComment && rule.appliesTo !== 'Comments only') || (rule.text === communityRule && isComment && rule.appliesTo !== 'Posts only'))
     if (!ruleExits) {
-      return res.status(400).json({ message: 'Community rule does not exist' })
+      return res.status(400).json({ message: 'Community rule does not apply' })
     }
 
-    post.reports.push({ user: username, rule: communityRule })
-    await post.save()
+    if (post.username === username) {
+      return res.status(400).json({ message: 'You cannot report your own post' })
+    }
+
+    const existingReport = await Report.findOne({ user: username, post: postId, reason: communityRule, isDeleted: false })
+    if (!existingReport) {
+      const report = new Report({
+        user: username,
+        post: postId,
+        type: post.type,
+        reason: communityRule,
+        isDeleted: false
+      })
+      await report.save()
+    }
+
     const message = 'Report Submitted\nThanks for your report and for looking out for yourself and your fellow redditors. Your reporting helps make Reddit a better, safer, and more welcoming place for everyone; and it means a lot to us. '
     return res.status(200).json({ message })
   } catch (error) {
