@@ -24,7 +24,7 @@ pipeline {
                 }
             }
             steps {
-                 sh 'docker build . -t ${env.dockerHub_USR}/creddit_backend'
+                 sh "docker build . -t ${env.dockerHub_USR}/creddit_backend"
             }
         }
 
@@ -34,7 +34,7 @@ pipeline {
             }
             steps {
                 sh "docker login -u ${env.dockerHub_USR} -p ${env.dockerHub_PSW}"
-                sh 'docker push ${env.dockerHub_USR}/creddit_backend'
+                sh "docker push ${env.dockerHub_USR}/creddit_backend"
             }
         }
 
