@@ -589,10 +589,12 @@ UserSchema.methods.getUserPosts = async function (options) {
     },
     {
       $match: {
-        $cond: {
-          if: { $eq: [showAdultContent, false] },
-          then: { $eq: ['$community.isNSFW', false] },
-          else: true
+        $expr: {
+          $cond: {
+            if: { $eq: [showAdultContent, false] },
+            then: { $eq: ['$community.isNSFW', false] },
+            else: true
+          }
         }
       }
     },
@@ -695,10 +697,11 @@ UserSchema.methods.getUserComments = async function (options) {
     },
     {
       $match: {
-        $cond: {
-          if: { $eq: [showAdultContent, false] },
-          then: { $eq: ['$community.isNSFW', false] },
-          else: true
+        $expr: {
+          $and: [
+            { $cond: { if: { $eq: [showAdultContent, false] }, then: { $eq: ['$community.isNSFW', false] }, else: true } },
+            { $not: { $in: ['$posts.communityName', mutedCommunities] } }
+          ]
         }
       }
     },
