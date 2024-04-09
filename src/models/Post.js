@@ -587,8 +587,22 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
             }
           },
           {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
             $addFields: {
-              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+              profilePicture: {
+                $cond: {
+                  if: { $eq: ['$communityName', null] },
+                  then: { $arrayElemAt: ['$user.profilePicture', 0] },
+                  else: { $arrayElemAt: ['$community.icon', 0] }
+                }
+              }
             }
           },
           {
