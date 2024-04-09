@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    environment {
+        dockerHub = credentials('creddit-dockerhub')
+    }
     stages {
         stage('cp env file'){
             when {
@@ -21,7 +24,7 @@ pipeline {
                 }
             }
             steps {
-                 sh 'docker build . -t moa234/creddit_backend'
+                 sh 'docker build . -t ${env.dockerHub_USR}/creddit_backend'
             }
         }
 
@@ -30,10 +33,8 @@ pipeline {
                 branch 'main'
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'creddit-dockerhub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]) {
-                    sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
-                    sh 'docker push moa234/creddit_backend'
-                }
+                sh "docker login -u ${env.dockerHub_USR} -p ${env.dockerHub_PSW}"
+                sh 'docker push ${env.dockerHub_USR}/creddit_backend'
             }
         }
 
@@ -42,7 +43,7 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh '/home/jenkins/rebuild_backend.sh'
+                sh "/home/jenkins/pull_image.sh ${env.dockerHub_USR}  ${env.dockerHub_PSW} backend"
             }
         }
     }
