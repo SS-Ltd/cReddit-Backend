@@ -14,7 +14,7 @@ connectDB()
 
 const app = express()
 app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(cors({ credentials: true, origin: process.env.BASE_URL }))
 app.use(cors())
 app.use(cookies())
 
