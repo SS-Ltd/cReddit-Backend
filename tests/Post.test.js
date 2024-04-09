@@ -1632,7 +1632,8 @@ describe('getHomeFeed', () => {
       mutedCommunities: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      follows: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
@@ -1670,7 +1671,8 @@ describe('getHomeFeed', () => {
       mutedCommunities: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      follows: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
