@@ -749,7 +749,7 @@ describe('joinCommunity', () => {
   })
 
   // Community does not exist, returns 500 error
-  it('should return a 500 status code and an error message when the community does not exist', async () => {
+  it('should return a 404 status code and an error message when the community does not exist', async () => {
     const req = {
       params: {
         subreddit: 'nonExistentSubreddit'
@@ -768,9 +768,9 @@ describe('joinCommunity', () => {
 
     await joinCommunity(req, res)
 
-    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
-      message: 'An error occurred while joining the community'
+      message: 'Community not found'
     })
   })
 })

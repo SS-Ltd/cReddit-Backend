@@ -301,6 +301,9 @@ const joinCommunity = async (req, res) => {
     const username = req.decoded.username
 
     const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
     const user = await UserModel.findOne({ username: username, isDeleted: false })
 
     const isMember = user.communities.includes(subreddit)
