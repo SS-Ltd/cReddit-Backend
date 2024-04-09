@@ -3,7 +3,10 @@ pipeline {
     stages {
         stage('cp env file'){
             when {
-                branch 'main'
+                anyOf {
+                    changeRequest target: 'main'
+                    branch 'main'
+                }
             }
             steps {
                 sh 'cp /home/jenkins/.env .'
