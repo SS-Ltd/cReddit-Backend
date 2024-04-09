@@ -15,16 +15,16 @@ pipeline {
 
         stage('push to registery') {
             steps {
-                sh 'docker push moa234/creddit_backend'
+                withCredentials([usernamePassword(credentialsId: 'creddit-dockerhub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]) {
+                    sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
+                    sh 'docker push moa234/creddit_backend'
+                }
             }
         }
 
         stage('rebuild docker compose'){
             steps {
-                withCredentials([usernamePassword(credentialsId: 'creddit-dockerhub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]) {
-                    sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
-                    sh '/home/jenkins/rebuild_backend.sh'
-                }
+                sh '/home/jenkins/rebuild_backend.sh'
             }
         }
     }
