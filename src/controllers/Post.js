@@ -420,7 +420,6 @@ const getComments = async (req, res) => {
           post: postId
         })
       } else {
-        console.log(history)
         history.updatedAt = new Date()
         await history.save()
       }
