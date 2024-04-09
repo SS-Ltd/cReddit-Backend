@@ -43,6 +43,16 @@ const PostSchema = new Schema({
       refPath: 'username'
     }]
   }],
+  reports: [{
+    user: {
+      type: String,
+      ref: 'User',
+      refPath: 'username'
+    },
+    rule: {
+      type: String
+    }
+  }],
   expirationDate: {
     type: Date
   },

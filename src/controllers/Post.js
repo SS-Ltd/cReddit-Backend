@@ -538,6 +538,39 @@ const getHomeFeed = async (req, res) => {
   }
 }
 
+const reportPost = async (req, res) => {
+  try {
+    const postId = req.params.postId
+    const communityRule = req.body.communityRule
+    const username = req.decoded.username
+
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (!post.communityName) {
+      return res.status(400).json({ message: 'Post does not belong to a community' })
+    }
+
+    const community = await Community.findOne({ name: post.communityName, isDeleted: false })
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
+
+    const ruleExits = community.rules.some(rule => rule.text === communityRule)
+    if (!ruleExits) {
+      return res.status(400).json({ message: 'Community rule does not exist' })
+    }
+
+    post.reports.push({ user: username, rule: communityRule })
+    await post.save()
+    const message = 'Report Submitted\nThanks for your report and for looking out for yourself and your fellow redditors. Your reporting helps make Reddit a better, safer, and more welcoming place for everyone; and it means a lot to us. '
+    return res.status(200).json({ message })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error reporting post' })
+  }
+}
 module.exports = {
   getPost,
   createPost,
@@ -547,5 +580,6 @@ module.exports = {
   hidePost,
   lockPost,
   getComments,
-  getHomeFeed
+  getHomeFeed,
+  reportPost
 }
