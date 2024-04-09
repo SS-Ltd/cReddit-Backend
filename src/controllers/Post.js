@@ -327,7 +327,6 @@ const getPost = async (req, res) => {
           post: postId
         })
       } else {
-        console.log(history)
         history.updatedAt = new Date()
         await history.save()
       }
@@ -404,15 +403,20 @@ const getComments = async (req, res) => {
       })
     }
 
-    const community = await Community.findOne({ name: post.communityName, isDeleted: false })
+    const communityName = post.communityName
+    let community = null
+    if (communityName) {
+      community = await Community.findOne({ name: communityName, isDeleted: false })
+    }
 
-    if (!community) {
+    if (!community && communityName) {
       return res.status(404).json({
         message: 'Community does not exist'
       })
     }
 
-    const sortChoice = req.query.sort ? req.query.sort : community.suggestedSort
+    let sortChoice = community ? community.suggestedSort : 'best'
+    sortChoice = req.query.sort ? req.query.sort : sortChoice
     const sort = getSortingMethod(sortChoice)
 
     const options = { sort }
@@ -497,12 +501,13 @@ const getHomeFeed = async (req, res) => {
 
     const communities = (!user || user.communities.length === 0) ? null : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
+    const follows = (!user || user.follows.length === 0) ? null : user.follows
     const showAdultContent = user ? user.preferences.showAdultContent : false
 
     if (sort === 'best' || !user) {
       posts = await Post.getRandomHomeFeed(options, mutedCommunities, showAdultContent)
     } else {
-      posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, showAdultContent)
+      posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, follows, showAdultContent)
     }
 
     posts.forEach(post => {

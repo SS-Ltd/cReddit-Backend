@@ -224,12 +224,51 @@ PostSchema.statics.getComments = async function (postId, options) {
         as: 'user'
       }
     },
+    {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
     { $sort: sort },
     { $skip: page * limit },
     { $limit: limit },
     {
       $addFields: {
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        reports: '$reports'
       }
     },
     {
@@ -265,6 +304,14 @@ PostSchema.statics.getPost = async function (postId) {
     },
     {
       $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
         from: 'communities',
         localField: 'communityName',
         foreignField: 'name',
@@ -272,15 +319,61 @@ PostSchema.statics.getPost = async function (postId) {
       }
     },
     {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
+    {
       $addFields: {
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
         commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] }
+        reports: '$reports'
       }
     },
     {
       $project: {
         comments: 0,
         community: 0,
+        user: 0,
         __v: 0,
         followers: 0,
         upvote: 0,
@@ -290,7 +383,8 @@ PostSchema.statics.getPost = async function (postId) {
         isDeleted: 0,
         mostRecentUpvote: 0,
         actions: 0,
-        isRemoved: 0
+        isRemoved: 0,
+        reportUser: 0
       }
     }
   ])
@@ -308,8 +402,47 @@ PostSchema.statics.getComment = async function (commentId) {
       }
     },
     {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
+    {
       $addFields: {
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        reports: '$reports'
       }
     },
     {
@@ -367,13 +500,52 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
         as: 'user'
       }
     },
+    {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
     { $sort: sortMethod },
     { $skip: page * limit },
     { $limit: limit },
     {
       $addFields: {
         commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        reports: '$reports'
       }
     },
     {
@@ -437,6 +609,14 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
     },
     {
       $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
         from: 'communities',
         localField: 'communityName',
         foreignField: 'name',
@@ -446,14 +626,21 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
     { $sample: { size: limit } },
     {
       $addFields: {
-        commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] }
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        commentCount: { $size: '$comments' }
       }
     },
     {
       $project: {
         comments: 0,
         community: 0,
+        user: 0,
         __v: 0,
         followers: 0,
         upvote: 0,
@@ -469,7 +656,7 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
   ])
 }
 
-PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities, showAdultContent) {
+PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities, follows, showAdultContent) {
   const { page, limit, sortMethod, time } = options
   console.log(showAdultContent)
 
@@ -478,13 +665,26 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
       $match: {
         $and: [
           {
-            $expr: {
-              $cond: {
-                if: { $ne: [communities, null] },
-                then: { $in: ['$communityName', communities] },
-                else: true
+            $or: [
+              {
+                $expr: {
+                  $cond: {
+                    if: { $ne: [communities, null] },
+                    then: { $in: ['$communityName', communities] },
+                    else: true
+                  }
+                }
+              },
+              {
+                $expr: {
+                  $cond: {
+                    if: { $ne: [follows, null] },
+                    then: { $and: [{ $in: ['$username', follows] }, { $eq: ['$communityName', null] }] },
+                    else: true
+                  }
+                }
               }
-            }
+            ]
           },
           {
             $expr: {
@@ -521,6 +721,14 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
     },
     {
       $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
         from: 'communities',
         localField: 'communityName',
         foreignField: 'name',
@@ -532,14 +740,21 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
     { $limit: limit },
     {
       $addFields: {
-        commentCount: { $size: '$comments' },
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] }
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        commentCount: { $size: '$comments' }
       }
     },
     {
       $project: {
         comments: 0,
         community: 0,
+        user: 0,
         __v: 0,
         followers: 0,
         upvote: 0,
