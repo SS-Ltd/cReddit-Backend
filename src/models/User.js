@@ -588,12 +588,26 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'posts.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
       $project: {
         _id: '$posts._id',
         type: '$posts.type',
         username: '$posts.username',
         communityName: '$posts.communityName',
-        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$posts.communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
         netVote: '$posts.netVote',
         commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$posts.isSpoiler',
