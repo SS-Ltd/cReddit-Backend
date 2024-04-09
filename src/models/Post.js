@@ -595,8 +595,7 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
         ],
         isDeleted: false,
         isRemoved: false,
-        type: { $ne: 'Comment' },
-        isNsfw: showAdultContent
+        type: { $ne: 'Comment' }
       }
     },
     {
@@ -658,7 +657,6 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
 
 PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities, follows, showAdultContent) {
   const { page, limit, sortMethod, time } = options
-  console.log(showAdultContent)
 
   return await this.aggregate([
     {
@@ -772,8 +770,6 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
 
 PostSchema.statics.getHomeFeed = async function (user, options) {
   const { page, limit, sortMethod, time, random } = options
-
-  console.log(user)
 
   if (random) {
     return await this.aggregate([

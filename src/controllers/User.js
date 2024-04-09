@@ -81,6 +81,12 @@ const follow = async (req, res) => {
       })
     }
 
+    if (userFollowed.blockedUsers.includes(user.username) || userFollowed.preferences.allowFollow === false) {
+      return res.status(400).json({
+        message: 'Cannot follow the user'
+      })
+    }
+
     user.follows.push(userFollowed.username)
     userFollowed.followers.push(user.username)
 
@@ -505,7 +511,8 @@ const getUserView = async (req, res) => {
       banner: user.banner,
       followers: user.followers.length,
       cakeDay: user.createdAt,
-      isNSFW: user.preferences.isNSFW
+      isNSFW: user.preferences.isNSFW,
+      allowFollow: user.preferences.allowFollow
     }
     if (req.decoded) {
       const viewer = await UserModel.findOne({ username: req.decoded.username })

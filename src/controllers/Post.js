@@ -30,7 +30,7 @@ const createPost = async (req, res) => {
     const createdPost = new Post({
       type: post.type,
       username: req.decoded.username,
-      communityName: post.communityName,
+      communityName: post.communityName || null,
       title: post.title,
       content: post.content || '',
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
@@ -431,7 +431,6 @@ const getComments = async (req, res) => {
           post: postId
         })
       } else {
-        console.log(history)
         history.updatedAt = new Date()
         await history.save()
       }

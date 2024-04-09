@@ -422,11 +422,14 @@ UserSchema.methods.getPosts = async function (options) {
         username: '$post.username',
         communityName: '$post.communityName',
         profilePicture: { $arrayElemAt: ['$community.icon', 0] },
-        title: '$post.title',
         netVote: '$post.netVote',
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$post.isSpoiler',
         isNSFW: '$post.isNsfw',
         isApproved: '$post.isApproved',
+        isLocked: '$post.isLocked',
+        isEdited: '$post.isEdited',
+        title: '$post.title',
         content: '$post.content',
         pollOptions: {
           $map: {
@@ -441,7 +444,9 @@ UserSchema.methods.getPosts = async function (options) {
             }
           }
         },
-        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
+        expirationDate: '$post.expirationDate',
+        createdAt: '$post.createdAt',
+        updatedAt: '$post.updatedAt'
       }
     }
   ])
@@ -588,12 +593,26 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'posts.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
       $project: {
         _id: '$posts._id',
         type: '$posts.type',
         username: '$posts.username',
         communityName: '$posts.communityName',
-        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$posts.communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
         netVote: '$posts.netVote',
         commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$posts.isSpoiler',
