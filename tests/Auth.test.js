@@ -1,20 +1,18 @@
-const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const { createUser, deleteUser, login, logout, verifyUser } = require('../src/controllers/Auth')
 const { refreshToken } = require('../src/controllers/JWT')
 const User = require('../src/models/User')
 
+jest.mock('../src/models/User', () => {
+  return jest.fn().mockImplementation(() => {
+    return {
+      save: jest.fn()
+    }
+  })
+})
+
 describe('createUser', () => {
-  beforeAll(async () => {
-    await mongoose.connect('mongodb://localhost:27017/test')
-    await User.deleteMany({})
-  })
-
-  afterAll(async () => {
-    await mongoose.disconnect()
-  })
-
   test('should create a new user when all fields are provided', async () => {
     const req = {
       body: {
@@ -30,6 +28,9 @@ describe('createUser', () => {
       json: jest.fn(),
       cookie: jest.fn()
     }
+
+    User.findOne = jest.fn().mockResolvedValueOnce(null)
+    User.save = jest.fn()
 
     await createUser(req, res)
 
@@ -52,6 +53,13 @@ describe('createUser', () => {
       json: jest.fn()
     }
 
+    const user = {
+      username: 'testuser',
+      email: 'test1@example.com'
+    }
+
+    User.findOne = jest.fn().mockResolvedValueOnce(user)
+
     await createUser(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
@@ -72,6 +80,14 @@ describe('createUser', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
+
+    const user = {
+      username: 'testuser',
+      email: 'test1@example.com',
+      isDeleted: false
+    }
+
+    User.findOne = jest.fn().mockResolvedValueOnce(user)
 
     await createUser(req, res)
 
@@ -114,6 +130,8 @@ describe('createUser', () => {
       json: jest.fn()
     }
 
+    User.findOne = jest.fn().mockResolvedValueOnce(null)
+
     await createUser(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
@@ -135,6 +153,8 @@ describe('createUser', () => {
       json: jest.fn()
     }
 
+    User.findOne = jest.fn().mockResolvedValueOnce(null)
+
     await createUser(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
@@ -153,13 +173,13 @@ describe('deleteUser', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
-    const findOneMock = jest.spyOn(User, 'findOne').mockResolvedValueOnce({ username: 'testUser' })
-    const updateOneMock = jest.spyOn(User, 'updateOne').mockResolvedValueOnce()
+    User.findOne = jest.fn().mockResolvedValueOnce({ username: 'testUser' })
+    User.updateOne = jest.fn().mockResolvedValueOnce()
 
     await deleteUser(req, res)
 
-    expect(findOneMock).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
-    expect(updateOneMock).toHaveBeenCalledWith({ username: 'testUser' }, { $set: { isDeleted: true } })
+    expect(User.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(User.updateOne).toHaveBeenCalledWith({ username: 'testUser' }, { $set: { isDeleted: true } })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'User deleted successfully' })
   })
