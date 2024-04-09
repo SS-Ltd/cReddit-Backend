@@ -546,6 +546,20 @@ const votePost = async (req, res) => {
 
     await postToVote.save()
     await user.save()
+
+    if (user && !postToVote.isNsfw && postToVote.type !== 'Comment') {
+      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
+      if (history) {
+        history.updatedAt = new Date()
+        await history.save()
+      } else {
+        await HistoryModel.create({
+          owner: user.username,
+          post: postId
+        })
+      }
+    }
+
     res.status(200).json({ message: 'Post voted successfully', postVotes: postToVote.netVote })
   } catch (error) {
     res.status(400).json({ message: error.message })
