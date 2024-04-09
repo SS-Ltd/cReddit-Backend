@@ -756,7 +756,8 @@ describe('savePost', () => {
 
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment saved successfully' })
-    expect(user.savedPosts).toContain('65fcc9307932c5551dfd88e0')
+    expect(user.savedPosts).toHaveLength(1)
+    expect(user.savedPosts[0]).toEqual(expect.objectContaining({ postId: '65fcc9307932c5551dfd88e0' }))
     expect(user.save).toHaveBeenCalled()
   })
 
@@ -780,7 +781,9 @@ describe('savePost', () => {
       _id: '65fcc9307932c5551dfd88e0'
     }
     const user = {
-      savedPosts: ['65fcc9307932c5551dfd88e0'],
+      savedPosts: [{
+        postId: '65fcc9307932c5551dfd88e0'
+      }],
       save: jest.fn()
     }
     PostModel.findOne = jest.fn().mockResolvedValue(post)
@@ -870,7 +873,9 @@ describe('savePost', () => {
       json: jest.fn()
     }
     const user = {
-      savedPosts: ['65fcc9307932c5551dfd88e0'],
+      savedPosts: [{
+        postId: '65fcc9307932c5551dfd88e0'
+      }],
       save: jest.fn()
     }
     PostModel.findOne = jest.fn().mockResolvedValue(post)
@@ -946,7 +951,8 @@ describe('hidePost', () => {
 
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post visibility changed successfully' })
-    expect(user.hiddenPosts).toContain('65fcc9307932c5551dfd88e0')
+    expect(user.hiddenPosts).toHaveLength(1)
+    expect(user.hiddenPosts[0]).toEqual(expect.objectContaining({ postId: '65fcc9307932c5551dfd88e0' }))
     expect(user.save).toHaveBeenCalled()
   })
 
@@ -970,7 +976,9 @@ describe('hidePost', () => {
       _id: '65fcc9307932c5551dfd88e0'
     }
     const user = {
-      hiddenPosts: ['65fcc9307932c5551dfd88e0'],
+      hiddenPosts: [{
+        postId: '65fcc9307932c5551dfd88e0'
+      }],
       save: jest.fn()
     }
     PostModel.findOne = jest.fn().mockResolvedValue(post)
@@ -980,7 +988,7 @@ describe('hidePost', () => {
 
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post visibility changed successfully' })
-    expect(user.hiddenPosts).not.toContain('65fcc9307932c5551dfd88e0')
+    expect(user.hiddenPosts).toHaveLength(0)
     expect(user.save).toHaveBeenCalled()
   })
 
@@ -1011,7 +1019,7 @@ describe('hidePost', () => {
 
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'isHidden field is required' })
-    expect(user.hiddenPosts).not.toContain('65fcc9307932c5551dfd88e0')
+    expect(user.hiddenPosts).toHaveLength(0)
     expect(user.save).not.toHaveBeenCalled()
   })
 
@@ -1057,7 +1065,9 @@ describe('hidePost', () => {
       json: jest.fn()
     }
     const user = {
-      hiddenPosts: ['65fcc9307932c5551dfd88e0'],
+      hiddenPosts: [{
+        postId: '65fcc9307932c5551dfd88e0'
+      }],
       save: jest.fn()
     }
     UserModel.findOne = jest.fn().mockResolvedValue(user)
