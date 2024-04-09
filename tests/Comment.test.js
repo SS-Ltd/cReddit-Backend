@@ -54,7 +54,8 @@ describe('getComment', () => {
       savedPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: []
     }
 
     const history = {
@@ -79,7 +80,8 @@ describe('getComment', () => {
       isDownvoted: false,
       isSaved: false,
       profilePicture: 'profilePictureUrl',
-      postID: '8208ebbb65d8488cfcc0a686'
+      postID: '8208ebbb65d8488cfcc0a686',
+      isModerator: false
     })
   })
 
