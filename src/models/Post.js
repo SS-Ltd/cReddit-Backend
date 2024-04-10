@@ -231,7 +231,8 @@ PostSchema.statics.getComments = async function (postId, options) {
         pipeline: [
           {
             $match: {
-              $expr: { $eq: ['$post', '$$postId'] }
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
             }
           },
           {
@@ -387,7 +388,8 @@ PostSchema.statics.getPost = async function (postId) {
         pipeline: [
           {
             $match: {
-              $expr: { $eq: ['$post', '$$postId'] }
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
             }
           },
           {
@@ -471,7 +473,8 @@ PostSchema.statics.getComment = async function (commentId) {
         pipeline: [
           {
             $match: {
-              $expr: { $eq: ['$post', '$$postId'] }
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
             }
           },
           {
@@ -632,7 +635,8 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
         pipeline: [
           {
             $match: {
-              $expr: { $eq: ['$post', '$$postId'] }
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
             }
           },
           {

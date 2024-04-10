@@ -489,11 +489,12 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $lookup: {
         from: 'reports',
-        let: { postId: '$_id' },
+        let: { postId: '$post._id' },
         pipeline: [
           {
             $match: {
-              $expr: { $eq: ['$post', '$$postId'] }
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
             }
           },
           {
