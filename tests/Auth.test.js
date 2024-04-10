@@ -329,7 +329,7 @@ describe('logout', () => {
       sameSite: 'None',
       secure: true,
       maxAge: 0,
-      path: '/user/refresh-token'
+      path: process.env.REFRESH_TOKEN_PATH
     })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'User logged out successfully' })

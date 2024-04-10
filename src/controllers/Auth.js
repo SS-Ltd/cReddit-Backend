@@ -169,7 +169,7 @@ const logout = async (req, res) => {
       sameSite: 'None',
       secure: true,
       maxAge: 0,
-      path: '/user/refresh-token'
+      path: process.env.REFRESH_TOKEN_PATH
     })
     res.status(200).json({ message: 'User logged out successfully' })
   } catch (error) {
