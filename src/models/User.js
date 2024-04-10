@@ -306,8 +306,8 @@ UserSchema.methods.createResetPasswordToken = async function () {
 // unwind: The field to unwind -> ex. '$savedPosts'
 // localField: The local field in the user model for the lookup -> ex. '$savedPosts.postId'
 // savedAt: The field to sort the posts -> ex. '$savedPosts.savedAt'
-// page: The page number -> ex. 1  "for PAGANATION"
-// limit: The limit of posts per page -> ex. 10 "for PAGANATION"
+// page: The page number -> ex. 1  'for PAGANATION'
+// limit: The limit of posts per page -> ex. 10 'for PAGANATION'
 // NOTE: be aware for the '$' sign in the examles above
 UserSchema.methods.getPosts = async function (options) {
   const { username, unwind, localField, searchType, savedAt, page, limit } = options
@@ -387,6 +387,78 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $lookup: {
         from: 'posts',
+        let: {
+          childId: {
+            $ifNull: ['$post.child', null]
+          }
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$childId']
+              }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'username',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
+            $addFields: {
+              profilePicture: {
+                $cond: {
+                  if: {
+                    $eq: ['$communityName', null]
+                  },
+                  then: {
+                    $arrayElemAt: ['$user.profilePicture', 0]
+                  },
+                  else: {
+                    $arrayElemAt: [
+                      '$community.icon',
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            $project: {
+              community: 0,
+              user: 0,
+              __v: 0,
+              followers: 0,
+              upvote: 0,
+              downvote: 0,
+              views: 0,
+              isImage: 0,
+              isDeleted: 0,
+              mostRecentUpvote: 0,
+              actions: 0,
+              isRemoved: 0
+            }
+          }
+        ],
+        as: 'child'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
         let: { post_id: '$post._id', type: 'Comment' },
         pipeline: [
           {
@@ -415,18 +487,72 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$post._id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
+    {
       $project: {
         _id: '$post._id',
         postID: '$post.postID',
         type: '$post.type',
         username: '$post.username',
         communityName: '$post.communityName',
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] },
-        title: '$post.title',
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$post.communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
         netVote: '$post.netVote',
+        commentCount: {
+          $ifNull: [
+            { $arrayElemAt: ['$commentCount.commentCount', 0] }, 0
+          ]
+        },
+        child: { $arrayElemAt: ['$child', 0] },
+        reports: '$reports',
         isSpoiler: '$post.isSpoiler',
         isNSFW: '$post.isNsfw',
         isApproved: '$post.isApproved',
+        isLocked: '$post.isLocked',
+        isEdited: '$post.isEdited',
+        title: '$post.title',
         content: '$post.content',
         pollOptions: {
           $map: {
@@ -434,14 +560,21 @@ UserSchema.methods.getPosts = async function (options) {
             as: 'option',
             in: {
               text: '$$option.text',
-              votes: { $size: '$$option.voters' },
+              votes: {
+                $size: '$$option.voters'
+              },
               isVoted: {
-                $in: [username, '$$option.voters']
+                $in: [
+                  'Carter_Satterfield',
+                  '$$option.voters'
+                ]
               }
             }
           }
         },
-        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
+        expirationDate: '$post.expirationDate',
+        createdAt: '$post.createdAt',
+        updatedAt: '$post.updatedAt'
       }
     }
   ])
@@ -560,6 +693,78 @@ UserSchema.methods.getUserPosts = async function (options) {
     {
       $lookup: {
         from: 'posts',
+        let: {
+          childId: {
+            $ifNull: ['$posts.child', null]
+          }
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$childId']
+              }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'username',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
+            $addFields: {
+              profilePicture: {
+                $cond: {
+                  if: {
+                    $eq: ['$communityName', null]
+                  },
+                  then: {
+                    $arrayElemAt: ['$user.profilePicture', 0]
+                  },
+                  else: {
+                    $arrayElemAt: [
+                      '$community.icon',
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            $project: {
+              community: 0,
+              user: 0,
+              __v: 0,
+              followers: 0,
+              upvote: 0,
+              downvote: 0,
+              views: 0,
+              isImage: 0,
+              isDeleted: 0,
+              mostRecentUpvote: 0,
+              actions: 0,
+              isRemoved: 0
+            }
+          }
+        ],
+        as: 'child'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
         let: { post_id: '$posts._id', type: 'Comment' },
         pipeline: [
           {
@@ -588,14 +793,69 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'posts.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$posts._id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
+    {
       $project: {
         _id: '$posts._id',
         type: '$posts.type',
         username: '$posts.username',
         communityName: '$posts.communityName',
-        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$posts.communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        child: { $arrayElemAt: ['$child', 0] },
         netVote: '$posts.netVote',
         commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
+        reports: '$reports',
         isSpoiler: '$posts.isSpoiler',
         isNSFW: '$posts.isNsfw',
         isApproved: '$posts.isApproved',

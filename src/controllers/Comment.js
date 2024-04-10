@@ -79,6 +79,10 @@ const editComment = async (req, res) => {
       throw new Error('Cannot edit a non-existing comment')
     }
 
+    if (newComment.username !== req.decoded.username) {
+      throw new Error('You are not authorized to edit this comment')
+    }
+
     if (newComment.isImage) {
       if (!comment.files?.length) {
         throw new Error('No image provided')

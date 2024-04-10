@@ -30,7 +30,7 @@ const createPost = async (req, res) => {
     const createdPost = new Post({
       type: post.type,
       username: req.decoded.username,
-      communityName: post.communityName,
+      communityName: post.communityName || null,
       title: post.title,
       content: post.content || '',
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
@@ -126,16 +126,21 @@ const savePost = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: 'User is not found' })
     }
-    if (isSaved && user.savedPosts.includes(postId)) {
+    if (isSaved && user.savedPosts.some(item => item.postId.toString() === post._id.toString())) {
       return res.status(400).json({ message: 'Post/comment is already saved' })
     }
-    if (!isSaved && !user.savedPosts.includes(postId)) {
+    if (!isSaved && !user.savedPosts.some(item => item.postId.toString() === post._id.toString())) {
       return res.status(400).json({ message: 'Post/comment is not saved' })
     }
+
+    const savePost = {
+      postId: post._id,
+      savedAt: new Date()
+    }
     if (isSaved) {
-      user.savedPosts.push(postId)
+      user.savedPosts.push(savePost)
     } else {
-      user.savedPosts = user.savedPosts.filter(id => id.toString() !== postId)
+      user.savedPosts = user.savedPosts.filter(item => item.postId.toString() !== postId.toString())
     }
     await user.save()
     res.status(200).json({ message: ('Post/comment ' + (isSaved ? 'saved' : 'unsaved') + ' successfully') })
@@ -163,16 +168,22 @@ const hidePost = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: 'User is not found' })
     }
-    if (isHidden && user.hiddenPosts.includes(postId)) {
+
+    const alreadyHidden = user.hiddenPosts.some(item => item.postId.toString() === postId.toString())
+    if (isHidden && alreadyHidden) {
       return res.status(400).json({ message: 'Post is already hidden' })
     }
-    if (!isHidden && !user.hiddenPosts.includes(postId)) {
+    if (!isHidden && !alreadyHidden) {
       return res.status(400).json({ message: 'Post is not hidden' })
     }
+    const hidePost = {
+      postId: post._id,
+      savedAt: new Date()
+    }
     if (isHidden) {
-      user.hiddenPosts.push(postId)
+      user.hiddenPosts.push(hidePost)
     } else {
-      user.hiddenPosts = user.hiddenPosts.filter(id => id.toString() !== postId)
+      user.hiddenPosts = user.hiddenPosts.filter(item => item.postId.toString() !== postId.toString())
     }
     await user.save()
     res.status(200).json({ message: ('Post visibility changed successfully') })
@@ -420,7 +431,6 @@ const getComments = async (req, res) => {
           post: postId
         })
       } else {
-        console.log(history)
         history.updatedAt = new Date()
         await history.save()
       }
@@ -546,6 +556,20 @@ const votePost = async (req, res) => {
 
     await postToVote.save()
     await user.save()
+
+    if (user && !postToVote.isNsfw && postToVote.type !== 'Comment') {
+      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
+      if (history) {
+        history.updatedAt = new Date()
+        await history.save()
+      } else {
+        await HistoryModel.create({
+          owner: user.username,
+          post: postId
+        })
+      }
+    }
+
     res.status(200).json({ message: 'Post voted successfully', postVotes: postToVote.netVote })
   } catch (error) {
     res.status(400).json({ message: error.message })
