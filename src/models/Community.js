@@ -67,8 +67,8 @@ const CommunitySchema = new Schema({
   },
   suggestedSort: {
     type: String,
-    enum: ['Best', 'Old', 'Top', 'New'],
-    default: 'Old'
+    enum: ['best', 'old', 'top', 'new'],
+    default: 'best'
   },
   rules: [
     {
