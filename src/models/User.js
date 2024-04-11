@@ -488,6 +488,14 @@ UserSchema.methods.getPosts = async function (options) {
     },
     {
       $lookup: {
+        from: 'users',
+        localField: 'post.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
         from: 'reports',
         let: { postId: '$post._id' },
         pipeline: [
@@ -526,12 +534,29 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'posts',
+        let: { parentpost: '$post.postID' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$parentpost']
+              }
+            }
+          }
+        ],
+        as: 'parentPost'
+      }
+    },
+    {
       $project: {
         _id: '$post._id',
         postID: '$post.postID',
         type: '$post.type',
         username: '$post.username',
         communityName: '$post.communityName',
+        parentPostUsername: { $arrayElemAt: ['$parentPost.username', 0] },
         profilePicture: {
           $cond: {
             if: { $eq: ['$post.communityName', null] },
@@ -552,7 +577,13 @@ UserSchema.methods.getPosts = async function (options) {
         isApproved: '$post.isApproved',
         isLocked: '$post.isLocked',
         isEdited: '$post.isEdited',
-        title: '$post.title',
+        title: {
+          $cond: {
+            if: { $eq: ['$post.type', 'Comment'] },
+            then: { $arrayElemAt: ['$parentPost.title', 0] },
+            else: '$post.title'
+          }
+        },
         content: '$post.content',
         pollOptions: {
           $map: {
