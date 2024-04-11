@@ -547,7 +547,8 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
             then: { $eq: ['$isNsfw', false] },
             else: true
           }
-        }
+        },
+        type: { $ne: 'Comment' }
       }
     },
     {
