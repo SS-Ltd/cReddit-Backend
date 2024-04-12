@@ -999,6 +999,7 @@ UserSchema.methods.getUserComments = async function (options) {
         isImage: '$posts.isImage',
         username: '$posts.username',
         communityName: '$posts.communityName',
+        parentPostUsername: { $arrayElemAt: ['$parentPost.username', 0] },
         profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
         netVote: '$posts.netVote',
         isSpoiler: '$posts.isSpoiler',
