@@ -361,6 +361,24 @@ PostSchema.statics.getPost = async function (postId) {
             }
           },
           {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
             $addFields: {
               profilePicture: {
                 $cond: {
@@ -368,7 +386,8 @@ PostSchema.statics.getPost = async function (postId) {
                   then: { $arrayElemAt: ['$user.profilePicture', 0] },
                   else: { $arrayElemAt: ['$community.icon', 0] }
                 }
-              }
+              },
+              commentCount: { $size: '$comments' }
             }
           },
           {
@@ -384,7 +403,8 @@ PostSchema.statics.getPost = async function (postId) {
               isDeleted: 0,
               mostRecentUpvote: 0,
               actions: 0,
-              isRemoved: 0
+              isRemoved: 0,
+              comments: 0
             }
           }
         ],
@@ -619,6 +639,24 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
             }
           },
           {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
             $addFields: {
               profilePicture: {
                 $cond: {
@@ -626,7 +664,8 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
                   then: { $arrayElemAt: ['$user.profilePicture', 0] },
                   else: { $arrayElemAt: ['$community.icon', 0] }
                 }
-              }
+              },
+              commentCount: { $size: '$comments' }
             }
           },
           {
@@ -642,7 +681,8 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
               isDeleted: 0,
               mostRecentUpvote: 0,
               actions: 0,
-              isRemoved: 0
+              isRemoved: 0,
+              comments: 0
             }
           }
         ],
@@ -815,6 +855,24 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
             }
           },
           {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
             $addFields: {
               profilePicture: {
                 $cond: {
@@ -822,7 +880,8 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
                   then: { $arrayElemAt: ['$user.profilePicture', 0] },
                   else: { $arrayElemAt: ['$community.icon', 0] }
                 }
-              }
+              },
+              commentCount: { $size: '$comments' }
             }
           },
           {
@@ -838,7 +897,8 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
               isDeleted: 0,
               mostRecentUpvote: 0,
               actions: 0,
-              isRemoved: 0
+              isRemoved: 0,
+              comments: 0
             }
           }
         ],
@@ -999,6 +1059,24 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
             }
           },
           {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
             $addFields: {
               profilePicture: {
                 $cond: {
@@ -1006,7 +1084,8 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
                   then: { $arrayElemAt: ['$user.profilePicture', 0] },
                   else: { $arrayElemAt: ['$community.icon', 0] }
                 }
-              }
+              },
+              commentCount: { $size: '$comments' }
             }
           },
           {
@@ -1022,7 +1101,8 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
               isDeleted: 0,
               mostRecentUpvote: 0,
               actions: 0,
-              isRemoved: 0
+              isRemoved: 0,
+              comments: 0
             }
           }
         ],

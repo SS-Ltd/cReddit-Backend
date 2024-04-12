@@ -417,6 +417,24 @@ UserSchema.methods.getPosts = async function (options) {
             }
           },
           {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
             $addFields: {
               profilePicture: {
                 $cond: {
@@ -433,6 +451,9 @@ UserSchema.methods.getPosts = async function (options) {
                     ]
                   }
                 }
+              },
+              commentCount: {
+                $size: '$comments'
               }
             }
           },
@@ -449,7 +470,8 @@ UserSchema.methods.getPosts = async function (options) {
               isDeleted: 0,
               mostRecentUpvote: 0,
               actions: 0,
-              isRemoved: 0
+              isRemoved: 0,
+              comments: 0
             }
           }
         ],
@@ -709,6 +731,24 @@ UserSchema.methods.getUserPosts = async function (options) {
             }
           },
           {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
             $addFields: {
               profilePicture: {
                 $cond: {
@@ -725,6 +765,9 @@ UserSchema.methods.getUserPosts = async function (options) {
                     ]
                   }
                 }
+              },
+              commentCount: {
+                $size: '$comments'
               }
             }
           },
@@ -741,7 +784,8 @@ UserSchema.methods.getUserPosts = async function (options) {
               isDeleted: 0,
               mostRecentUpvote: 0,
               actions: 0,
-              isRemoved: 0
+              isRemoved: 0,
+              comments: 0
             }
           }
         ],
