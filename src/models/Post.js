@@ -922,6 +922,12 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
       }
     },
     {
+      $match: {
+        '$community.isDeleted': false,
+        '$user.isDeleted': false
+      }
+    },
+    {
       $lookup: {
         from: 'posts',
         let: { childId: { $ifNull: ['$child', null] } },
@@ -1006,13 +1012,26 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
     { $sample: { size: limit } },
     {
       $match: {
-        $expr: {
-          $cond: {
-            if: { $and: [{ $ne: [username, null] }, { $not: { $in: ['$communityName', moderatedCommunities] } }] },
-            then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
-            else: true
+        $and: [
+          {
+            $expr: {
+              $cond: {
+                if: { $and: [{ $ne: [username, null] }, { $not: { $in: ['$communityName', moderatedCommunities] } }] },
+                then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
+                else: true
+              }
+            }
+          },
+          {
+            $expr: {
+              $cond: {
+                if: { $eq: ['$communityName', null] },
+                then: { $eq: [{ $arrayElemAt: ['$user.isDeleted', 0] }, false] },
+                else: { $eq: [{ $arrayElemAt: ['$community.isDeleted', 0] }, false] }
+              }
+            }
           }
-        }
+        ]
       }
     },
     {
@@ -1223,13 +1242,26 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
     { $limit: limit },
     {
       $match: {
-        $expr: {
-          $cond: {
-            if: { $and: [{ $ne: [username, null] }, { $not: { $in: ['$communityName', moderatedCommunities] } }] },
-            then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
-            else: true
+        $and: [
+          {
+            $expr: {
+              $cond: {
+                if: { $and: [{ $ne: [username, null] }, { $not: { $in: ['$communityName', moderatedCommunities] } }] },
+                then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
+                else: true
+              }
+            }
+          },
+          {
+            $expr: {
+              $cond: {
+                if: { $eq: ['$communityName', null] },
+                then: { $eq: [{ $arrayElemAt: ['$user.isDeleted', 0] }, false] },
+                else: { $eq: [{ $arrayElemAt: ['$community.isDeleted', 0] }, false] }
+              }
+            }
           }
-        }
+        ]
       }
     },
     {
