@@ -141,10 +141,11 @@ const getTopCommunities = async (req, res) => {
         community.isJoined = false
       })
     }
+    const count = await CommunityModel.countDocuments(topCommunitiesQuery)
 
     res.status(200).json({
       topCommunities: topCommunities,
-      count: topCommunities.length
+      count
     })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error getting top communities' })

@@ -824,6 +824,11 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
+      $match: {
+        'community.isDeleted': false
+      }
+    },
+    {
       $lookup: {
         from: 'users',
         localField: 'posts.username',
@@ -976,6 +981,11 @@ UserSchema.methods.getUserComments = async function (options) {
       }
     },
     {
+      $match: {
+        'community.isDeleted': false
+      }
+    },
+    {
       $lookup: {
         from: 'posts',
         let: { parentpost: '$posts.postID' },
@@ -1033,6 +1043,11 @@ UserSchema.methods.getJoinedCommunities = async function (options) {
     {
       $addFields: {
         communities: '$populatedCommunities'
+      }
+    },
+    {
+      $match: {
+        'populatedCommunities.isDeleted': false
       }
     },
     {
