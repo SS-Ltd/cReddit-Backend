@@ -468,7 +468,9 @@ UserSchema.methods.getPosts = async function (options) {
                   { $eq: ['$postID', '$$post_id'] },
                   { $eq: ['$type', '$$type'] }
                 ]
-              }
+              },
+              isDeleted: false,
+              isRemoved: false
             }
           },
           {
@@ -610,53 +612,6 @@ UserSchema.methods.getPosts = async function (options) {
     }
   ])
 }
-
-UserSchema.methods.getSavedComments = async function (options) {
-  return await this.model('User').aggregate([
-    {
-      $match: { username: this.username }
-    },
-    {
-      $unwind: '$savedComments'
-    },
-    {
-      $lookup: {
-        from: 'comments',
-        localField: 'savedComments.commentId',
-        foreignField: '_id',
-        as: 'commentSaved'
-      }
-    },
-    {
-      $match: {
-        'commentSaved.isDeleted': false
-      }
-    },
-    {
-      $sort: { 'savedComments.savedAt': -1 }
-    },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'commentSaved.username',
-        foreignField: 'username',
-        as: 'user'
-      }
-    },
-    {
-      $project: {
-        commentSaved: {
-          $arrayElemAt: ['$commentSaved', 0]
-        },
-        profilePicture: {
-          $arrayElemAt: ['$user.profilePicture', 0]
-        },
-        savedAt: '$savedComments.savedAt'
-      }
-    }
-  ])
-}
-
 UserSchema.methods.getUserPosts = async function (options) {
   let { username, page, limit, sort, time, mutedCommunities, showAdultContent } = options
 
@@ -805,7 +760,9 @@ UserSchema.methods.getUserPosts = async function (options) {
                   { $eq: ['$postID', '$$post_id'] },
                   { $eq: ['$type', '$$type'] }
                 ]
-              }
+              },
+              isDeleted: false,
+              isRemoved: false
             }
           },
           {
@@ -976,6 +933,22 @@ UserSchema.methods.getUserComments = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'posts',
+        let: { parentpost: '$posts.postID' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$parentpost']
+              }
+            }
+          }
+        ],
+        as: 'parentPost'
+      }
+    },
+    {
       $project: {
         _id: '$posts._id',
         postID: '$posts.postID',
@@ -988,7 +961,7 @@ UserSchema.methods.getUserComments = async function (options) {
         isSpoiler: '$posts.isSpoiler',
         isNSFW: '$posts.isNsfw',
         isApproved: '$posts.isApproved',
-        title: '$posts.title',
+        title: { $arrayElemAt: ['$parentPost.title', 0] },
         content: '$posts.content',
         createdAt: '$posts.createdAt',
         updatedAt: '$posts.updatedAt',

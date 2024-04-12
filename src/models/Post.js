@@ -298,8 +298,18 @@ PostSchema.statics.getPost = async function (postId) {
     {
       $lookup: {
         from: 'posts',
-        localField: '_id',
-        foreignField: 'postID',
+        let: { id: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
         as: 'comments'
       }
     },
@@ -554,8 +564,18 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
     {
       $lookup: {
         from: 'posts',
-        localField: '_id',
-        foreignField: 'postID',
+        let: { id: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
         as: 'comments'
       }
     },
@@ -732,8 +752,18 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
     {
       $lookup: {
         from: 'posts',
-        localField: '_id',
-        foreignField: 'postID',
+        let: { id: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
         as: 'comments'
       }
     },
@@ -906,8 +936,18 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
     {
       $lookup: {
         from: 'posts',
-        localField: '_id',
-        foreignField: 'postID',
+        let: { id: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
         as: 'comments'
       }
     },
