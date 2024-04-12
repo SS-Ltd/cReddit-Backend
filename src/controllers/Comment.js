@@ -93,8 +93,7 @@ const editComment = async (req, res) => {
       if (comment.files?.length) {
         await MediaUtils.deleteImages([newComment.content])
         const urls = await MediaUtils.uploadImages(comment.files)
-        comment.content = urls[0]
-        comment.isImage = true
+        newComment.content = urls[0]
       }
     }
 
