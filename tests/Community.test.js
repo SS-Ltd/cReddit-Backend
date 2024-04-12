@@ -652,7 +652,10 @@ const mockQuery = {
   sort: jest.fn().mockReturnThis(),
   skip: jest.fn().mockReturnThis(),
   limit: jest.fn().mockReturnThis(),
-  select: jest.fn().mockImplementation(() => Promise.resolve(['community1', 'community2']))
+  select: jest.fn().mockImplementation(() => Promise.resolve([
+    { toObject: () => 'community1' },
+    { toObject: () => 'community2' }
+  ]))
 }
 
 // Mock the find method to return the mock query
@@ -669,7 +672,10 @@ describe('getTopCommunities', () => {
     }
     await getTopCommunities(req, res)
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(['community1', 'community2'])
+    expect(res.json).toHaveBeenCalledWith({
+      topCommunities: ['community1', 'community2'],
+      count: 2
+    })
   })
 
   // Returns an error if there is an issue with the database connection
@@ -749,7 +755,7 @@ describe('joinCommunity', () => {
   })
 
   // Community does not exist, returns 500 error
-  it('should return a 500 status code and an error message when the community does not exist', async () => {
+  it('should return a 404 status code and an error message when the community does not exist', async () => {
     const req = {
       params: {
         subreddit: 'nonExistentSubreddit'
@@ -768,9 +774,9 @@ describe('joinCommunity', () => {
 
     await joinCommunity(req, res)
 
-    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
-      message: 'An error occurred while joining the community'
+      message: 'Community not found'
     })
   })
 })

@@ -81,6 +81,8 @@ const getCommunityView = async (req, res) => {
       banner: community.banner,
       members: community.members,
       rules: community.rules,
+      description: community.description,
+      topic: community.topic,
       moderators: community.moderators
     }
 
@@ -140,12 +142,14 @@ const getTopCommunities = async (req, res) => {
       })
     }
 
-    res.status(200).json(topCommunities)
+    res.status(200).json({
+      topCommunities: topCommunities,
+      count: topCommunities.length
+    })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error getting top communities' })
   }
 }
-
 
 const getEditedPosts = async (req, res) => {
   try {
@@ -301,6 +305,9 @@ const joinCommunity = async (req, res) => {
     const username = req.decoded.username
 
     const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
     const user = await UserModel.findOne({ username: username, isDeleted: false })
 
     const isMember = user.communities.includes(subreddit)

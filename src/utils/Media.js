@@ -25,7 +25,8 @@ const uploadImages = async (files) => {
 }
 
 const deleteImages = async (urls) => {
-  const publicIDs = urls.map(url => {
+  const urlsToDelete = urls.filter(url => url.includes('res.cloudinary.com'))
+  const publicIDs = urlsToDelete.map(url => {
     const matches = url.match(/(cReddit\/.+)\.(.+)/)
     if (!matches) {
       return null

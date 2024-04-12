@@ -2,7 +2,7 @@ const Post = require('../models/Post')
 const User = require('../models/User')
 const Community = require('../models/Community')
 const mongoose = require('mongoose')
-const cloudinary = require('../utils/Cloudinary')
+const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
 const HistoryModel = require('../models/History')
 const ObjectId = require('mongoose').Types.ObjectId
@@ -16,18 +16,7 @@ const createPost = async (req, res) => {
     PostUtils.validatePost(post)
 
     if (post.type === 'Images & Video') {
-      const urls = []
-
-      for (const file of req.files) {
-        const b64 = Buffer.from(file.buffer).toString('base64')
-        const dataURI = 'data:' + file.mimetype + ';base64,' + b64
-        const { secure_url } = await cloudinary.uploader.upload(dataURI, {
-          resource_type: 'auto',
-          folder: 'cReddit',
-          allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'svg']
-        })
-        urls.push(secure_url)
-      }
+      const urls = await MediaUtils.uploadImages(req.files)
       post.content = urls.join(' ')
     }
 
@@ -41,16 +30,22 @@ const createPost = async (req, res) => {
     const createdPost = new Post({
       type: post.type,
       username: req.decoded.username,
-      communityName: post.communityName,
+      communityName: post.communityName || null,
       title: post.title,
       content: post.content || '',
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
       expirationDate: post.expirationDate || null,
       isSpoiler: post.isSpoiler || false,
-      isNsfw: post.isNSFW || false
+      isNsfw: post.isNSFW || false,
+      upvotedPosts: [],
+      downvotedPosts: []
     })
 
+    const user = await User.findOne({ username: post.username })
+    PostUtils.upvotePost(createdPost, user)
+
     await createdPost.save()
+    await user.save()
     res.status(201).json({
       message: 'Post created successfully' + (post.unusedData ? ' while ignoring additional fields' : ''),
       postId: createdPost._id
@@ -67,34 +62,15 @@ const deletePost = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({ message: 'Invalid post id' })
     }
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false })
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
     if (post.username !== req.decoded.username) {
       return res.status(403).json({ message: 'You are not authorized to delete this post' })
     }
-    if (post.type === 'Images & Video') {
-      const publicIDs = post.content.split(' ').map(url => {
-        const matches = url.match(/(cReddit\/.+)\.(.+)/)
-        if (!matches) {
-          return null
-        } else {
-          return matches
-        }
-      })
-      if (publicIDs.includes(null)) {
-        throw new Error('Invalid image or video URLs found in post')
-      }
-      for (const publicID of publicIDs) {
-        if (publicID[2] === 'mp4') {
-          await cloudinary.uploader.destroy(publicID[1], { resource_type: 'video' })
-        } else {
-          await cloudinary.uploader.destroy(publicID[1])
-        }
-      }
-    }
-    await post.deleteOne()
+    post.isDeleted = true
+    await post.save()
     res.status(200).json({ message: 'Post deleted successfully' })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error deleting post' })
@@ -112,7 +88,7 @@ const editPost = async (req, res) => {
     return res.status(400).json({ message: 'No content to update' })
   }
   try {
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -142,27 +118,32 @@ const savePost = async (req, res) => {
     return res.status(400).json({ message: 'isSaved field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!post) {
-      return res.status(400).json({ message: 'Post is not found' })
+      return res.status(400).json({ message: 'Post/comment is not found' })
     }
     const user = await User.findOne({ username })
     if (!user) {
       return res.status(400).json({ message: 'User is not found' })
     }
-    if (isSaved && user.savedPosts.includes(postId)) {
-      return res.status(400).json({ message: 'Post is already saved' })
+    if (isSaved && user.savedPosts.some(item => item.postId.toString() === post._id.toString())) {
+      return res.status(400).json({ message: 'Post/comment is already saved' })
     }
-    if (!isSaved && !user.savedPosts.includes(postId)) {
-      return res.status(400).json({ message: 'Post is not saved' })
+    if (!isSaved && !user.savedPosts.some(item => item.postId.toString() === post._id.toString())) {
+      return res.status(400).json({ message: 'Post/comment is not saved' })
+    }
+
+    const savePost = {
+      postId: post._id,
+      savedAt: new Date()
     }
     if (isSaved) {
-      user.savedPosts.push(postId)
+      user.savedPosts.push(savePost)
     } else {
-      user.savedPosts = user.savedPosts.filter(id => id.toString() !== postId)
+      user.savedPosts = user.savedPosts.filter(item => item.postId.toString() !== postId.toString())
     }
     await user.save()
-    res.status(200).json({ message: ('Post ' + (isSaved ? 'saved' : 'unsaved') + ' successfully') })
+    res.status(200).json({ message: ('Post/comment ' + (isSaved ? 'saved' : 'unsaved') + ' successfully') })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error saving post' })
   }
@@ -179,7 +160,7 @@ const hidePost = async (req, res) => {
     return res.status(400).json({ message: 'isHidden field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -187,16 +168,22 @@ const hidePost = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: 'User is not found' })
     }
-    if (isHidden && user.hiddenPosts.includes(postId)) {
+
+    const alreadyHidden = user.hiddenPosts.some(item => item.postId.toString() === postId.toString())
+    if (isHidden && alreadyHidden) {
       return res.status(400).json({ message: 'Post is already hidden' })
     }
-    if (!isHidden && !user.hiddenPosts.includes(postId)) {
+    if (!isHidden && !alreadyHidden) {
       return res.status(400).json({ message: 'Post is not hidden' })
     }
+    const hidePost = {
+      postId: post._id,
+      savedAt: new Date()
+    }
     if (isHidden) {
-      user.hiddenPosts.push(postId)
+      user.hiddenPosts.push(hidePost)
     } else {
-      user.hiddenPosts = user.hiddenPosts.filter(id => id.toString() !== postId)
+      user.hiddenPosts = user.hiddenPosts.filter(item => item.postId.toString() !== postId.toString())
     }
     await user.save()
     res.status(200).json({ message: ('Post visibility changed successfully') })
@@ -216,7 +203,7 @@ const lockPost = async (req, res) => {
     return res.status(400).json({ message: 'isLocked field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId })
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -307,7 +294,7 @@ const getPost = async (req, res) => {
       })
     }
 
-    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
+    if (post.isNsfw && (!user || !user.preferences.showAdultContent) && post.username !== user.username) {
       return res.status(401).json({
         message: 'Unable to view NSFW content'
       })
@@ -327,7 +314,6 @@ const getPost = async (req, res) => {
           post: postId
         })
       } else {
-        console.log(history)
         history.updatedAt = new Date()
         await history.save()
       }
@@ -404,15 +390,20 @@ const getComments = async (req, res) => {
       })
     }
 
-    const community = await Community.findOne({ name: post.communityName, isDeleted: false })
+    const communityName = post.communityName
+    let community = null
+    if (communityName) {
+      community = await Community.findOne({ name: communityName, isDeleted: false })
+    }
 
-    if (!community) {
+    if (!community && communityName) {
       return res.status(404).json({
         message: 'Community does not exist'
       })
     }
 
-    const sortChoice = req.query.sort ? req.query.sort : community.suggestedSort
+    let sortChoice = community ? community.suggestedSort : 'best'
+    sortChoice = req.query.sort ? req.query.sort : sortChoice
     const sort = getSortingMethod(sortChoice)
 
     const options = { sort }
@@ -440,7 +431,6 @@ const getComments = async (req, res) => {
           post: postId
         })
       } else {
-        console.log(history)
         history.updatedAt = new Date()
         await history.save()
       }
@@ -497,12 +487,13 @@ const getHomeFeed = async (req, res) => {
 
     const communities = (!user || user.communities.length === 0) ? null : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
+    const follows = (!user || user.follows.length === 0) ? null : user.follows
     const showAdultContent = user ? user.preferences.showAdultContent : false
 
     if (sort === 'best' || !user) {
       posts = await Post.getRandomHomeFeed(options, mutedCommunities, showAdultContent)
     } else {
-      posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, showAdultContent)
+      posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, follows, showAdultContent)
     }
 
     posts.forEach(post => {
@@ -538,6 +529,53 @@ const getHomeFeed = async (req, res) => {
   }
 }
 
+const votePost = async (req, res) => {
+  const postId = req.params.postId
+  const username = req.decoded.username
+  const pollOption = req.body?.pollOption
+
+  try {
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      throw new Error('Invalid post id')
+    }
+
+    const postToVote = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    if (!postToVote) {
+      throw new Error('Post does not exist')
+    }
+
+    const user = await User.findOne({ username, isDeleted: false })
+
+    if (req.type === 'upvote') {
+      PostUtils.upvotePost(postToVote, user)
+    } else if (req.type === 'downvote') {
+      PostUtils.downvotePost(postToVote, user)
+    } else if (req.type === 'votePoll') {
+      PostUtils.votePoll(postToVote, user, pollOption)
+    }
+
+    await postToVote.save()
+    await user.save()
+
+    if (user && !postToVote.isNsfw && postToVote.type !== 'Comment') {
+      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
+      if (history) {
+        history.updatedAt = new Date()
+        await history.save()
+      } else {
+        await HistoryModel.create({
+          owner: user.username,
+          post: postId
+        })
+      }
+    }
+
+    res.status(200).json({ message: 'Post voted successfully', postVotes: postToVote.netVote })
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+}
+
 module.exports = {
   getPost,
   createPost,
@@ -547,5 +585,6 @@ module.exports = {
   hidePost,
   lockPost,
   getComments,
-  getHomeFeed
+  getHomeFeed,
+  votePost
 }

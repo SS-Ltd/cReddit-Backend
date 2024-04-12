@@ -81,6 +81,12 @@ const follow = async (req, res) => {
       })
     }
 
+    if (userFollowed.blockedUsers.includes(user.username) || userFollowed.preferences.allowFollow === false) {
+      return res.status(400).json({
+        message: 'Cannot follow the user'
+      })
+    }
+
     user.follows.push(userFollowed.username)
     userFollowed.followers.push(user.username)
 
@@ -505,7 +511,8 @@ const getUserView = async (req, res) => {
       banner: user.banner,
       followers: user.followers.length,
       cakeDay: user.createdAt,
-      isNSFW: user.preferences.isNSFW
+      isNSFW: user.preferences.isNSFW,
+      allowFollow: user.preferences.allowFollow
     }
     if (req.decoded) {
       const viewer = await UserModel.findOne({ username: req.decoded.username })
@@ -663,7 +670,7 @@ const updateSettings = async (req, res) => {
       if (isContentVisible !== undefined) user.preferences.isContentVisible = isContentVisible
     }
 
-    if (req.body.files) {
+    if (req.files) {
       const { avatar, banner } = req.files
       if (avatar) {
         const urls = user.profilePicture ? [user.profilePicture] : []
@@ -1133,6 +1140,18 @@ const getHistory = async (req, res) => {
       post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
       post.isJoined = user.communities.includes(post.communityName)
       post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
     })
 
     res.status(200).json(result)

@@ -32,7 +32,7 @@ async function createRandomCommunities () {
       bannedUsers,
       mutedUsers,
       isDeleted: faker.datatype.boolean(0.05),
-      suggestedSort: faker.helpers.arrayElement(['Best', 'Old', 'Top', 'New']),
+      suggestedSort: faker.helpers.arrayElement(['best', 'old', 'top', 'new']),
       rules: {
         text: faker.lorem.sentence(),
         appliesTo: faker.helpers.arrayElement(['Posts & comments', 'Posts only', 'Comments only'])

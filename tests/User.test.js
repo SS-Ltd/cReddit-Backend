@@ -52,7 +52,11 @@ describe('follow', () => {
     const user2 = {
       username: 'user2',
       followers: [],
-      save: jest.fn()
+      save: jest.fn(),
+      preferences: {
+        allowFollow: true
+      },
+      blockedUsers: []
     }
 
     const user = {
