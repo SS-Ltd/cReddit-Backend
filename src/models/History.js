@@ -88,12 +88,26 @@ HistorySchema.statics.getUserHistory = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'postData.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
       $project: {
         _id: '$postData._id',
         type: '$postData.type',
         username: '$postData.username',
         communityName: '$postData.communityName',
-        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$postData.communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
         netVote: '$postData.netVote',
         commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
         isSpoiler: '$postData.isSpoiler',

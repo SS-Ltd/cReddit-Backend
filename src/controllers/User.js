@@ -1140,6 +1140,18 @@ const getHistory = async (req, res) => {
       post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
       post.isJoined = user.communities.includes(post.communityName)
       post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
     })
 
     res.status(200).json(result)
