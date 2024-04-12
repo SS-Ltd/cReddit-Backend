@@ -266,6 +266,9 @@ const getSortedCommunityPosts = async (req, res) => {
       sortMethod,
       time
     }
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.isModerator = (!user || user.moderatorInCommunities.length === 0 || !user.moderatorInCommunities.includes(community.name)) ? null : true
 
     const posts = await PostModel.byCommunity(subreddit, options, showAdultContent)
 

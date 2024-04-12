@@ -176,10 +176,25 @@ PostSchema.methods.getCommunityProfilePicture = async function () {
 }
 
 PostSchema.statics.getComments = async function (postId, options) {
-  const { random, sort, limit, page } = options
+  const { random, sort, limit, page, username, blockedUsers, isModerator } = options
   if (random) {
     return await this.aggregate([
-      { $match: { postID: postId, type: 'Comment', isDeleted: false, isRemoved: false } },
+      {
+        $match: {
+          postID: postId,
+          type: 'Comment',
+          isDeleted: false,
+          isRemoved: false
+        }
+      },
+      {
+        $lookup: {
+          from: 'posts',
+          localField: 'postID',
+          foreignField: '_id',
+          as: 'posts'
+        }
+      },
       {
         $lookup: {
           from: 'users',
@@ -188,7 +203,57 @@ PostSchema.statics.getComments = async function (postId, options) {
           as: 'user'
         }
       },
+      {
+        $lookup: {
+          from: 'reports',
+          let: { postId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$post', '$$postId'] },
+                isDeleted: false
+              }
+            },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'user',
+                foreignField: 'username',
+                as: 'user'
+              }
+            },
+            {
+              $addFields: {
+                username: { $arrayElemAt: ['$user.username', 0] },
+                profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+              }
+            },
+            {
+              $project: {
+                user: 0,
+                __v: 0,
+                isDeleted: 0,
+                type: 0,
+                message: 0,
+                post: 0
+              }
+            }
+          ],
+          as: 'reports'
+        }
+      },
       { $sample: { size: limit } },
+      {
+        $match: {
+          $expr: {
+            $cond: {
+              if: { $and: [{ $ne: [username, null] }, { $eq: [isModerator, null] }, { $ne: [{ $arrayElemAt: ['$posts.username', 0] }, username] }] },
+              then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
+              else: true
+            }
+          }
+        }
+      },
       {
         $addFields: {
           profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
@@ -208,7 +273,8 @@ PostSchema.statics.getComments = async function (postId, options) {
           pollOptions: 0,
           actions: 0,
           views: 0,
-          isNsfw: 0
+          isNsfw: 0,
+          posts: 0
         }
       }
     ])
@@ -216,6 +282,14 @@ PostSchema.statics.getComments = async function (postId, options) {
 
   return await this.aggregate([
     { $match: { postID: postId, type: 'Comment', isDeleted: false, isRemoved: false } },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'postID',
+        foreignField: '_id',
+        as: 'posts'
+      }
+    },
     {
       $lookup: {
         from: 'users',
@@ -267,6 +341,17 @@ PostSchema.statics.getComments = async function (postId, options) {
     { $skip: page * limit },
     { $limit: limit },
     {
+      $match: {
+        $expr: {
+          $cond: {
+            if: { $and: [{ $ne: [username, null] }, { $eq: [isModerator, null] }, { $ne: [{ $arrayElemAt: ['$posts.username', 0] }, username] }] },
+            then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
+            else: true
+          }
+        }
+      }
+    },
+    {
       $addFields: {
         profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
         reports: '$reports'
@@ -286,7 +371,8 @@ PostSchema.statics.getComments = async function (postId, options) {
         pollOptions: 0,
         actions: 0,
         views: 0,
-        isNsfw: 0
+        isNsfw: 0,
+        posts: 0
       }
     }
   ])
@@ -461,7 +547,9 @@ PostSchema.statics.getPost = async function (postId) {
         },
         commentCount: { $size: '$comments' },
         reports: '$reports',
-        child: { $arrayElemAt: ['$child', 0] }
+        child: { $arrayElemAt: ['$child', 0] },
+        creatorBlockedUsers: { $arrayElemAt: ['$user.blockedUsers', 0] },
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
       }
     },
     {
@@ -538,7 +626,8 @@ PostSchema.statics.getComment = async function (commentId) {
     {
       $addFields: {
         profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
-        reports: '$reports'
+        reports: '$reports',
+        creatorBlockedUsers: { $arrayElemAt: ['$user.blockedUsers', 0] }
       }
     },
     {
@@ -562,7 +651,7 @@ PostSchema.statics.getComment = async function (commentId) {
 }
 
 PostSchema.statics.byCommunity = async function (communityName, options, showAdultContent) {
-  const { page, limit, sortMethod, time } = options
+  const { page, limit, sortMethod, time, username, blockedUsers, isModerator } = options
   return await this.aggregate([
     {
       $match: {
@@ -731,11 +820,23 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
     { $skip: page * limit },
     { $limit: limit },
     {
+      $match: {
+        $expr: {
+          $cond: {
+            if: { $and: [{ $ne: [username, null] }, { $eq: [isModerator, null] }] },
+            then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
+            else: true
+          }
+        }
+      }
+    },
+    {
       $addFields: {
         commentCount: { $size: '$comments' },
         profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
         reports: '$reports',
-        child: { $arrayElemAt: ['$child', 0] }
+        child: { $arrayElemAt: ['$child', 0] },
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
       }
     },
     {
@@ -758,7 +859,7 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
 }
 
 PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities, showAdultContent) {
-  const { limit } = options
+  const { limit, username, blockedUsers, moderatedCommunities } = options
 
   return await this.aggregate([
     {
@@ -906,6 +1007,30 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
     },
     { $sample: { size: limit } },
     {
+      $match: {
+        $and: [
+          {
+            $expr: {
+              $cond: {
+                if: { $and: [{ $ne: [username, null] }, { $not: { $in: ['$communityName', moderatedCommunities] } }] },
+                then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
+                else: true
+              }
+            }
+          },
+          {
+            $expr: {
+              $cond: {
+                if: { $eq: ['$communityName', null] },
+                then: { $eq: [{ $arrayElemAt: ['$user.isDeleted', 0] }, false] },
+                else: { $eq: [{ $arrayElemAt: ['$community.isDeleted', 0] }, false] }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       $addFields: {
         profilePicture: {
           $cond: {
@@ -915,7 +1040,8 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
           }
         },
         commentCount: { $size: '$comments' },
-        child: { $arrayElemAt: ['$child', 0] }
+        child: { $arrayElemAt: ['$child', 0] },
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
       }
     },
     {
@@ -939,7 +1065,7 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
 }
 
 PostSchema.statics.getSortedHomeFeed = async function (options, communities, mutedCommunities, follows, showAdultContent) {
-  const { page, limit, sortMethod, time } = options
+  const { page, limit, sortMethod, time, username, blockedUsers, moderatedCommunities } = options
 
   return await this.aggregate([
     {
@@ -1112,6 +1238,30 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
     { $skip: page * limit },
     { $limit: limit },
     {
+      $match: {
+        $and: [
+          {
+            $expr: {
+              $cond: {
+                if: { $and: [{ $ne: [username, null] }, { $not: { $in: ['$communityName', moderatedCommunities] } }] },
+                then: { $and: [{ $not: { $in: [username, { $arrayElemAt: ['$user.blockedUsers', 0] }] } }, { $not: { $in: ['$username', blockedUsers] } }] },
+                else: true
+              }
+            }
+          },
+          {
+            $expr: {
+              $cond: {
+                if: { $eq: ['$communityName', null] },
+                then: { $eq: [{ $arrayElemAt: ['$user.isDeleted', 0] }, false] },
+                else: { $eq: [{ $arrayElemAt: ['$community.isDeleted', 0] }, false] }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       $addFields: {
         profilePicture: {
           $cond: {
@@ -1121,7 +1271,8 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
           }
         },
         commentCount: { $size: '$comments' },
-        child: { $arrayElemAt: ['$child', 0] }
+        child: { $arrayElemAt: ['$child', 0] },
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
       }
     },
     {

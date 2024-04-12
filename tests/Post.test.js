@@ -455,7 +455,7 @@ describe('deletePost', () => {
       type: 'Images & Video',
       content: 'cReddit/image1.jpg cReddit/video1.mp4',
       isDeleted: false,
-      save: jest.fn(),
+      save: jest.fn()
     }
     MediaUtils.cloudinary.uploader.destroy = jest.fn()
     PostModel.findOne = jest.fn().mockResolvedValue(post)
@@ -1398,7 +1398,8 @@ describe('getPost', () => {
       isUpvoted: false,
       isNSFW: false,
       isJoined: false,
-      isModerator: false
+      isModerator: false,
+      isBlocked: false
     })
   })
 
@@ -1424,7 +1425,9 @@ describe('getPost', () => {
       views: 1,
       commentCount: 0,
       profilePicture: 'icon.jpg',
-      isNsfw: false
+      isNsfw: false,
+      creatorBlockedUsers: [],
+      username: 'user2'
     }]
 
     const user = {
@@ -1437,7 +1440,8 @@ describe('getPost', () => {
       communities: [],
       moderatorInCommunities: [],
       isNsfw: false,
-      type: 'Post'
+      type: 'Post',
+      blockedUsers: []
     }
 
     PostModel.getPost = jest.fn().mockResolvedValue(post)
@@ -1467,7 +1471,9 @@ describe('getPost', () => {
       isUpvoted: true,
       isNSFW: false,
       isJoined: false,
-      isModerator: false
+      isModerator: false,
+      isBlocked: false,
+      username: 'user2'
     })
   })
 
@@ -1629,7 +1635,9 @@ describe('getHomeFeed', () => {
       preferences: {
         showAdultContent: false
       },
-      follows: []
+      follows: [],
+      blockedUsers: [],
+      moderatorInCommunities: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
@@ -1668,7 +1676,9 @@ describe('getHomeFeed', () => {
       preferences: {
         showAdultContent: false
       },
-      follows: []
+      follows: [],
+      blockedUsers: [],
+      moderatorInCommunities: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
@@ -1867,7 +1877,6 @@ describe('getComments', () => {
     })
   })
 })
-
 
 describe('votePost', () => {
   test('should upvote a post when req.type is upvote', async () => {
