@@ -206,7 +206,7 @@ describe('getComment', () => {
 
     const post = {
       isNsfw: true,
-      username: 'testUser',
+      username: 'testUser'
     }
 
     const user = {
