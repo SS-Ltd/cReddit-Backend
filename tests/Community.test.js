@@ -96,7 +96,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -193,7 +195,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -283,7 +287,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -374,7 +380,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -463,7 +471,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -546,7 +556,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [{ postId: 'post2' }],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -629,7 +641,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
