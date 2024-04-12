@@ -321,7 +321,7 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $lookup: {
         from: 'posts',
-        let: { postId: localField, searchType: searchType },
+        let: { postId: localField, blockedUsers: '$blockedUsers', searchType: searchType },
         pipeline: [
           {
             $match: {
@@ -353,6 +353,27 @@ UserSchema.methods.getPosts = async function (options) {
           },
           {
             $match: { typeMatched: true }
+          },
+          {
+            $addFields: {
+              isBlockedUser: {
+                $cond: {
+                  if: { $eq: ['$type', 'Comment'] },
+                  then: { $in: ['$username', '$$blockedUsers'] },
+                  else: false // Set isBlockedUser to false for non-comment posts
+                }
+              }
+            }
+          },
+          {
+            $match: {
+              $expr: {
+                $or: [
+                  { $ne: ['$type', 'Comment'] }, // Include posts that are not comments
+                  { $not: '$isBlockedUser' } // Exclude comments where post owner is in blocked users
+                ]
+              }
+            }
           }
         ],
         as: 'post'
@@ -364,7 +385,35 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $project: {
         post: { $arrayElemAt: ['$post', 0] },
+        mutedCommunities: 1,
+        'preferences.showAdultContent': 1,
         savedAt: savedAt
+      }
+    },
+    {
+      $match: {
+        $expr: {
+          $and: [
+            {
+              $cond: {
+                if: { $eq: ['$preferences.showAdultContent', false] },
+                then: { $eq: ['$post.isNsfw', false] },
+                else: true
+              }
+            },
+            {
+              $cond: {
+                if: { $eq: [{ $type: '$mutedCommunities' }, 'missing'] }, // Check if mutedCommunities is missing
+                then: true, // Provide a default value or handle missing field gracefully
+                else: {
+                  $not: {
+                    $in: ['$post.communityName', '$mutedCommunities']
+                  }
+                }
+              }
+            }
+          ]
+        }
       }
     },
     {
@@ -825,6 +874,11 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
+      $match: {
+        'community.isDeleted': false
+      }
+    },
+    {
       $lookup: {
         from: 'users',
         localField: 'posts.username',
@@ -977,6 +1031,11 @@ UserSchema.methods.getUserComments = async function (options) {
       }
     },
     {
+      $match: {
+        'community.isDeleted': false
+      }
+    },
+    {
       $lookup: {
         from: 'posts',
         let: { parentpost: '$posts.postID' },
@@ -1033,6 +1092,11 @@ UserSchema.methods.getJoinedCommunities = async function (options) {
     {
       $addFields: {
         communities: '$populatedCommunities'
+      }
+    },
+    {
+      $match: {
+        'populatedCommunities.isDeleted': false
       }
     },
     {
