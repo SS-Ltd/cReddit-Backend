@@ -498,7 +498,7 @@ const getHomeFeed = async (req, res) => {
     options.time = time
     options.username = user ? user.username : null
     options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
-    options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? null : user.moderatorInCommunities
+    options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? [] : user.moderatorInCommunities
 
     const communities = (!user || user.communities.length === 0) ? null : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
