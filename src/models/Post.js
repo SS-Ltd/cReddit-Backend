@@ -924,12 +924,6 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
       }
     },
     {
-      $match: {
-        '$community.isDeleted': false,
-        '$user.isDeleted': false
-      }
-    },
-    {
       $lookup: {
         from: 'posts',
         let: { childId: { $ifNull: ['$child', null] } },
