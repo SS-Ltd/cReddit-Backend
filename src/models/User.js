@@ -1056,4 +1056,39 @@ UserSchema.methods.getJoinedCommunities = async function (options) {
   ])
 }
 
+UserSchema.statics.searchUsers = async function (options) {
+  const { page, limit, query } = options
+  return await this.aggregate([
+    {
+      $search: {
+        index: 'userSearchIndex',
+        text: {
+          query: query,
+          path: 'username',
+          fuzzy: {}
+        }
+      }
+    },
+    {
+      $sort: { score: { $meta: 'textScore' } }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: 10
+    },
+    {
+      $project: {
+        _id: 0,
+        username: 1,
+        about: 1,
+        profilePicture: 1,
+        score: { $meta: 'textScore' },
+        isNSFW: 1
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('User', UserSchema)

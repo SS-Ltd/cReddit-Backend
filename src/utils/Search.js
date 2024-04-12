@@ -22,7 +22,6 @@ async function findIndexByName (indexName, collectionName) {
       digestAuth: DIGEST_AUTH
     }
   )
-  console.log(allIndexesResponse)
   return allIndexesResponse.data.find((i) => i.name === indexName)
 }
 
