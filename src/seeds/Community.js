@@ -40,8 +40,8 @@ async function createRandomCommunities () {
     })
 
     const user = await UserModel.findOne({ username: ownerName })
-    user.communities.push(communityIDs[i])
-    user.moderatorInCommunities.push(communityIDs[i])
+    user.communities.push(communityNames[i])
+    user.moderatorInCommunities.push(communityNames[i])
 
     await user.save()
   }
@@ -50,9 +50,9 @@ async function createRandomCommunities () {
     const user = await UserModel.findOne({ username: usernames[i] })
 
     for (let j = 0; j < 5; j++) {
-      const randomIndex = Math.floor(Math.random() * communityIDs.length)
-      if (!user.communities.includes(communityIDs[randomIndex])) {
-        user.communities.push(communityIDs[randomIndex])
+      const randomIndex = Math.floor(Math.random() * communityNames.length)
+      if (!user.communities.includes(communityNames[randomIndex])) {
+        user.communities.push(communityNames[randomIndex])
       }
     }
 
