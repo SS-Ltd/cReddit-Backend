@@ -670,7 +670,7 @@ const updateSettings = async (req, res) => {
       if (isContentVisible !== undefined) user.preferences.isContentVisible = isContentVisible
     }
 
-    if (req.body.files) {
+    if (req.files) {
       const { avatar, banner } = req.files
       if (avatar) {
         const urls = user.profilePicture ? [user.profilePicture] : []

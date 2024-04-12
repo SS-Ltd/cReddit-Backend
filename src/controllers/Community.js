@@ -81,6 +81,8 @@ const getCommunityView = async (req, res) => {
       banner: community.banner,
       members: community.members,
       rules: community.rules,
+      description: community.description,
+      topic: community.topic,
       moderators: community.moderators
     }
 
@@ -140,12 +142,14 @@ const getTopCommunities = async (req, res) => {
       })
     }
 
-    res.status(200).json(topCommunities)
+    res.status(200).json({
+      topCommunities: topCommunities,
+      count: topCommunities.length
+    })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error getting top communities' })
   }
 }
-
 
 const getEditedPosts = async (req, res) => {
   try {

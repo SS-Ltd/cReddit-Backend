@@ -294,7 +294,7 @@ const getPost = async (req, res) => {
       })
     }
 
-    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
+    if (post.isNsfw && (!user || !user.preferences.showAdultContent) && post.username !== user.username) {
       return res.status(401).json({
         message: 'Unable to view NSFW content'
       })

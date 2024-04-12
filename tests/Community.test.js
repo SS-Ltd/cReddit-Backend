@@ -672,7 +672,10 @@ describe('getTopCommunities', () => {
     }
     await getTopCommunities(req, res)
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(['community1', 'community2'])
+    expect(res.json).toHaveBeenCalledWith({
+      topCommunities: ['community1', 'community2'],
+      count: 2
+    })
   })
 
   // Returns an error if there is an issue with the database connection
