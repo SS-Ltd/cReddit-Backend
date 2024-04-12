@@ -548,7 +548,8 @@ PostSchema.statics.getPost = async function (postId) {
         commentCount: { $size: '$comments' },
         reports: '$reports',
         child: { $arrayElemAt: ['$child', 0] },
-        creatorBlockedUsers: { $arrayElemAt: ['$user.blockedUsers', 0] }
+        creatorBlockedUsers: { $arrayElemAt: ['$user.blockedUsers', 0] },
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
       }
     },
     {
@@ -834,7 +835,8 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
         commentCount: { $size: '$comments' },
         profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
         reports: '$reports',
-        child: { $arrayElemAt: ['$child', 0] }
+        child: { $arrayElemAt: ['$child', 0] },
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
       }
     },
     {
@@ -1044,7 +1046,8 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
           }
         },
         commentCount: { $size: '$comments' },
-        child: { $arrayElemAt: ['$child', 0] }
+        child: { $arrayElemAt: ['$child', 0] },
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
       }
     },
     {
@@ -1274,7 +1277,8 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
           }
         },
         commentCount: { $size: '$comments' },
-        child: { $arrayElemAt: ['$child', 0] }
+        child: { $arrayElemAt: ['$child', 0] },
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
       }
     },
     {
