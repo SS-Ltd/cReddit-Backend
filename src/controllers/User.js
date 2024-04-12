@@ -568,7 +568,8 @@ const getSettings = async (req, res) => {
       account: {
         email: user.email,
         gender: user.gender,
-        google: user.preferences.google !== '' && user.preferences.google !== null
+        google: user.preferences.google !== '' && user.preferences.google !== null,
+        country: user.country
       },
       profile: {
         displayName: user.displayName,
@@ -628,8 +629,9 @@ const updateSettings = async (req, res) => {
 
     if (req.body.account) {
       req.body.account = JSON.parse(req.body.account)
-      const { gender } = req.body.account
+      const { gender, country } = req.body.account
       if (gender) user.gender = gender
+      if (country) user.country = country
     }
 
     const blocked = [{}]
@@ -745,7 +747,8 @@ const updateSettings = async (req, res) => {
       account: {
         email: user.email,
         gender: user.gender,
-        google: user.preferences.google !== null
+        google: user.preferences.google !== null,
+        country: user.country
       },
       profile: {
         displayName: user.displayName,
