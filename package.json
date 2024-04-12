@@ -25,7 +25,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.0",
     "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.12"
+    "nodemailer": "^6.9.12",
+    "urllib": "^3.23.0"
   },
   "devDependencies": {
     "@faker-js/faker": "^8.4.1",

@@ -7,6 +7,7 @@ const communityRouter = require('./routes/Community')
 const commentRouter = require('./routes/Comment')
 const dotenv = require('dotenv')
 const cors = require('cors')
+const SearchUtils = require('./utils/Search')
 
 dotenv.config()
 
@@ -28,6 +29,10 @@ app.use('/post', postRouter)
 app.use('/subreddit', communityRouter)
 app.use('/post', postRouter)
 app.use('/comment', commentRouter)
+
+SearchUtils.upsertSearchIndex('communitySearchIndex', 'communities')
+SearchUtils.upsertSearchIndex('postSearchIndex', 'posts')
+SearchUtils.upsertSearchIndex('userSeacrhIndex', 'users')
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
