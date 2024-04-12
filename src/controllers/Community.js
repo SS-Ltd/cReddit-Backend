@@ -146,7 +146,6 @@ const getTopCommunities = async (req, res) => {
   }
 }
 
-
 const getEditedPosts = async (req, res) => {
   try {
     const { communityName } = req.params
