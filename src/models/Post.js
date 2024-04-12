@@ -519,7 +519,6 @@ PostSchema.statics.getComment = async function (commentId) {
         upvote: 0,
         downvote: 0,
         views: 0,
-        isImage: 0,
         isDeleted: 0,
         mostRecentUpvote: 0,
         actions: 0,
