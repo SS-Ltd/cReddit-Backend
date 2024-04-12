@@ -69,7 +69,9 @@ HistorySchema.statics.getUserHistory = async function (options) {
                   { $eq: ['$postID', '$$post_id'] },
                   { $eq: ['$type', '$$type'] }
                 ]
-              }
+              },
+              isDeleted: false,
+              isRemoved: false
             }
           },
           {
