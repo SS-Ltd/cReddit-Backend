@@ -664,19 +664,25 @@ CommunityModel.findOne = jest.fn()
 
 describe('getTopCommunities', () => {
   // Returns a list of top communities sorted by members in descending order
-  // test('should return a list of top communities sorted by members in descending order', async () => {
-  //   const req = { query: {} }
-  //   const res = {
-  //     status: jest.fn().mockReturnThis(),
-  //     json: jest.fn()
-  //   }
-  //   await getTopCommunities(req, res)
-  //   expect(res.status).toHaveBeenCalledWith(200)
-  //   expect(res.json).toHaveBeenCalledWith({
-  //     topCommunities: ['community1', 'community2'],
-  //     count: 2
-  //   })
-  // })
+  test('should return a list of top communities sorted by members in descending order', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.select = jest.fn().mockResolvedValue([{ communityName: 'community1' }, { communityName: 'community2' }])
+    CommunityModel.countDocuments = jest.fn().mockResolvedValue(2)
+
+    await getTopCommunities(req, res)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(
+      {
+        topCommunities: ['community1', 'community2'],
+        count: 2
+      }
+    )
+  })
 
   // Returns an error if there is an issue with the database connection
   test('should return an error if there is an issue with the database connection', async () => {
