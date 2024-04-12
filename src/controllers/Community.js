@@ -81,6 +81,8 @@ const getCommunityView = async (req, res) => {
       banner: community.banner,
       members: community.members,
       rules: community.rules,
+      description: community.description,
+      topic: community.topic,
       moderators: community.moderators
     }
 
