@@ -88,7 +88,7 @@ const editPost = async (req, res) => {
     return res.status(400).json({ message: 'No content to update' })
   }
   try {
-    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -160,7 +160,7 @@ const hidePost = async (req, res) => {
     return res.status(400).json({ message: 'isHidden field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -203,7 +203,7 @@ const lockPost = async (req, res) => {
     return res.status(400).json({ message: 'isLocked field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -294,6 +294,12 @@ const getPost = async (req, res) => {
       })
     }
 
+    if (user && (post.communityName && !user.moderatorInCommunities.includes(post.communityName)) && (post.creatorBlockedUsers.includes(user.username) || user.blockedUsers.includes(post.username))) {
+      return res.status(404).json({
+        message: 'Post does not exist'
+      })
+    }
+
     if (post.isNsfw && (!user || !user.preferences.showAdultContent) && post.username !== user.username) {
       return res.status(401).json({
         message: 'Unable to view NSFW content'
@@ -325,9 +331,11 @@ const getPost = async (req, res) => {
     post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
     post.isJoined = user ? user.communities.includes(post.communityName) : false
     post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
+    post.isBlocked = user ? user.blockedUsers.includes(post.username) : false
 
     post.isNSFW = post.isNsfw
     delete post.isNsfw
+    delete post.creatorBlockedUsers
 
     if (post.type !== 'Poll') {
       delete post.pollOptions
@@ -410,6 +418,9 @@ const getComments = async (req, res) => {
     options.random = false
     options.page = page
     options.limit = limit
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.isModerator = (!user || user.moderatorInCommunities.length === 0 || !user.moderatorInCommunities.includes(communityName)) ? null : true
     if (sortChoice === 'best') {
       options.random = true
     }
@@ -420,6 +431,7 @@ const getComments = async (req, res) => {
       comment.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
       comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
       comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+      comment.isBlocked = user ? user.blockedUsers.includes(comment.username) : false
     })
 
     if (user && !post.isNsfw) {
@@ -484,6 +496,9 @@ const getHomeFeed = async (req, res) => {
     options.page = page
     options.limit = limit
     options.time = time
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? null : user.moderatorInCommunities
 
     const communities = (!user || user.communities.length === 0) ? null : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
@@ -539,7 +554,7 @@ const votePost = async (req, res) => {
       throw new Error('Invalid post id')
     }
 
-    const postToVote = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const postToVote = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!postToVote) {
       throw new Error('Post does not exist')
     }

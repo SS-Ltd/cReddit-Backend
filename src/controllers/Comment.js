@@ -149,6 +149,24 @@ const getComment = async (req, res) => {
       })
     }
 
+    const decoded = req.decoded
+    let user = null
+
+    if (decoded) {
+      user = await UserModel.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+    }
+
+    const options = {}
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.isModerator = (!user || user.moderatorInCommunities.length === 0) ? null : true
+
     let comment = await PostModel.getComment(new ObjectId(commentId))
     comment = comment[0]
 
@@ -167,17 +185,16 @@ const getComment = async (req, res) => {
       })
     }
 
-    const decoded = req.decoded
-    let user = null
+    if (user && (post.communityName && !user.moderatorInCommunities.includes(post.communityName)) && (post.creatorBlockedUsers.includes(user.username) || user.blockedUsers.includes(post.username))) {
+      return res.status(404).json({
+        message: 'Post does not exist'
+      })
+    }
 
-    if (decoded) {
-      user = await UserModel.findOne({ username: decoded.username, isDeleted: false })
-
-      if (!user) {
-        return res.status(404).json({
-          message: 'User does not exist'
-        })
-      }
+    if (user && post.username !== user.username && (comment.communityName && !user.moderatorInCommunities.includes(comment.communityName)) && (comment.creatorBlockedUsers.includes(user.username) || user.blockedUsers.includes(comment.username))) {
+      return res.status(404).json({
+        message: 'Comment does not exist'
+      })
     }
 
     if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
@@ -190,6 +207,9 @@ const getComment = async (req, res) => {
     comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
     comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
     comment.isModerator = user ? user.moderatorInCommunities.includes(post.community) : false
+    comment.isBlocked = user ? user.blockedUsers.includes(comment.username) : false
+
+    delete comment.blockedUsers
 
     if (user && !post.isNsfw) {
       const history = await HistoryModel.findOne({ owner: user.username, post: comment.postID })
