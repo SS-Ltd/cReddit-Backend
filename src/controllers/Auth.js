@@ -208,8 +208,8 @@ const loginGoogle = async (req, res) => {
 
     const existingUser = await User.findOne({ 'preferences.google': req.decoded.id })
     if (existingUser && !existingUser.isDeleted) {
-      const { refreshToken } = generateTokens({ username }, res)
-      await User.updateOne({ username }, {
+      const { refreshToken } = generateTokens({ username: existingUser.username }, res)
+      await User.updateOne({ username: existingUser.username }, {
         $set: {
           refreshToken
         }
