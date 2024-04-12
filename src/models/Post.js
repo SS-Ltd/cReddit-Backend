@@ -1475,18 +1475,6 @@ PostSchema.statics.getHomeFeed = async function (user, options) {
       { $sort: sortMethod },
       { $skip: page * limit },
       { $limit: limit },
-      // {
-      //   $addFields: {
-      //     commentCount: { $size: '$comments' },
-      //     profilePicture: { $arrayElemAt: ['$community.profilePicture', 0] },
-      //     isUpvoted: { $in: ['_id', '$user.upvotedPosts'] },
-      //     isDownvoted: { $in: ['_id', '$user.downvotedPosts'] },
-      //     isSaved: { $in: ['_id', '$user.savedPosts'] },
-      //     isHidden: { $in: ['_id', '$user.hiddenPosts'] },
-      //     isJoined: { $in: ['$community.name', '$user.communities'] },
-      //     isModerator: { $in: ['$communityName.name', '$user.moderatorInCommunities'] }
-      //   }
-      // },
       {
         $project: {
           comments: 0,
