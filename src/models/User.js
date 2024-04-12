@@ -364,7 +364,35 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $project: {
         post: { $arrayElemAt: ['$post', 0] },
+        mutedCommunities: 1,
+        'preferences.showAdultContent': 1,
         savedAt: savedAt
+      }
+    },
+    {
+      $match: {
+        $expr: {
+          $and: [
+            {
+              $cond: {
+                if: { $eq: ['$preferences.showAdultContent', false] },
+                then: { $eq: ['$post.isNsfw', false] },
+                else: true
+              }
+            },
+            {
+              $cond: {
+                if: { $eq: [{ $type: '$mutedCommunities' }, 'missing'] }, // Check if mutedCommunities is missing
+                then: true, // Provide a default value or handle missing field gracefully
+                else: {
+                  $not: {
+                    $in: ['$post.communityName', '$mutedCommunities']
+                  }
+                }
+              }
+            }
+          ]
+        }
       }
     },
     {
