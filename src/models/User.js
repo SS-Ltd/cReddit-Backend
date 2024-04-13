@@ -355,12 +355,21 @@ UserSchema.methods.getPosts = async function (options) {
           },
           {
             $addFields: {
-              isBlockedUser: {
-                $cond: {
-                  if: { $eq: ['$type', 'Comment'] },
-                  then: { $in: ['$username', '$$blockedUsers'] },
-                  else: false // Set isBlockedUser to false for non-comment posts
-                }
+              isBlockedUser: { $in: ['$username', '$$blockedUsers'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
+            $addFields: {
+              isModerator: {
+                $in: [username, { $arrayElemAt: ['$community.moderators', 0] }]
               }
             }
           },
@@ -368,8 +377,8 @@ UserSchema.methods.getPosts = async function (options) {
             $match: {
               $expr: {
                 $or: [
-                  { $ne: ['$type', 'Comment'] }, // Include posts that are not comments
-                  { $not: '$isBlockedUser' } // Exclude comments where post owner is in blocked users
+                  { $eq: ['$isBlockedUser', false] },
+                  { $eq: ['$isModerator', true] }
                 ]
               }
             }
@@ -388,6 +397,15 @@ UserSchema.methods.getPosts = async function (options) {
         'preferences.showAdultContent': 1,
         savedAt: savedAt
       }
+    },
+    {
+      $sort: { savedAt: -1 }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
     },
     {
       $match: {
@@ -422,15 +440,6 @@ UserSchema.methods.getPosts = async function (options) {
         }
 
       }
-    },
-    {
-      $sort: { savedAt: -1 }
-    },
-    {
-      $skip: (page - 1) * limit
-    },
-    {
-      $limit: limit
     },
     {
       $lookup: {
