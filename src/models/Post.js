@@ -1409,19 +1409,125 @@ PostSchema.statics.searchPosts = async function (options) {
     },
     {
       $addFields: {
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] },
+        communityIcon: { $arrayElemAt: ['$community.icon', 0] },
         commentCount: { $size: '$comments' }
       }
     },
     {
       $project: {
         _id: 0,
+        type: 1,
         title: 1,
         communityName: 1,
         createdAt: 1,
         netVote: 1,
         commentCount: 1,
-        profilePicture: 1
+        communityIcon: 1,
+        content: 1
+      }
+    }
+  ])
+}
+
+PostSchema.statics.searchComments = async function (options) {
+  const { page, limit, query, safeSearch } = options
+  return await this.aggregate([
+    {
+      $search: {
+        index: 'postSearchIndex',
+        text: {
+          query: query,
+          path: 'content',
+          fuzzy: {}
+        }
+      }
+    },
+    {
+      $match: {
+        isDeleted: false,
+        isRemoved: false,
+        isImage: false,
+        type: { $eq: 'Comment' },
+        communityName: { $ne: null },
+        ...(safeSearch ? { isNsfw: false } : {})
+      }
+    },
+    {
+      $sort: { score: { $meta: 'textScore' } }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'postID',
+        foreignField: '_id',
+        as: 'post'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { id: '$post._id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$id']
+              },
+              type: 'Comment',
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
+        as: 'comments'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $addFields: {
+        communityIcon: { $arrayElemAt: ['$community.icon', 0] },
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        commentCount: { $size: '$comments' },
+        postVotes: { $arrayElemAt: ['$post.netVote', 0] },
+        postCreatedAt: { $arrayElemAt: ['$post.createdAt', 0] },
+        postTitle: { $arrayElemAt: ['$post.title', 0] }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        postTitle: 1,
+        communityName: 1,
+        createdAt: 1,
+        netVote: 1,
+        commentCount: 1,
+        profilePicture: 1,
+        communityIcon: 1,
+        postVotes: 1,
+        content: 1,
+        postCreatedAt: 1,
+        postID: 1
       }
     }
   ])

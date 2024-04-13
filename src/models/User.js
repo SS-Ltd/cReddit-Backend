@@ -1057,7 +1057,7 @@ UserSchema.methods.getJoinedCommunities = async function (options) {
 }
 
 UserSchema.statics.searchUsers = async function (options) {
-  const { page, limit, query } = options
+  const { page, limit, query, safeSearch } = options
   return await this.aggregate([
     {
       $search: {
@@ -1071,7 +1071,8 @@ UserSchema.statics.searchUsers = async function (options) {
     },
     {
       $match: {
-        isDeleted: false
+        isDeleted: false,
+        ...(safeSearch ? { isNSFW: false } : {})
       }
     },
     {
