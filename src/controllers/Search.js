@@ -12,7 +12,6 @@ const searchUsers = async (req, res) => {
 
   const users = await UserModel.searchUsers(option)
 
-  console.log(users)
   res.status(200).json(users)
 }
 
@@ -26,10 +25,9 @@ const searchPosts = async (req, res) => {
     safeSearch: safeSearch === 'true'
   }
 
-  const users = await PostModel.searchPosts(option)
+  const posts = await PostModel.searchPosts(option)
 
-  console.log(users)
-  res.status(200).json(users)
+  res.status(200).json(posts)
 }
 
 module.exports = {

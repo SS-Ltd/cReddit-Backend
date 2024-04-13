@@ -1089,7 +1089,6 @@ UserSchema.statics.searchUsers = async function (options) {
         username: 1,
         about: 1,
         profilePicture: 1,
-        score: { $meta: 'textScore' },
         isNSFW: 1
       }
     }
