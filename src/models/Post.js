@@ -1350,4 +1350,81 @@ PostSchema.statics.getHomeFeed = async function (user, options) {
   }
 }
 
+PostSchema.statics.searchPosts = async function (options) {
+  const { page, limit, query, safeSearch } = options
+  return await this.aggregate([
+    {
+      $search: {
+        index: 'postSearchIndex',
+        text: {
+          query: query,
+          path: ['title', 'content'],
+          fuzzy: {}
+        }
+      }
+    },
+    {
+      $match: {
+        isDeleted: false,
+        isRemoved: false,
+        type: { $ne: 'Comment' },
+        communityName: { $ne: null },
+        ...(safeSearch ? { isNsfw: false } : {})
+      }
+    },
+    {
+      $sort: { score: { $meta: 'textScore' } }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { id: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
+        as: 'comments'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $addFields: {
+        profilePicture: { $arrayElemAt: ['$community.icon', 0] },
+        commentCount: { $size: '$comments' }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        title: 1,
+        communityName: 1,
+        createdAt: 1,
+        netVote: 1,
+        commentCount: 1,
+        profilePicture: 1
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('Post', PostSchema)

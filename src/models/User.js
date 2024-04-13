@@ -1070,13 +1070,18 @@ UserSchema.statics.searchUsers = async function (options) {
       }
     },
     {
+      $match: {
+        isDeleted: false
+      }
+    },
+    {
       $sort: { score: { $meta: 'textScore' } }
     },
     {
       $skip: (page - 1) * limit
     },
     {
-      $limit: 10
+      $limit: limit
     },
     {
       $project: {
