@@ -18,13 +18,15 @@ const searchUsers = async (req, res) => {
 }
 
 const searchPosts = async (req, res) => {
-  const { page, limit, query, safeSearch } = req.query
+  const { page, limit, query, safeSearch, community, user } = req.query
 
   const option = {
     query,
     page: page ? parseInt(page) : 1,
     limit: limit ? parseInt(limit) : 10,
-    safeSearch: safeSearch === 'true'
+    safeSearch: safeSearch === 'true',
+    community,
+    user
   }
 
   const posts = await PostModel.searchPosts(option)
@@ -33,13 +35,15 @@ const searchPosts = async (req, res) => {
 }
 
 const searchComments = async (req, res) => {
-  const { page, limit, query, safeSearch } = req.query
+  const { page, limit, query, safeSearch, community, user } = req.query
 
   const option = {
     query,
     page: page ? parseInt(page) : 1,
     limit: limit ? parseInt(limit) : 10,
-    safeSearch: safeSearch === 'true'
+    safeSearch: safeSearch === 'true',
+    community,
+    user
   }
 
   const comments = await PostModel.searchComments(option)

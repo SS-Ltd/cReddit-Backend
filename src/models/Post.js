@@ -1351,7 +1351,7 @@ PostSchema.statics.getHomeFeed = async function (user, options) {
 }
 
 PostSchema.statics.searchPosts = async function (options) {
-  const { page, limit, query, safeSearch } = options
+  const { page, limit, query, safeSearch, community, user } = options
   return await this.aggregate([
     {
       $search: {
@@ -1368,7 +1368,8 @@ PostSchema.statics.searchPosts = async function (options) {
         isDeleted: false,
         isRemoved: false,
         type: { $ne: 'Comment' },
-        communityName: { $ne: null },
+        ...(community ? { communityName: community } : {}),
+        ...(user ? { username: user } : {}),
         ...(safeSearch ? { isNsfw: false } : {})
       }
     },
@@ -1408,9 +1409,23 @@ PostSchema.statics.searchPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
       $addFields: {
-        communityIcon: { $arrayElemAt: ['$community.icon', 0] },
-        commentCount: { $size: '$comments' }
+        commentCount: { $size: '$comments' },
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        }
       }
     },
     {
@@ -1418,11 +1433,12 @@ PostSchema.statics.searchPosts = async function (options) {
         _id: 1,
         type: 1,
         title: 1,
+        username: 1,
+        profilePicture: 1,
         communityName: 1,
         createdAt: 1,
         netVote: 1,
         commentCount: 1,
-        communityIcon: 1,
         content: 1,
         isNsfw: 1,
         isSpoiler: 1
@@ -1432,7 +1448,7 @@ PostSchema.statics.searchPosts = async function (options) {
 }
 
 PostSchema.statics.searchComments = async function (options) {
-  const { page, limit, query, safeSearch } = options
+  const { page, limit, query, safeSearch, community, user } = options
   return await this.aggregate([
     {
       $search: {
@@ -1450,7 +1466,8 @@ PostSchema.statics.searchComments = async function (options) {
         isRemoved: false,
         isImage: false,
         type: { $eq: 'Comment' },
-        communityName: { $ne: null },
+        ...(community ? { communityName: community } : {}),
+        ...(user ? { username: user } : {}),
         ...(safeSearch ? { isNsfw: false } : {})
       }
     },
@@ -1479,7 +1496,7 @@ PostSchema.statics.searchComments = async function (options) {
           {
             $match: {
               $expr: {
-                $eq: ['$_id', '$$id']
+                $eq: ['$postID', '$$id']
               },
               type: 'Comment',
               isDeleted: false,
@@ -1507,9 +1524,24 @@ PostSchema.statics.searchComments = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'post.username',
+        foreignField: 'username',
+        as: 'postUser'
+      }
+    },
+    {
       $addFields: {
-        communityIcon: { $arrayElemAt: ['$community.icon', 0] },
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        postPicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$postUser.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        postUsername: { $arrayElemAt: ['$postUser.username', 0] },
+        commentPicture: { $arrayElemAt: ['$user.profilePicture', 0] },
         commentCount: { $size: '$comments' },
         postVotes: { $arrayElemAt: ['$post.netVote', 0] },
         postCreatedAt: { $arrayElemAt: ['$post.createdAt', 0] },
@@ -1521,19 +1553,21 @@ PostSchema.statics.searchComments = async function (options) {
     {
       $project: {
         _id: 1,
+        postID: 1,
         postTitle: 1,
+        postUsername: 1,
+        postVotes: 1,
+        postPicture: 1,
+        postCreatedAt: 1,
+        isPostNsfw: 1,
+        isPostSpoiler: 1,
         communityName: 1,
         createdAt: 1,
+        username: 1,
         netVote: 1,
         commentCount: 1,
-        profilePicture: 1,
-        communityIcon: 1,
-        postVotes: 1,
-        content: 1,
-        postCreatedAt: 1,
-        postID: 1,
-        isPostNsfw: 1,
-        isPostSpoiler: 1
+        commentPicture: 1,
+        content: 1
       }
     }
   ])
