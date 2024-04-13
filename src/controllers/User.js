@@ -1046,10 +1046,10 @@ const getUpvotedPosts = async (req, res) => {
       username: username,
       unwind: '$upvotedPosts',
       localField: '$upvotedPosts.postId',
+      searchType: 'Post',
       savedAt: '$upvotedPosts.savedAt',
       page: page,
-      limit: limit,
-      searchType: 'Post'
+      limit: limit
     }
 
     const result = await user.getPosts(options)

@@ -369,7 +369,11 @@ UserSchema.methods.getPosts = async function (options) {
           {
             $addFields: {
               isModerator: {
-                $in: [username, { $arrayElemAt: ['$community.moderators', 0] }]
+                $cond: {
+                  if: { $ne: ['$community', []] },
+                  then: { $in: [username, { $arrayElemAt: ['$community.moderators', 0] }] },
+                  else: false
+                }
               }
             }
           },
