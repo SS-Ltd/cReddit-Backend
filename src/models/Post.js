@@ -1415,7 +1415,7 @@ PostSchema.statics.searchPosts = async function (options) {
     },
     {
       $project: {
-        _id: 0,
+        _id: 1,
         type: 1,
         title: 1,
         communityName: 1,
@@ -1423,7 +1423,9 @@ PostSchema.statics.searchPosts = async function (options) {
         netVote: 1,
         commentCount: 1,
         communityIcon: 1,
-        content: 1
+        content: 1,
+        isNsfw: 1,
+        isSpoiler: 1
       }
     }
   ])
@@ -1511,12 +1513,14 @@ PostSchema.statics.searchComments = async function (options) {
         commentCount: { $size: '$comments' },
         postVotes: { $arrayElemAt: ['$post.netVote', 0] },
         postCreatedAt: { $arrayElemAt: ['$post.createdAt', 0] },
-        postTitle: { $arrayElemAt: ['$post.title', 0] }
+        postTitle: { $arrayElemAt: ['$post.title', 0] },
+        isPostSpoiler: { $arrayElemAt: ['$post.isSpoiler', 0] },
+        isPostNsfw: { $arrayElemAt: ['$post.isNsfw', 0] }
       }
     },
     {
       $project: {
-        _id: 0,
+        _id: 1,
         postTitle: 1,
         communityName: 1,
         createdAt: 1,
@@ -1527,7 +1531,9 @@ PostSchema.statics.searchComments = async function (options) {
         postVotes: 1,
         content: 1,
         postCreatedAt: 1,
-        postID: 1
+        postID: 1,
+        isPostNsfw: 1,
+        isPostSpoiler: 1
       }
     }
   ])

@@ -154,4 +154,45 @@ CommunitySchema.methods.getEditedPosts = async function (options) {
   ])
 }
 
+CommunitySchema.statics.searchCommunities = async function (options) {
+  const { page, limit, query, safeSearch } = options
+  return await this.aggregate([
+    {
+      $search: {
+        index: 'communitySearchIndex',
+        text: {
+          query: query,
+          path: ['name', 'description'],
+          fuzzy: {}
+        }
+      }
+    },
+    {
+      $match: {
+        isDeleted: false,
+        ...(safeSearch ? { isNSFW: false } : {})
+      }
+    },
+    {
+      $sort: { score: { $meta: 'textScore' } }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $project: {
+        _id: 0,
+        name: 1,
+        description: 1,
+        icon: 1,
+        isNSFW: 1,
+        members: 1
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('Community', CommunitySchema)
