@@ -549,7 +549,14 @@ PostSchema.statics.getPost = async function (postId) {
         reports: '$reports',
         child: { $arrayElemAt: ['$child', 0] },
         creatorBlockedUsers: { $arrayElemAt: ['$user.blockedUsers', 0] },
-        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] }
+        isDeletedUser: { $arrayElemAt: ['$user.isDeleted', 0] },
+        commentSort: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: 'best',
+            else: { $arrayElemAt: ['$community.suggestedSort', 0] }
+          }
+        }
       }
     },
     {
