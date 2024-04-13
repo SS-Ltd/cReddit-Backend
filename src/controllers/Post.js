@@ -586,5 +586,7 @@ module.exports = {
   lockPost,
   getComments,
   getHomeFeed,
-  votePost
+  votePost,
+  getSortingMethod,
+  filterWithTime
 }

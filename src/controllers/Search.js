@@ -1,6 +1,7 @@
 const UserModel = require('../models/User')
 const PostModel = require('../models/Post')
 const CommunityModel = require('../models/Community')
+const { getSortingMethod, filterWithTime } = require('./Post')
 
 const searchUsers = async (req, res) => {
   const { page, limit, query, safeSearch } = req.query
@@ -18,7 +19,7 @@ const searchUsers = async (req, res) => {
 }
 
 const searchPosts = async (req, res) => {
-  const { page, limit, query, safeSearch, community, user } = req.query
+  const { page, limit, query, safeSearch, community, user, sort, time } = req.query
 
   const option = {
     query,
@@ -26,7 +27,9 @@ const searchPosts = async (req, res) => {
     limit: limit ? parseInt(limit) : 10,
     safeSearch: safeSearch === 'true',
     community,
-    user
+    user,
+    sortMethod: getSortingMethod(sort),
+    filter: filterWithTime(time)
   }
 
   const posts = await PostModel.searchPosts(option)
@@ -35,7 +38,7 @@ const searchPosts = async (req, res) => {
 }
 
 const searchComments = async (req, res) => {
-  const { page, limit, query, safeSearch, community, user } = req.query
+  const { page, limit, query, safeSearch, community, user, sort } = req.query
 
   const option = {
     query,
@@ -43,7 +46,8 @@ const searchComments = async (req, res) => {
     limit: limit ? parseInt(limit) : 10,
     safeSearch: safeSearch === 'true',
     community,
-    user
+    user,
+    sortMethod: getSortingMethod(sort)
   }
 
   const comments = await PostModel.searchComments(option)

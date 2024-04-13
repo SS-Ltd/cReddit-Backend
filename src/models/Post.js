@@ -1351,7 +1351,7 @@ PostSchema.statics.getHomeFeed = async function (user, options) {
 }
 
 PostSchema.statics.searchPosts = async function (options) {
-  const { page, limit, query, safeSearch, community, user } = options
+  const { page, limit, query, safeSearch, community, user, sortMethod, filter } = options
   return await this.aggregate([
     {
       $search: {
@@ -1368,13 +1368,14 @@ PostSchema.statics.searchPosts = async function (options) {
         isDeleted: false,
         isRemoved: false,
         type: { $ne: 'Comment' },
+        createdAt: filter,
         ...(community ? { communityName: community } : {}),
         ...(user ? { username: user } : {}),
         ...(safeSearch ? { isNsfw: false } : {})
       }
     },
     {
-      $sort: { score: { $meta: 'textScore' } }
+      $sort: { score: { $meta: 'textScore' }, ...sortMethod }
     },
     {
       $skip: (page - 1) * limit
@@ -1448,7 +1449,7 @@ PostSchema.statics.searchPosts = async function (options) {
 }
 
 PostSchema.statics.searchComments = async function (options) {
-  const { page, limit, query, safeSearch, community, user } = options
+  const { page, limit, query, safeSearch, community, user, sortMethod } = options
   return await this.aggregate([
     {
       $search: {
@@ -1472,7 +1473,7 @@ PostSchema.statics.searchComments = async function (options) {
       }
     },
     {
-      $sort: { score: { $meta: 'textScore' } }
+      $sort: { score: { $meta: 'textScore' }, ...sortMethod }
     },
     {
       $skip: (page - 1) * limit
