@@ -5,7 +5,7 @@ const UserModel = require('../src/models/User')
 const HistoryModel = require('../src/models/History')
 const MediaUtils = require('../src/utils/Media')
 const PostUtils = require('../src/utils/Post')
-const { getPost, getHomeFeed, getComments, votePost, reportPost } = require('../src/controllers/Post')
+const { getPost, getHomeFeed, getComments, reportPost } = require('../src/controllers/Post')
 const { ObjectId } = require('mongodb')
 
 jest.mock('../src/models/Post', () => {
