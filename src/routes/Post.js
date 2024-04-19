@@ -12,7 +12,8 @@ router.route('/:postId/lock').patch(verifyToken, post.lockPost)
 router.route('/:postId/comments').get(isLoggedIn, post.getComments)
 router.route('/:postId/upvote').patch(verifyToken, (req, res, next) => { req.type = 'upvote'; next() }, post.votePost)
 router.route('/:postId/downvote').patch(verifyToken, (req, res, next) => { req.type = 'downvote'; next() }, post.votePost)
-router.route('/:postId/vote-poll').patch(verifyToken, (req, res, next) => { req.type = 'votePoll'; next() }, post.votePost)
+router.route('/:postId/vote-poll').patch(verifyToken, (req, res, next) => { req.type = 'votePoll'; next() }, post.votePost)router.route('/:postId/report').post(verifyToken, post.reportPost)
+router.route('/:postId/report').post(verifyToken, post.reportPost)
 router.route('/:postId').get(isLoggedIn, post.getPost).delete(verifyToken, post.deletePost).patch(verifyToken, post.editPost)
 
 module.exports = router

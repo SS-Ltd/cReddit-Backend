@@ -5,7 +5,7 @@ const UserModel = require('../src/models/User')
 const HistoryModel = require('../src/models/History')
 const MediaUtils = require('../src/utils/Media')
 const PostUtils = require('../src/utils/Post')
-const { getPost, getHomeFeed, getComments } = require('../src/controllers/Post')
+const { getPost, getHomeFeed, getComments, reportPost } = require('../src/controllers/Post')
 const { ObjectId } = require('mongodb')
 
 jest.mock('../src/models/Post', () => {
@@ -2123,5 +2123,245 @@ describe('votePost', () => {
     expect(user.save).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Invalid poll option' }))
+  })
+})
+
+describe('reportPost', () => {
+  const Post = require('../src/models/Post')
+  const Community = require('../src/models/Community')
+  const Report = require('../src/models/Report')
+  test('should successfully report a post with valid inputs', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: 'validPostId',
+      isDeleted: false,
+      isRemoved: false,
+      communityName: 'validCommunityName',
+      type: 'Post',
+      username: 'otherUser'
+    }
+
+    const community = {
+      name: 'validCommunityName',
+      isDeleted: false,
+      rules: [
+        {
+          text: 'validCommunityRule',
+          appliesTo: 'validAppliesTo'
+        }
+      ]
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(post)
+    Community.findOne = jest.fn().mockResolvedValue(community)
+    Report.findOne = jest.fn().mockResolvedValue(null)
+    Report.prototype.save = jest.fn()
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(Community.findOne).toHaveBeenCalledWith({ name: 'validCommunityName', isDeleted: false })
+    expect(Report.findOne).toHaveBeenCalledWith({ user: 'validUsername', post: 'validPostId', reason: 'validCommunityRule', isDeleted: false })
+    expect(Report.prototype.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Report Submitted\nThanks for your report and for looking out for yourself and your fellow redditors. Your reporting helps make Reddit a better, safer, and more welcoming place for everyone; and it means a lot to us. ' })
+  })
+  test('should return a 404 error when reporting a non-existent post', async () => {
+    const req = {
+      params: {
+        postId: 'nonExistentPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(null)
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'nonExistentPostId', isDeleted: false, isRemoved: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post not found' })
+  })
+  test('should report a post with a community rule that applies to both posts and comments', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: 'validPostId',
+      isDeleted: false,
+      isRemoved: false,
+      communityName: 'validCommunityName',
+      type: 'Post',
+      username: 'otherUser'
+    }
+
+    const community = {
+      name: 'validCommunityName',
+      isDeleted: false,
+      rules: [
+        {
+          text: 'validCommunityRule',
+          appliesTo: 'Posts & comments'
+        }
+      ]
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(post)
+    Community.findOne = jest.fn().mockResolvedValue(community)
+    Report.findOne = jest.fn().mockResolvedValue(null)
+    Report.prototype.save = jest.fn()
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(Community.findOne).toHaveBeenCalledWith({ name: 'validCommunityName', isDeleted: false })
+    expect(Report.findOne).toHaveBeenCalledWith({ user: 'validUsername', post: 'validPostId', reason: 'validCommunityRule', isDeleted: false })
+    expect(Report.prototype.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Report Submitted\nThanks for your report and for looking out for yourself and your fellow redditors. Your reporting helps make Reddit a better, safer, and more welcoming place for everyone; and it means a lot to us. ' })
+  })
+  test('should report a post with a community rule that applies to posts only', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: 'validPostId',
+      isDeleted: false,
+      isRemoved: false,
+      communityName: 'validCommunityName',
+      type: 'Post',
+      username: 'otherUser'
+    }
+
+    const community = {
+      name: 'validCommunityName',
+      isDeleted: false,
+      rules: [
+        {
+          text: 'validCommunityRule',
+          appliesTo: 'Posts only'
+        }
+      ]
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(post)
+    Community.findOne = jest.fn().mockResolvedValue(community)
+    Report.findOne = jest.fn().mockResolvedValue(null)
+    Report.prototype.save = jest.fn()
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(Community.findOne).toHaveBeenCalledWith({ name: 'validCommunityName', isDeleted: false })
+    expect(Report.findOne).toHaveBeenCalledWith({ user: 'validUsername', post: 'validPostId', reason: 'validCommunityRule', isDeleted: false })
+    expect(Report.prototype.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Report Submitted\nThanks for your report and for looking out for yourself and your fellow redditors. Your reporting helps make Reddit a better, safer, and more welcoming place for everyone; and it means a lot to us. ' })
+  })
+  test('should report a comment with a community rule that applies comments only', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: 'validPostId',
+      isDeleted: false,
+      isRemoved: false,
+      communityName: 'validCommunityName',
+      type: 'Comment',
+      username: 'otherUser'
+    }
+
+    const community = {
+      name: 'validCommunityName',
+      isDeleted: false,
+      rules: [
+        {
+          text: 'validCommunityRule',
+          appliesTo: 'Comments only'
+        }
+      ]
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(post)
+    Community.findOne = jest.fn().mockResolvedValue(community)
+    Report.findOne = jest.fn().mockResolvedValue(null)
+    Report.prototype.save = jest.fn()
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(Community.findOne).toHaveBeenCalledWith({ name: 'validCommunityName', isDeleted: false })
+    expect(Report.findOne).toHaveBeenCalledWith({ user: 'validUsername', post: 'validPostId', reason: 'validCommunityRule', isDeleted: false })
+    expect(Report.prototype.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Report Submitted\nThanks for your report and for looking out for yourself and your fellow redditors. Your reporting helps make Reddit a better, safer, and more welcoming place for everyone; and it means a lot to us. ' })
   })
 })
