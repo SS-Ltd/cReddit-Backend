@@ -81,6 +81,8 @@ const getCommunityView = async (req, res) => {
       banner: community.banner,
       members: community.members,
       rules: community.rules,
+      description: community.description,
+      topic: community.topic,
       moderators: community.moderators
     }
 
@@ -139,13 +141,16 @@ const getTopCommunities = async (req, res) => {
         community.isJoined = false
       })
     }
+    const count = await CommunityModel.countDocuments(topCommunitiesQuery)
 
-    res.status(200).json(topCommunities)
+    res.status(200).json({
+      topCommunities: topCommunities,
+      count
+    })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error getting top communities' })
   }
 }
-
 
 const getEditedPosts = async (req, res) => {
   try {
@@ -261,6 +266,9 @@ const getSortedCommunityPosts = async (req, res) => {
       sortMethod,
       time
     }
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.isModerator = (!user || user.moderatorInCommunities.length === 0 || !user.moderatorInCommunities.includes(community.name)) ? null : true
 
     const posts = await PostModel.byCommunity(subreddit, options, showAdultContent)
 
@@ -301,6 +309,9 @@ const joinCommunity = async (req, res) => {
     const username = req.decoded.username
 
     const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
     const user = await UserModel.findOne({ username: username, isDeleted: false })
 
     const isMember = user.communities.includes(subreddit)
@@ -322,7 +333,7 @@ const joinCommunity = async (req, res) => {
   } catch (error) {
     console.error(error)
     res.status(500).json({
-      message: 'An error occurred while joining the community'
+      message: 'Error joining community: ' + error
     })
   }
 }
@@ -354,7 +365,46 @@ const leaveCommunity = async (req, res) => {
   } catch (error) {
     console.error(error)
     res.status(500).json({
-      message: 'An error occurred while leaving the community'
+      message: 'Error leaving community: ' + error
+    })
+  }
+}
+
+const muteCommunity = async (req, res) => {
+  try {
+    const subreddit = req.params.subreddit
+    const username = req.decoded.username
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+
+    const isMuted = user.mutedCommunities.includes(subreddit)
+
+    if (isMuted) {
+      user.mutedCommunities = user.mutedCommunities.filter(item => item !== subreddit)
+
+      await user.save()
+      return res.status(200).json({
+        message: 'Community unmuted successfully'
+      })
+    }
+
+    user.mutedCommunities.push(subreddit)
+    await user.save()
+
+    res.status(200).json({
+      message: 'Community muted successfully'
+    })
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error muting community: ' + error
     })
   }
 }
@@ -367,5 +417,6 @@ module.exports = {
   getEditedPosts,
   getSortedCommunityPosts,
   joinCommunity,
-  leaveCommunity
+  leaveCommunity,
+  muteCommunity
 }

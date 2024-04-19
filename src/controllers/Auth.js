@@ -169,7 +169,7 @@ const logout = async (req, res) => {
       sameSite: 'None',
       secure: true,
       maxAge: 0,
-      path: '/user/refresh-token'
+      path: process.env.REFRESH_TOKEN_PATH
     })
     res.status(200).json({ message: 'User logged out successfully' })
   } catch (error) {
@@ -208,8 +208,8 @@ const loginGoogle = async (req, res) => {
 
     const existingUser = await User.findOne({ 'preferences.google': req.decoded.id })
     if (existingUser && !existingUser.isDeleted) {
-      const { refreshToken } = generateTokens({ username }, res)
-      await User.updateOne({ username }, {
+      const { refreshToken } = generateTokens({ username: existingUser.username }, res)
+      await User.updateOne({ username: existingUser.username }, {
         $set: {
           refreshToken
         }

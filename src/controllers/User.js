@@ -81,6 +81,12 @@ const follow = async (req, res) => {
       })
     }
 
+    if (userFollowed.blockedUsers.includes(user.username) || userFollowed.preferences.allowFollow === false) {
+      return res.status(400).json({
+        message: 'Cannot follow the user'
+      })
+    }
+
     user.follows.push(userFollowed.username)
     userFollowed.followers.push(user.username)
 
@@ -505,7 +511,8 @@ const getUserView = async (req, res) => {
       banner: user.banner,
       followers: user.followers.length,
       cakeDay: user.createdAt,
-      isNSFW: user.preferences.isNSFW
+      isNSFW: user.preferences.isNSFW,
+      allowFollow: user.preferences.allowFollow
     }
     if (req.decoded) {
       const viewer = await UserModel.findOne({ username: req.decoded.username })
@@ -561,7 +568,8 @@ const getSettings = async (req, res) => {
       account: {
         email: user.email,
         gender: user.gender,
-        google: user.preferences.google !== '' && user.preferences.google !== null
+        google: user.preferences.google !== '' && user.preferences.google !== null,
+        country: user.country
       },
       profile: {
         displayName: user.displayName,
@@ -621,8 +629,9 @@ const updateSettings = async (req, res) => {
 
     if (req.body.account) {
       req.body.account = JSON.parse(req.body.account)
-      const { gender } = req.body.account
+      const { gender, country } = req.body.account
       if (gender) user.gender = gender
+      if (country) user.country = country
     }
 
     const blocked = [{}]
@@ -663,7 +672,7 @@ const updateSettings = async (req, res) => {
       if (isContentVisible !== undefined) user.preferences.isContentVisible = isContentVisible
     }
 
-    if (req.body.files) {
+    if (req.files) {
       const { avatar, banner } = req.files
       if (avatar) {
         const urls = user.profilePicture ? [user.profilePicture] : []
@@ -738,7 +747,8 @@ const updateSettings = async (req, res) => {
       account: {
         email: user.email,
         gender: user.gender,
-        google: user.preferences.google !== null
+        google: user.preferences.google !== null,
+        country: user.country
       },
       profile: {
         displayName: user.displayName,
@@ -1036,10 +1046,10 @@ const getUpvotedPosts = async (req, res) => {
       username: username,
       unwind: '$upvotedPosts',
       localField: '$upvotedPosts.postId',
+      searchType: 'Post',
       savedAt: '$upvotedPosts.savedAt',
       page: page,
-      limit: limit,
-      searchType: 'Post'
+      limit: limit
     }
 
     const result = await user.getPosts(options)
@@ -1133,6 +1143,18 @@ const getHistory = async (req, res) => {
       post.isHidden = user.hiddenPosts.some(item => item.postId.toString() === post._id.toString())
       post.isJoined = user.communities.includes(post.communityName)
       post.isModerator = user.moderatorInCommunities.includes(post.communityName)
+
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
     })
 
     res.status(200).json(result)

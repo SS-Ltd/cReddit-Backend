@@ -15,8 +15,7 @@ const UserSchema = new Schema({
   },
   email: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   password: {
     type: String
@@ -306,8 +305,8 @@ UserSchema.methods.createResetPasswordToken = async function () {
 // unwind: The field to unwind -> ex. '$savedPosts'
 // localField: The local field in the user model for the lookup -> ex. '$savedPosts.postId'
 // savedAt: The field to sort the posts -> ex. '$savedPosts.savedAt'
-// page: The page number -> ex. 1  "for PAGANATION"
-// limit: The limit of posts per page -> ex. 10 "for PAGANATION"
+// page: The page number -> ex. 1  'for PAGANATION'
+// limit: The limit of posts per page -> ex. 10 'for PAGANATION'
 // NOTE: be aware for the '$' sign in the examles above
 UserSchema.methods.getPosts = async function (options) {
   const { username, unwind, localField, searchType, savedAt, page, limit } = options
@@ -321,7 +320,7 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $lookup: {
         from: 'posts',
-        let: { postId: localField, searchType: searchType },
+        let: { postId: localField, blockedUsers: '$blockedUsers', searchType: searchType },
         pipeline: [
           {
             $match: {
@@ -353,6 +352,40 @@ UserSchema.methods.getPosts = async function (options) {
           },
           {
             $match: { typeMatched: true }
+          },
+          {
+            $addFields: {
+              isBlockedUser: { $in: ['$username', '$$blockedUsers'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
+            $addFields: {
+              isModerator: {
+                $cond: {
+                  if: { $ne: ['$community', []] },
+                  then: { $in: [username, { $arrayElemAt: ['$community.moderators', 0] }] },
+                  else: false
+                }
+              }
+            }
+          },
+          {
+            $match: {
+              $expr: {
+                $or: [
+                  { $eq: ['$isBlockedUser', false] },
+                  { $eq: ['$isModerator', true] }
+                ]
+              }
+            }
           }
         ],
         as: 'post'
@@ -364,7 +397,44 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $project: {
         post: { $arrayElemAt: ['$post', 0] },
+        mutedCommunities: 1,
+        'preferences.showAdultContent': 1,
         savedAt: savedAt
+      }
+    },
+    {
+      $sort: { savedAt: -1 }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $match: {
+        $expr: {
+          $and: [
+            {
+              $cond: {
+                if: { $eq: ['$preferences.showAdultContent', false] },
+                then: { $eq: ['$post.isNsfw', false] },
+                else: true
+              }
+            },
+            {
+              $cond: {
+                if: { $eq: [{ $type: '$mutedCommunities' }, 'missing'] }, // Check if mutedCommunities is missing
+                then: true, // Provide a default value or handle missing field gracefully
+                else: {
+                  $not: {
+                    $in: ['$post.communityName', '$mutedCommunities']
+                  }
+                }
+              }
+            }
+          ]
+        }
       }
     },
     {
@@ -376,13 +446,98 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
-      $sort: { savedAt: -1 }
-    },
-    {
-      $skip: (page - 1) * limit
-    },
-    {
-      $limit: limit
+      $lookup: {
+        from: 'posts',
+        let: {
+          childId: {
+            $ifNull: ['$post.child', null]
+          }
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$childId']
+              }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'username',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
+            $addFields: {
+              profilePicture: {
+                $cond: {
+                  if: {
+                    $eq: ['$communityName', null]
+                  },
+                  then: {
+                    $arrayElemAt: ['$user.profilePicture', 0]
+                  },
+                  else: {
+                    $arrayElemAt: [
+                      '$community.icon',
+                      0
+                    ]
+                  }
+                }
+              },
+              commentCount: {
+                $size: '$comments'
+              }
+            }
+          },
+          {
+            $project: {
+              community: 0,
+              user: 0,
+              __v: 0,
+              followers: 0,
+              upvote: 0,
+              downvote: 0,
+              views: 0,
+              isImage: 0,
+              isDeleted: 0,
+              mostRecentUpvote: 0,
+              actions: 0,
+              isRemoved: 0,
+              comments: 0
+            }
+          }
+        ],
+        as: 'child'
+      }
     },
     {
       $lookup: {
@@ -396,7 +551,9 @@ UserSchema.methods.getPosts = async function (options) {
                   { $eq: ['$postID', '$$post_id'] },
                   { $eq: ['$type', '$$type'] }
                 ]
-              }
+              },
+              isDeleted: false,
+              isRemoved: false
             }
           },
           {
@@ -415,18 +572,103 @@ UserSchema.methods.getPosts = async function (options) {
       }
     },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'post.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$post._id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { parentpost: '$post.postID' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$parentpost']
+              }
+            }
+          }
+        ],
+        as: 'parentPost'
+      }
+    },
+    {
       $project: {
         _id: '$post._id',
         postID: '$post.postID',
         type: '$post.type',
         username: '$post.username',
         communityName: '$post.communityName',
-        profilePicture: { $arrayElemAt: ['$community.icon', 0] },
-        title: '$post.title',
+        parentPostUsername: { $arrayElemAt: ['$parentPost.username', 0] },
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$post.communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
         netVote: '$post.netVote',
+        commentCount: {
+          $ifNull: [
+            { $arrayElemAt: ['$commentCount.commentCount', 0] }, 0
+          ]
+        },
+        child: { $arrayElemAt: ['$child', 0] },
+        reports: '$reports',
         isSpoiler: '$post.isSpoiler',
         isNSFW: '$post.isNsfw',
         isApproved: '$post.isApproved',
+        isLocked: '$post.isLocked',
+        isEdited: '$post.isEdited',
+        title: {
+          $cond: {
+            if: { $eq: ['$post.type', 'Comment'] },
+            then: { $arrayElemAt: ['$parentPost.title', 0] },
+            else: '$post.title'
+          }
+        },
         content: '$post.content',
         pollOptions: {
           $map: {
@@ -434,65 +676,25 @@ UserSchema.methods.getPosts = async function (options) {
             as: 'option',
             in: {
               text: '$$option.text',
-              votes: { $size: '$$option.voters' },
+              votes: {
+                $size: '$$option.voters'
+              },
               isVoted: {
-                $in: [username, '$$option.voters']
+                $in: [
+                  'Carter_Satterfield',
+                  '$$option.voters'
+                ]
               }
             }
           }
         },
-        commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] }
+        expirationDate: '$post.expirationDate',
+        createdAt: '$post.createdAt',
+        updatedAt: '$post.updatedAt'
       }
     }
   ])
 }
-
-UserSchema.methods.getSavedComments = async function (options) {
-  return await this.model('User').aggregate([
-    {
-      $match: { username: this.username }
-    },
-    {
-      $unwind: '$savedComments'
-    },
-    {
-      $lookup: {
-        from: 'comments',
-        localField: 'savedComments.commentId',
-        foreignField: '_id',
-        as: 'commentSaved'
-      }
-    },
-    {
-      $match: {
-        'commentSaved.isDeleted': false
-      }
-    },
-    {
-      $sort: { 'savedComments.savedAt': -1 }
-    },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'commentSaved.username',
-        foreignField: 'username',
-        as: 'user'
-      }
-    },
-    {
-      $project: {
-        commentSaved: {
-          $arrayElemAt: ['$commentSaved', 0]
-        },
-        profilePicture: {
-          $arrayElemAt: ['$user.profilePicture', 0]
-        },
-        savedAt: '$savedComments.savedAt'
-      }
-    }
-  ])
-}
-
 UserSchema.methods.getUserPosts = async function (options) {
   let { username, page, limit, sort, time, mutedCommunities, showAdultContent } = options
 
@@ -534,12 +736,14 @@ UserSchema.methods.getUserPosts = async function (options) {
         'posts.isRemoved': false,
         'posts.type': { $ne: 'Comment' },
         $expr: {
-          $cond: {
-            if: { $eq: [showAdultContent, false] },
-            then: { $eq: ['$posts.isNsfw', false] },
-            else: true
-          },
           $and: [
+            {
+              $cond: {
+                if: { $eq: [showAdultContent, false] },
+                then: { $eq: ['$posts.isNsfw', false] },
+                else: true
+              }
+            },
             { $not: { $in: ['$posts.communityName', mutedCommunities] } }
           ]
         },
@@ -558,6 +762,100 @@ UserSchema.methods.getUserPosts = async function (options) {
     {
       $lookup: {
         from: 'posts',
+        let: {
+          childId: {
+            $ifNull: ['$posts.child', null]
+          }
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$childId']
+              }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'username',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
+            $addFields: {
+              profilePicture: {
+                $cond: {
+                  if: {
+                    $eq: ['$communityName', null]
+                  },
+                  then: {
+                    $arrayElemAt: ['$user.profilePicture', 0]
+                  },
+                  else: {
+                    $arrayElemAt: [
+                      '$community.icon',
+                      0
+                    ]
+                  }
+                }
+              },
+              commentCount: {
+                $size: '$comments'
+              }
+            }
+          },
+          {
+            $project: {
+              community: 0,
+              user: 0,
+              __v: 0,
+              followers: 0,
+              upvote: 0,
+              downvote: 0,
+              views: 0,
+              isImage: 0,
+              isDeleted: 0,
+              mostRecentUpvote: 0,
+              actions: 0,
+              isRemoved: 0,
+              comments: 0
+            }
+          }
+        ],
+        as: 'child'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
         let: { post_id: '$posts._id', type: 'Comment' },
         pipeline: [
           {
@@ -567,7 +865,9 @@ UserSchema.methods.getUserPosts = async function (options) {
                   { $eq: ['$postID', '$$post_id'] },
                   { $eq: ['$type', '$$type'] }
                 ]
-              }
+              },
+              isDeleted: false,
+              isRemoved: false
             }
           },
           {
@@ -587,7 +887,54 @@ UserSchema.methods.getUserPosts = async function (options) {
     },
     {
       $match: {
-        'community.isNSFW': showAdultContent
+        'community.isDeleted': false
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'posts.username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$posts._id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] },
+              profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
       }
     },
     {
@@ -596,9 +943,17 @@ UserSchema.methods.getUserPosts = async function (options) {
         type: '$posts.type',
         username: '$posts.username',
         communityName: '$posts.communityName',
-        profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$posts.communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        child: { $arrayElemAt: ['$child', 0] },
         netVote: '$posts.netVote',
         commentCount: { $ifNull: [{ $arrayElemAt: ['$commentCount.commentCount', 0] }, 0] },
+        reports: '$reports',
         isSpoiler: '$posts.isSpoiler',
         isNSFW: '$posts.isNsfw',
         isApproved: '$posts.isApproved',
@@ -656,12 +1011,14 @@ UserSchema.methods.getUserComments = async function (options) {
         'posts.isRemoved': false,
         'posts.type': 'Comment',
         $expr: {
-          $cond: {
-            if: { $eq: [showAdultContent, false] },
-            then: { $eq: ['$posts.isNsfw', false] },
-            else: true
-          },
           $and: [
+            {
+              $cond: {
+                if: { $eq: [showAdultContent, false] },
+                then: { $eq: ['$posts.isNsfw', false] },
+                else: true
+              }
+            },
             { $not: { $in: ['$posts.communityName', mutedCommunities] } }
           ]
         },
@@ -687,7 +1044,23 @@ UserSchema.methods.getUserComments = async function (options) {
     },
     {
       $match: {
-        'community.isNSFW': showAdultContent
+        'community.isDeleted': false
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { parentpost: '$posts.postID' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$parentpost']
+              }
+            }
+          }
+        ],
+        as: 'parentPost'
       }
     },
     {
@@ -698,12 +1071,13 @@ UserSchema.methods.getUserComments = async function (options) {
         isImage: '$posts.isImage',
         username: '$posts.username',
         communityName: '$posts.communityName',
+        parentPostUsername: { $arrayElemAt: ['$parentPost.username', 0] },
         profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
         netVote: '$posts.netVote',
         isSpoiler: '$posts.isSpoiler',
         isNSFW: '$posts.isNsfw',
         isApproved: '$posts.isApproved',
-        title: '$posts.title',
+        title: { $arrayElemAt: ['$parentPost.title', 0] },
         content: '$posts.content',
         createdAt: '$posts.createdAt',
         updatedAt: '$posts.updatedAt',
@@ -731,6 +1105,11 @@ UserSchema.methods.getJoinedCommunities = async function (options) {
     {
       $addFields: {
         communities: '$populatedCommunities'
+      }
+    },
+    {
+      $match: {
+        'populatedCommunities.isDeleted': false
       }
     },
     {
