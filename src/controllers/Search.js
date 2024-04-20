@@ -72,9 +72,26 @@ const searchCommunities = async (req, res) => {
   res.status(200).json(communities)
 }
 
+const searchHashtags = async (req, res) => {
+  const { page, limit, query, safeSearch, sortMethod } = req.query
+
+  const option = {
+    query,
+    page: page ? parseInt(page) : 1,
+    limit: limit ? parseInt(limit) : 10,
+    safeSearch: safeSearch === 'true',
+    sortMethod
+  }
+
+  const posts = await PostModel.searchHashtags(option)
+
+  res.status(200).json(posts)
+}
+
 module.exports = {
   searchUsers,
   searchPosts,
   searchComments,
-  searchCommunities
+  searchCommunities,
+  searchHashtags
 }
