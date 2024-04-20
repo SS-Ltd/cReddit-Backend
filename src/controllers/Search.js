@@ -57,13 +57,14 @@ const searchComments = async (req, res) => {
 }
 
 const searchCommunities = async (req, res) => {
-  const { page, limit, query, safeSearch } = req.query
+  const { page, limit, query, safeSearch, autocomplete } = req.query
   if (!query) return res.status(400).json({ error: 'Query is required' })
   const option = {
     query,
     page: page ? parseInt(page) : 1,
     limit: limit ? parseInt(limit) : 10,
-    safeSearch: safeSearch === 'true'
+    safeSearch: safeSearch === 'true',
+    autocomplete: autocomplete === 'true'
   }
 
   const communities = await CommunityModel.searchCommunities(option)

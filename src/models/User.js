@@ -1068,7 +1068,12 @@ UserSchema.statics.searchUsers = async function (options) {
               autocomplete: {
                 query: query,
                 path: 'username',
-                tokenOrder: 'sequential'
+                tokenOrder: 'sequential',
+                score: {
+                  boost: {
+                    value: 5
+                  }
+                }
               }
             },
             ...(!autocomplete

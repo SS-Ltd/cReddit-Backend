@@ -155,15 +155,41 @@ CommunitySchema.methods.getEditedPosts = async function (options) {
 }
 
 CommunitySchema.statics.searchCommunities = async function (options) {
-  const { page, limit, query, safeSearch } = options
+  const { page, limit, query, safeSearch, autocomplete } = options
   return await this.aggregate([
     {
       $search: {
         index: 'communitySearchIndex',
-        text: {
-          query: query,
-          path: ['name', 'description'],
-          fuzzy: {}
+        compound: {
+          should: [
+            {
+              autocomplete: {
+                query: query,
+                path: 'name',
+                tokenOrder: 'sequential',
+                score: {
+                  boost: {
+                    value: 5
+                  }
+                }
+              }
+            },
+            ...(!autocomplete
+              ? [
+                  {
+                    text: {
+                      query: query,
+                      path: 'description',
+                      score: {
+                        boost: {
+                          value: 1
+                        }
+                      }
+                    }
+                  }
+                ]
+              : [])
+          ]
         }
       }
     },
