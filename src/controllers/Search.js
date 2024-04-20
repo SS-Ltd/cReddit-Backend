@@ -4,13 +4,14 @@ const CommunityModel = require('../models/Community')
 const { getSortingMethod, filterWithTime } = require('./Post')
 
 const searchUsers = async (req, res) => {
-  const { page, limit, query, safeSearch } = req.query
-
+  const { page, limit, query, safeSearch, autocomplete } = req.query
+  if (!query) return res.status(400).json({ error: 'Query is required' })
   const option = {
     query,
     page: page ? parseInt(page) : 1,
     limit: limit ? parseInt(limit) : 10,
-    safeSearch: safeSearch === 'true'
+    safeSearch: safeSearch === 'true',
+    autocomplete: autocomplete === 'true'
   }
 
   const users = await UserModel.searchUsers(option)
@@ -20,7 +21,7 @@ const searchUsers = async (req, res) => {
 
 const searchPosts = async (req, res) => {
   const { page, limit, query, safeSearch, community, user, sort, time } = req.query
-
+  if (!query) return res.status(400).json({ error: 'Query is required' })
   const option = {
     query,
     page: page ? parseInt(page) : 1,
@@ -39,7 +40,7 @@ const searchPosts = async (req, res) => {
 
 const searchComments = async (req, res) => {
   const { page, limit, query, safeSearch, community, user, sort } = req.query
-
+  if (!query) return res.status(400).json({ error: 'Query is required' })
   const option = {
     query,
     page: page ? parseInt(page) : 1,
@@ -57,7 +58,7 @@ const searchComments = async (req, res) => {
 
 const searchCommunities = async (req, res) => {
   const { page, limit, query, safeSearch } = req.query
-
+  if (!query) return res.status(400).json({ error: 'Query is required' })
   const option = {
     query,
     page: page ? parseInt(page) : 1,
