@@ -282,6 +282,9 @@ const UserSchema = new Schema({
   passwordChangedAt: {
     type: Date
   },
+  fcmToken: [{
+    type: String
+  }],
   isDeleted: {
     type: Boolean,
     default: false

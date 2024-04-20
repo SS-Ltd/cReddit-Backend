@@ -9,10 +9,16 @@ const NotificationSchema = new Schema({
   },
   type: {
     type: String,
-    enum: ['message', 'chatMessage', 'chatRequest', 'mention', 'comment', 'upvotedPost', 'upvotedComent', 'repliesComment', 'follow']
+    enum: ['message', 'chatMessage', 'chatRequest', 'mention', 'comment', 'upvotedPost', 'upvotedComent', 'repliesComment', 'follow', 'cakeDay']
   },
   resourceId: {
     type: Schema.Types.ObjectId
+  },
+  title: {
+    type: String
+  },
+  content: {
+    type: String
   },
   isRead: {
     type: Boolean,
