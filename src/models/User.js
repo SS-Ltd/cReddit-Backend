@@ -1057,15 +1057,36 @@ UserSchema.methods.getJoinedCommunities = async function (options) {
 }
 
 UserSchema.statics.searchUsers = async function (options) {
-  const { page, limit, query, safeSearch } = options
+  const { page, limit, query, safeSearch, autocomplete } = options
   return await this.aggregate([
     {
       $search: {
         index: 'userSearchIndex',
-        text: {
-          query: query,
-          path: 'username',
-          fuzzy: {}
+        compound: {
+          should: [
+            {
+              autocomplete: {
+                query: query,
+                path: 'username',
+                tokenOrder: 'sequential'
+              }
+            },
+            ...(!autocomplete
+              ? [
+                  {
+                    text: {
+                      query: query,
+                      path: 'about',
+                      score: {
+                        boost: {
+                          value: 1
+                        }
+                      }
+                    }
+                  }
+                ]
+              : [])
+          ]
         }
       }
     },
