@@ -89,7 +89,7 @@ const getCommunityView = async (req, res) => {
     if (req.decoded) {
       const user = await UserModel.findOne({ username: req.decoded.username })
 
-      if (user && user.preferences.showAdultContent !== community.isNSFW) {
+      if (user && (user.preferences.showAdultContent === false && community.isNSFW === true)) {
         return res.status(401).json({ message: 'Unable to view NSFW content' })
       }
 
@@ -141,10 +141,11 @@ const getTopCommunities = async (req, res) => {
         community.isJoined = false
       })
     }
+    const count = await CommunityModel.countDocuments(topCommunitiesQuery)
 
     res.status(200).json({
       topCommunities: topCommunities,
-      count: topCommunities.length
+      count
     })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error getting top communities' })
@@ -265,6 +266,9 @@ const getSortedCommunityPosts = async (req, res) => {
       sortMethod,
       time
     }
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.isModerator = (!user || user.moderatorInCommunities.length === 0 || !user.moderatorInCommunities.includes(community.name)) ? null : true
 
     const posts = await PostModel.byCommunity(subreddit, options, showAdultContent)
 
