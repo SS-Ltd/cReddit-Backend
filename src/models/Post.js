@@ -1506,4 +1506,360 @@ PostSchema.statics.getHomeFeed = async function (user, options) {
   }
 }
 
+PostSchema.statics.searchPosts = async function (options) {
+  const { page, limit, query, safeSearch, community, user, sortMethod, filter } = options
+  return await this.aggregate([
+    {
+      $search: {
+        index: 'postSearchIndex',
+        text: {
+          query: query,
+          path: ['title', 'content'],
+          fuzzy: {}
+        }
+      }
+    },
+    {
+      $match: {
+        isDeleted: false,
+        isRemoved: false,
+        type: { $ne: 'Comment' },
+        createdAt: filter,
+        ...(community ? { communityName: community } : {}),
+        ...(user ? { username: user } : {}),
+        ...(safeSearch ? { isNsfw: false } : {})
+      }
+    },
+    {
+      $sort: { score: { $meta: 'textScore' }, ...sortMethod }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { id: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
+        as: 'comments'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $addFields: {
+        commentCount: { $size: '$comments' },
+        profilePicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$user.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        _id: 1,
+        type: 1,
+        title: 1,
+        username: 1,
+        profilePicture: 1,
+        communityName: 1,
+        createdAt: 1,
+        netVote: 1,
+        commentCount: 1,
+        content: 1,
+        isNsfw: 1,
+        isSpoiler: 1
+      }
+    }
+  ])
+}
+
+PostSchema.statics.searchComments = async function (options) {
+  const { page, limit, query, safeSearch, community, user, sortMethod } = options
+  return await this.aggregate([
+    {
+      $search: {
+        index: 'postSearchIndex',
+        text: {
+          query: query,
+          path: 'content',
+          fuzzy: {}
+        }
+      }
+    },
+    {
+      $match: {
+        isDeleted: false,
+        isRemoved: false,
+        isImage: false,
+        type: { $eq: 'Comment' },
+        ...(community ? { communityName: community } : {}),
+        ...(user ? { username: user } : {}),
+        ...(safeSearch ? { isNsfw: false } : {})
+      }
+    },
+    {
+      $sort: { score: { $meta: 'textScore' }, ...sortMethod }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'postID',
+        foreignField: '_id',
+        as: 'post'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { id: '$post._id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              type: 'Comment',
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
+        as: 'comments'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'post.username',
+        foreignField: 'username',
+        as: 'postUser'
+      }
+    },
+    {
+      $addFields: {
+        postPicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$postUser.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        postUsername: { $arrayElemAt: ['$postUser.username', 0] },
+        commentPicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        commentCount: { $size: '$comments' },
+        postVotes: { $arrayElemAt: ['$post.netVote', 0] },
+        postCreatedAt: { $arrayElemAt: ['$post.createdAt', 0] },
+        postTitle: { $arrayElemAt: ['$post.title', 0] },
+        isPostSpoiler: { $arrayElemAt: ['$post.isSpoiler', 0] },
+        isPostNsfw: { $arrayElemAt: ['$post.isNsfw', 0] }
+      }
+    },
+    {
+      $project: {
+        _id: 1,
+        postID: 1,
+        postTitle: 1,
+        postUsername: 1,
+        postVotes: 1,
+        postPicture: 1,
+        postCreatedAt: 1,
+        isPostNsfw: 1,
+        isPostSpoiler: 1,
+        communityName: 1,
+        createdAt: 1,
+        username: 1,
+        netVote: 1,
+        commentCount: 1,
+        commentPicture: 1,
+        content: 1
+      }
+    }
+  ])
+}
+
+PostSchema.statics.searchHashtags = async function (options) {
+  const { page, limit, query, safeSearch, community, user, sortMethod } = options
+  return await this.aggregate([
+    {
+      $search: {
+        index: 'postSearchIndex',
+        autocomplete: {
+          query: '#' + query,
+          path: 'content',
+          tokenOrder: 'sequential'
+        }
+      }
+    },
+    {
+      $match: {
+        isDeleted: false,
+        isRemoved: false,
+        isImage: false,
+        ...(community ? { communityName: community } : {}),
+        ...(user ? { username: user } : {}),
+        ...(safeSearch ? { isNsfw: false } : {})
+      }
+    },
+    {
+      $sort: { score: { $meta: 'textScore' }, ...sortMethod }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        localField: 'postID',
+        foreignField: '_id',
+        as: 'post'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { id: '$post._id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              type: 'Comment',
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
+        as: 'comments'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'username',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'post.username',
+        foreignField: 'username',
+        as: 'postUser'
+      }
+    },
+    {
+      $addFields: {
+        postPicture: {
+          $cond: {
+            if: { $eq: ['$communityName', null] },
+            then: { $arrayElemAt: ['$postUser.profilePicture', 0] },
+            else: { $arrayElemAt: ['$community.icon', 0] }
+          }
+        },
+        postUsername: { $arrayElemAt: ['$postUser.username', 0] },
+        commentPicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        commentCount: { $size: '$comments' },
+        postVotes: { $arrayElemAt: ['$post.netVote', 0] },
+        postCreatedAt: { $arrayElemAt: ['$post.createdAt', 0] },
+        postTitle: {
+          $cond: {
+            if: { $eq: ['$type', 'Comment'] },
+            then: { $arrayElemAt: ['$post.title', 0] },
+            else: '$title'
+          }
+        },
+        isPostSpoiler: { $arrayElemAt: ['$post.isSpoiler', 0] },
+        isPostNsfw: { $arrayElemAt: ['$post.isNsfw', 0] }
+      }
+    },
+    {
+      $project: {
+        _id: 1,
+        type: 1,
+        postID: 1,
+        postTitle: 1,
+        postUsername: 1,
+        postVotes: 1,
+        postPicture: 1,
+        postCreatedAt: 1,
+        isPostNsfw: 1,
+        isPostSpoiler: 1,
+        communityName: 1,
+        createdAt: 1,
+        username: 1,
+        netVote: 1,
+        commentCount: 1,
+        commentPicture: 1,
+        content: 1
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('Post', PostSchema)

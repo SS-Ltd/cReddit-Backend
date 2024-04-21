@@ -652,5 +652,7 @@ module.exports = {
   getComments,
   getHomeFeed,
   reportPost,
-  votePost
+  votePost,
+  getSortingMethod,
+  filterWithTime
 }

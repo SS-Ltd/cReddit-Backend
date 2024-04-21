@@ -154,4 +154,71 @@ CommunitySchema.methods.getEditedPosts = async function (options) {
   ])
 }
 
+CommunitySchema.statics.searchCommunities = async function (options) {
+  const { page, limit, query, safeSearch, autocomplete } = options
+  return await this.aggregate([
+    {
+      $search: {
+        index: 'communitySearchIndex',
+        compound: {
+          should: [
+            {
+              autocomplete: {
+                query: query,
+                path: 'name',
+                tokenOrder: 'sequential',
+                score: {
+                  boost: {
+                    value: 5
+                  }
+                }
+              }
+            },
+            ...(!autocomplete
+              ? [
+                  {
+                    text: {
+                      query: query,
+                      path: 'description',
+                      score: {
+                        boost: {
+                          value: 1
+                        }
+                      }
+                    }
+                  }
+                ]
+              : [])
+          ]
+        }
+      }
+    },
+    {
+      $match: {
+        isDeleted: false,
+        ...(safeSearch ? { isNSFW: false } : {})
+      }
+    },
+    {
+      $sort: { score: { $meta: 'textScore' } }
+    },
+    {
+      $skip: (page - 1) * limit
+    },
+    {
+      $limit: limit
+    },
+    {
+      $project: {
+        _id: 0,
+        name: 1,
+        description: 1,
+        icon: 1,
+        isNSFW: 1,
+        members: 1
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('Community', CommunitySchema)
