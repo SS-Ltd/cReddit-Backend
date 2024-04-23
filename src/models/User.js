@@ -320,7 +320,7 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $lookup: {
         from: 'posts',
-        let: { postId: localField, searchType: searchType },
+        let: { postId: localField, blockedUsers: '$blockedUsers', searchType: searchType },
         pipeline: [
           {
             $match: {
@@ -352,6 +352,40 @@ UserSchema.methods.getPosts = async function (options) {
           },
           {
             $match: { typeMatched: true }
+          },
+          {
+            $addFields: {
+              isBlockedUser: { $in: ['$username', '$$blockedUsers'] }
+            }
+          },
+          {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
+            $addFields: {
+              isModerator: {
+                $cond: {
+                  if: { $ne: ['$community', []] },
+                  then: { $in: [username, { $arrayElemAt: ['$community.moderators', 0] }] },
+                  else: false
+                }
+              }
+            }
+          },
+          {
+            $match: {
+              $expr: {
+                $or: [
+                  { $eq: ['$isBlockedUser', false] },
+                  { $eq: ['$isModerator', true] }
+                ]
+              }
+            }
           }
         ],
         as: 'post'
@@ -363,15 +397,9 @@ UserSchema.methods.getPosts = async function (options) {
     {
       $project: {
         post: { $arrayElemAt: ['$post', 0] },
+        mutedCommunities: 1,
+        'preferences.showAdultContent': 1,
         savedAt: savedAt
-      }
-    },
-    {
-      $addFields: {
-        'post.pollOptions.isVoted': {
-          $in: [username, '$post.pollOptions.voters']
-        }
-
       }
     },
     {
@@ -382,6 +410,40 @@ UserSchema.methods.getPosts = async function (options) {
     },
     {
       $limit: limit
+    },
+    {
+      $match: {
+        $expr: {
+          $and: [
+            {
+              $cond: {
+                if: { $eq: ['$preferences.showAdultContent', false] },
+                then: { $eq: ['$post.isNsfw', false] },
+                else: true
+              }
+            },
+            {
+              $cond: {
+                if: { $eq: [{ $type: '$mutedCommunities' }, 'missing'] }, // Check if mutedCommunities is missing
+                then: true, // Provide a default value or handle missing field gracefully
+                else: {
+                  $not: {
+                    $in: ['$post.communityName', '$mutedCommunities']
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      $addFields: {
+        'post.pollOptions.isVoted': {
+          $in: [username, '$post.pollOptions.voters']
+        }
+
+      }
     },
     {
       $lookup: {
@@ -824,6 +886,11 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
+      $match: {
+        'community.isDeleted': false
+      }
+    },
+    {
       $lookup: {
         from: 'users',
         localField: 'posts.username',
@@ -976,6 +1043,11 @@ UserSchema.methods.getUserComments = async function (options) {
       }
     },
     {
+      $match: {
+        'community.isDeleted': false
+      }
+    },
+    {
       $lookup: {
         from: 'posts',
         let: { parentpost: '$posts.postID' },
@@ -999,6 +1071,7 @@ UserSchema.methods.getUserComments = async function (options) {
         isImage: '$posts.isImage',
         username: '$posts.username',
         communityName: '$posts.communityName',
+        parentPostUsername: { $arrayElemAt: ['$parentPost.username', 0] },
         profilePicture: { $ifNull: [{ $arrayElemAt: ['$community.icon', 0] }, 0] },
         netVote: '$posts.netVote',
         isSpoiler: '$posts.isSpoiler',
@@ -1032,6 +1105,11 @@ UserSchema.methods.getJoinedCommunities = async function (options) {
     {
       $addFields: {
         communities: '$populatedCommunities'
+      }
+    },
+    {
+      $match: {
+        'populatedCommunities.isDeleted': false
       }
     },
     {

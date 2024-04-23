@@ -1,6 +1,7 @@
 const Post = require('../models/Post')
 const User = require('../models/User')
 const Community = require('../models/Community')
+const Report = require('../models/Report')
 const mongoose = require('mongoose')
 const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
@@ -88,7 +89,7 @@ const editPost = async (req, res) => {
     return res.status(400).json({ message: 'No content to update' })
   }
   try {
-    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -160,7 +161,7 @@ const hidePost = async (req, res) => {
     return res.status(400).json({ message: 'isHidden field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -203,7 +204,7 @@ const lockPost = async (req, res) => {
     return res.status(400).json({ message: 'isLocked field is required' })
   }
   try {
-    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!post) {
       return res.status(400).json({ message: 'Post is not found' })
     }
@@ -294,6 +295,12 @@ const getPost = async (req, res) => {
       })
     }
 
+    if (user && (post.communityName && !user.moderatorInCommunities.includes(post.communityName)) && (post.creatorBlockedUsers.includes(user.username) || user.blockedUsers.includes(post.username))) {
+      return res.status(404).json({
+        message: 'Post does not exist'
+      })
+    }
+
     if (post.isNsfw && (!user || !user.preferences.showAdultContent) && post.username !== user.username) {
       return res.status(401).json({
         message: 'Unable to view NSFW content'
@@ -325,9 +332,11 @@ const getPost = async (req, res) => {
     post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
     post.isJoined = user ? user.communities.includes(post.communityName) : false
     post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
+    post.isBlocked = user ? user.blockedUsers.includes(post.username) : false
 
     post.isNSFW = post.isNsfw
     delete post.isNsfw
+    delete post.creatorBlockedUsers
 
     if (post.type !== 'Poll') {
       delete post.pollOptions
@@ -410,6 +419,9 @@ const getComments = async (req, res) => {
     options.random = false
     options.page = page
     options.limit = limit
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.isModerator = (!user || user.moderatorInCommunities.length === 0 || !user.moderatorInCommunities.includes(communityName)) ? null : true
     if (sortChoice === 'best') {
       options.random = true
     }
@@ -420,6 +432,7 @@ const getComments = async (req, res) => {
       comment.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
       comment.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
       comment.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === comment._id.toString()) : false
+      comment.isBlocked = user ? user.blockedUsers.includes(comment.username) : false
     })
 
     if (user && !post.isNsfw) {
@@ -484,6 +497,9 @@ const getHomeFeed = async (req, res) => {
     options.page = page
     options.limit = limit
     options.time = time
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? [] : user.moderatorInCommunities
 
     const communities = (!user || user.communities.length === 0) ? null : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
@@ -539,7 +555,7 @@ const votePost = async (req, res) => {
       throw new Error('Invalid post id')
     }
 
-    const postToVote = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false})
+    const postToVote = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
     if (!postToVote) {
       throw new Error('Post does not exist')
     }
@@ -576,6 +592,55 @@ const votePost = async (req, res) => {
   }
 }
 
+const reportPost = async (req, res) => {
+  try {
+    const postId = req.params.postId
+    const communityRule = req.body.communityRule
+    const username = req.decoded.username
+
+    const post = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (!post.communityName) {
+      return res.status(400).json({ message: 'Post does not belong to a community' })
+    }
+
+    const community = await Community.findOne({ name: post.communityName, isDeleted: false })
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
+
+    const isComment = post.type === 'Comment'
+
+    const ruleExits = community.rules.some(rule => (rule.text === communityRule && !isComment && rule.appliesTo !== 'Comments only') || (rule.text === communityRule && isComment && rule.appliesTo !== 'Posts only'))
+    if (!ruleExits) {
+      return res.status(400).json({ message: 'Community rule does not apply' })
+    }
+
+    if (post.username === username) {
+      return res.status(400).json({ message: 'You cannot report your own post' })
+    }
+
+    const existingReport = await Report.findOne({ user: username, post: postId, reason: communityRule, isDeleted: false })
+    if (!existingReport) {
+      const report = new Report({
+        user: username,
+        post: postId,
+        type: post.type,
+        reason: communityRule,
+        isDeleted: false
+      })
+      await report.save()
+    }
+
+    const message = 'Report Submitted\nThanks for your report and for looking out for yourself and your fellow redditors. Your reporting helps make Reddit a better, safer, and more welcoming place for everyone; and it means a lot to us. '
+    return res.status(200).json({ message })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error reporting post' })
+  }
+}
 module.exports = {
   getPost,
   createPost,
@@ -586,6 +651,7 @@ module.exports = {
   lockPost,
   getComments,
   getHomeFeed,
+  reportPost,
   votePost,
   getSortingMethod,
   filterWithTime

@@ -18,12 +18,11 @@ const reportSchema = new Schema({
   },
   type: {
     type: String,
-    enum: ['post', 'message', 'comment'],
+    enum: ['Post', 'Images & Video', 'Link', 'Poll', 'Comment', 'message'],
     required: true
   },
   reason: {
     type: String,
-    enum: ['spam', 'inappropriate', 'hate speech', 'violence', 'other'],
     required: true
   },
   isDeleted: {

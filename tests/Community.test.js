@@ -96,7 +96,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -193,7 +195,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -283,7 +287,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -374,7 +380,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -463,7 +471,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -546,7 +556,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [{ postId: 'post2' }],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const posts = [
@@ -629,7 +641,9 @@ describe('getSortedCommunityPosts', () => {
       hiddenPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
@@ -670,12 +684,18 @@ describe('getTopCommunities', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
+
+    CommunityModel.select = jest.fn().mockResolvedValue([{ communityName: 'community1' }, { communityName: 'community2' }])
+    CommunityModel.countDocuments = jest.fn().mockResolvedValue(2)
+
     await getTopCommunities(req, res)
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({
-      topCommunities: ['community1', 'community2'],
-      count: 2
-    })
+    expect(res.json).toHaveBeenCalledWith(
+      {
+        topCommunities: ['community1', 'community2'],
+        count: 2
+      }
+    )
   })
 
   // Returns an error if there is an issue with the database connection

@@ -61,7 +61,8 @@ describe('getComment', () => {
       preferences: {
         showAdultContent: false
       },
-      moderatorInCommunities: []
+      moderatorInCommunities: [],
+      blockedUsers: []
     }
 
     const history = {
@@ -87,7 +88,8 @@ describe('getComment', () => {
       isSaved: false,
       profilePicture: 'profilePictureUrl',
       postID: '8208ebbb65d8488cfcc0a686',
-      isModerator: false
+      isModerator: false,
+      isBlocked: false
     })
   })
 
@@ -197,11 +199,14 @@ describe('getComment', () => {
 
     const comment = {
       _id: '2972dbbf638edddc2eea00ab',
-      postID: '8208ebbb65d8488cfcc0a686'
+      postID: '8208ebbb65d8488cfcc0a686',
+      communityName: 'testCommunity',
+      creatorBlockedUsers: []
     }
 
     const post = {
-      isNsfw: true
+      isNsfw: true,
+      username: 'testUser'
     }
 
     const user = {
@@ -210,7 +215,9 @@ describe('getComment', () => {
       savedPosts: [],
       preferences: {
         showAdultContent: false
-      }
+      },
+      blockedUsers: [],
+      moderatorInCommunities: []
     }
 
     PostModel.getComment.mockResolvedValue([comment])
