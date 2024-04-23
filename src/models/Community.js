@@ -155,7 +155,7 @@ CommunitySchema.methods.getEditedPosts = async function (options) {
 }
 
 CommunitySchema.statics.searchCommunities = async function (options) {
-  const { page, limit, query, safeSearch, autocomplete } = options
+  const { page, limit, query, safeSearch, autocomplete, username } = options
   return await this.aggregate([
     {
       $search: {
@@ -209,13 +209,39 @@ CommunitySchema.statics.searchCommunities = async function (options) {
       $limit: limit
     },
     {
+      $lookup: {
+        from: 'users',
+        let: { community_name: '$name' },
+        pipeline: [
+          {
+            $match: {
+              username: username,
+              isDeleted: false,
+              $expr: {
+                $in: ['$$community_name', '$communities']
+              }
+            }
+          }
+        ],
+        as: 'joinedCommunities'
+      }
+    },
+    {
+      $addFields: {
+        isMember: {
+          $cond: [{ $gt: [{ $size: '$joinedCommunities' }, 0] }, true, false]
+        }
+      }
+    },
+    {
       $project: {
         _id: 0,
         name: 1,
         description: 1,
         icon: 1,
         isNSFW: 1,
-        members: 1
+        members: 1,
+        isMember: 1
       }
     }
   ])
