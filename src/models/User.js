@@ -1135,7 +1135,7 @@ UserSchema.methods.getJoinedCommunities = async function (options) {
 }
 
 UserSchema.statics.searchUsers = async function (options) {
-  const { page, limit, query, safeSearch, autocomplete } = options
+  const { page, limit, query, safeSearch, autocomplete, username } = options
   return await this.aggregate([
     {
       $search: {
@@ -1189,12 +1189,38 @@ UserSchema.statics.searchUsers = async function (options) {
       $limit: limit
     },
     {
+      $lookup: {
+        from: 'users',
+        let: { user: '$username' },
+        pipeline: [
+          {
+            $match: {
+              username: username,
+              isDeleted: false,
+              $expr: {
+                $in: ['$$user', '$follows']
+              }
+            }
+          }
+        ],
+        as: 'following'
+      }
+    },
+    {
+      $addFields: {
+        isFollowed: {
+          $cond: [{ $gt: [{ $size: '$following' }, 0] }, true, false]
+        }
+      }
+    },
+    {
       $project: {
         _id: 0,
         username: 1,
         about: 1,
         profilePicture: 1,
-        isNSFW: 1
+        isNSFW: 1,
+        isFollowed: 1
       }
     }
   ])

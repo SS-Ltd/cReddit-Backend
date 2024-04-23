@@ -11,7 +11,8 @@ const searchUsers = async (req, res) => {
     page: page ? parseInt(page) : 1,
     limit: limit ? parseInt(limit) : 10,
     safeSearch: safeSearch === 'true',
-    autocomplete: autocomplete === 'true'
+    autocomplete: autocomplete === 'true',
+    username: req.decoded?.username || null
   }
 
   const users = await UserModel.searchUsers(option)
@@ -64,7 +65,8 @@ const searchCommunities = async (req, res) => {
     page: page ? parseInt(page) : 1,
     limit: limit ? parseInt(limit) : 10,
     safeSearch: safeSearch === 'true',
-    autocomplete: autocomplete === 'true'
+    autocomplete: autocomplete === 'true',
+    username: req.decoded?.username || null
   }
 
   const communities = await CommunityModel.searchCommunities(option)
