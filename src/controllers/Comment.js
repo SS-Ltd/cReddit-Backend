@@ -34,6 +34,13 @@ const createComment = async (req, res) => {
       throw new Error('Cannot comment on a non-existing post')
     }
 
+    post.followers.push(req.decoded.username)
+    const commenter = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    commenter.followedPosts.push(comment.postId)
+
+    await post.save()
+    await commenter.save()
+
     const postOwner = await UserModel.findOne({ username: post.username, isDeleted: false })
 
     if (comment.files.length) {
@@ -61,9 +68,16 @@ const createComment = async (req, res) => {
 
     if (postOwner) {
       if (postOwner.preferences.commentsNotifs) {
-        await sendNotification(post.username, 'comment', newComment, req.decoded.username)
+        sendNotification(post.username, 'comment', newComment, req.decoded.username)
       }
     }
+
+    post.followers.forEach(async follower => {
+      const followerUser = await UserModel.findOne({ username: follower, isDeleted: false })
+      if (followerUser.preferences.postNotifs) {
+        sendNotification(follower, 'comment', newComment, req.decoded.username)
+      }
+    })
 
     res.status(201).json({
       message: 'Comment created successfully',
