@@ -6,6 +6,7 @@ const mongoose = require('mongoose')
 const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
 const HistoryModel = require('../models/History')
+const { sendNotification } = require('../utils/Notification')
 const ObjectId = require('mongoose').Types.ObjectId
 
 const createPost = async (req, res) => {
@@ -564,6 +565,9 @@ const votePost = async (req, res) => {
 
     if (req.type === 'upvote') {
       PostUtils.upvotePost(postToVote, user)
+      const postOwner = await User.findOne({ username: postToVote.username })
+      if (postOwner && postOwner.preferences.postsUpvotesNotifs) 
+        sendNotification(postToVote.username, 'upvotedPost', postToVote, user.username)
     } else if (req.type === 'downvote') {
       PostUtils.downvotePost(postToVote, user)
     } else if (req.type === 'votePoll') {
