@@ -33,6 +33,10 @@ const createComment = async (req, res) => {
       throw new Error('Cannot comment on a non-existing post')
     }
 
+    if (post.isLocked) {
+      throw new Error('Cannot comment on a locked post')
+    }
+
     if (comment.files.length) {
       const urls = await MediaUtils.uploadImages(comment.files)
       comment.content = urls[0]
