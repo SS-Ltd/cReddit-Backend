@@ -10,7 +10,6 @@ const { sendNotification } = require('../utils/Notification')
 const { faker } = require('@faker-js/faker')
 const dotenv = require('dotenv')
 
-
 dotenv.config()
 
 const getUser = async (req, res) => {
@@ -95,7 +94,7 @@ const follow = async (req, res) => {
     await user.save()
     await userFollowed.save()
 
-    sendNotification(userFollowed.username, 'follow', user.username)
+    sendNotification(userFollowed.username, 'follow', user, user.username)
 
     res.status(200).json({
       message: 'User followed'

@@ -66,20 +66,25 @@ const notificationTemplate = {
   }
 }
 
-const sendNotification = async (username, type, resource) => {
+const sendNotification = async (username, type, resource, notificationFrom) => {
   const user = await UserModel.findOne({ username: username })
   const fcmToken = user.fcmToken
   // if (!fcmToken) {
   //  return
   // }
-  const messageStr = notificationTemplate[type](username, resource)
-  const follower = await UserModel.findOne({ username: resource })
+  let messageStr = {}
+  if (type === 'cakeDay') {
+    messageStr = notificationTemplate[type](username, (resource.age))
+  } else {
+    messageStr = notificationTemplate[type](username, (resource.username || resource.communityName || resource.age))
+  }
 
   const notification = new NotificationModel({
     user: username,
+    notificationFrom: notificationFrom,
     type: type,
     message: messageStr,
-    resourceId: follower._id
+    resourceId: resource._id
   })
 
   await notification.save()

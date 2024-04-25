@@ -5,6 +5,7 @@ const userRouter = require('./routes/User')
 const postRouter = require('./routes/Post')
 const communityRouter = require('./routes/Community')
 const commentRouter = require('./routes/Comment')
+const notificationRouter = require('./routes/Notification')
 const dotenv = require('dotenv')
 const cors = require('cors')
 
@@ -28,6 +29,7 @@ app.use('/post', postRouter)
 app.use('/subreddit', communityRouter)
 app.use('/post', postRouter)
 app.use('/comment', commentRouter)
+app.use('/notification', notificationRouter)
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
