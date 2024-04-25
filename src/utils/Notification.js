@@ -12,10 +12,11 @@ admin.initializeApp({
 const notificationTemplate = {
   upvotedPost: (username, communityName) => {
     const message = {}
-    if (communityName) 
+    if (communityName) {
       message.title = `${username} upvoted your post in r/${communityName}`
-    else
+    } else {
       message.title = `${username} upvoted your post`
+    }
     message.body = 'Tap to view the post'
     return message
   },
@@ -77,7 +78,7 @@ const notificationTemplate = {
 const sendNotification = async (username, type, resource, notificationFrom) => { // username: reciever, notificationFrom: sender
   const user = await UserModel.findOne({ username: username })
   const fcmToken = user.fcmToken
-  console.log("fcmToken: ", fcmToken)
+  console.log('fcmToken: ', fcmToken)
   if (!fcmToken) {
     return
   }
