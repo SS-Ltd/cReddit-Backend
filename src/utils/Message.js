@@ -36,6 +36,10 @@ const sendMessage = async (sender, receiver, subject, text) => {
       throw new Error('Unable to send message to blocked user')
     }
 
+    if (!receiverUser.preferences.inboxMessages) {
+      throw new Error('User does not accept messages')
+    }
+
     const message = new MessageModel({
       from: senderUser.username,
       to: receiverUser.username,
