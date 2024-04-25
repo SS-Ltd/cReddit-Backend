@@ -27,6 +27,40 @@ const CommunitySchema = new Schema({
   description: {
     type: String
   },
+  settings: {
+    general: {
+      allowedPostTypes: {
+        type: String,
+        enum: ['Any', 'Links', 'Posts'],
+        default: 'any'
+      },
+      allowCrossPosting: {
+        type: Boolean,
+        default: true
+      },
+      allowSpoiler: {
+        type: Boolean,
+        default: true
+      },
+      allowImages: {
+        type: Boolean,
+        default: true
+      },
+      allowPolls: {
+        type: Boolean,
+        default: true
+      },
+      suggestedSort: {
+        type: String,
+        enum: ['best', 'old', 'top', 'new'],
+        default: 'best'
+      },
+      allowImageComments: {
+        type: Boolean,
+        default: true
+      }
+    }
+  },
   type: {
     type: String,
     enum: ['public', 'private', 'restricted'],
@@ -64,11 +98,6 @@ const CommunitySchema = new Schema({
   isDeleted: {
     type: Boolean,
     default: false
-  },
-  suggestedSort: {
-    type: String,
-    enum: ['best', 'old', 'top', 'new'],
-    default: 'best'
   },
   rules: [
     {
