@@ -69,16 +69,15 @@ const notificationTemplate = {
 const sendNotification = async (username, type, resource, notificationFrom) => {
   const user = await UserModel.findOne({ username: username })
   const fcmToken = user.fcmToken
-  // if (!fcmToken) {
-  //  return
-  // }
+  if (!fcmToken) {
+    return
+  }
   let messageStr = {}
   if (type === 'cakeDay') {
     messageStr = notificationTemplate[type](username, (resource.age))
   } else {
     messageStr = notificationTemplate[type](username, (resource.username || resource.communityName || resource.age))
   }
-
   const notification = new NotificationModel({
     user: username,
     notificationFrom: notificationFrom,
@@ -94,15 +93,24 @@ const sendNotification = async (username, type, resource, notificationFrom) => {
       title: messageStr.title,
       body: messageStr.body
     },
-    token: 'dVvEXUqK_01haA_2yW6TLn:APA91bHxpKhNObAYge7DNw8NJ_Q3apl9nWHM5vdV5x0F4NGfKySi4QfGBEDx0VVItGCZW6OFpfpSSLunRd7MSHucqfxHAKaTrSqiNx8VKRqOdg3cL887NcYjoqBhCx1gpjdqwJfBzQxi'
+    tokens: fcmToken
   }
 
-  getMessaging().send(message)
+  getMessaging().sendEachForMulticast(message)
     .then((response) => {
-      console.log('Successfully sent notification: ' + response)
+      if (response.failureCount > 0) {
+        const failedTokens = []
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            failedTokens.push(fcmToken[idx])
+          }
+        })
+        console.log('List of tokens that caused failures: ' + failedTokens);
+      }
+      console.log('Successfully sent message:', response)
     })
     .catch((error) => {
-      console.log('Error sending notification: ' + error)
+      console.log('Error sending message:', error)
     })
 }
 

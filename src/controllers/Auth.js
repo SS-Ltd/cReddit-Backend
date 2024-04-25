@@ -11,7 +11,7 @@ const validatePassword = (password) => {
 }
 
 const createUser = async (req, res) => {
-  const { username, password, email, gender } = req.body
+  const { username, password, email, gender, fcmToken } = req.body
   try {
     if (!username || !password || !email || !gender) {
       throw new Error('Username, password, email and gender are required')
@@ -23,9 +23,14 @@ const createUser = async (req, res) => {
     }
 
     if (existingUser && existingUser.isDeleted) {
+      const fcmTokens = existingUser.fcmToken
+      if (fcmToken && !fcmTokens.includes(fcmToken)) {
+        fcmTokens.push(fcmToken)
+      }
       await User.updateOne({ $or: [{ username }, { email }] }, {
         $set: {
-          isDeleted: false
+          isDeleted: false,
+          fcmToken: fcmTokens
         }
       })
       return res.status(201).json({
@@ -59,13 +64,20 @@ const createUser = async (req, res) => {
 
     const { refreshToken } = generateTokens({ username }, res)
 
+    const fcmTokens = []
+
+    if (fcmToken && !fcmTokens.includes(fcmToken)) {
+      fcmTokens.push(fcmToken)
+    }
+
     const newUser = new User({
       username,
       displayName: username,
       email,
       password: hash,
       gender,
-      refreshToken
+      refreshToken,
+      fcmToken: fcmTokens
     })
 
     await newUser.save()
@@ -96,7 +108,8 @@ const deleteUser = async (req, res) => {
 
     await User.updateOne({ username }, {
       $set: {
-        isDeleted: true
+        isDeleted: true,
+        fcmToken: []
       }
     })
 
@@ -107,7 +120,7 @@ const deleteUser = async (req, res) => {
 }
 
 const login = async (req, res) => {
-  const { username, password } = req.body
+  const { username, password, fcmToken } = req.body
   try {
     if (!username || !password) {
       throw new Error('Username and password are required')
@@ -126,9 +139,15 @@ const login = async (req, res) => {
 
     const { refreshToken } = generateTokens({ username }, res)
 
+    const fcmTokens = user.fcmToken
+    if (fcmToken && !fcmTokens.includes(fcmToken)) {
+      fcmTokens.push(fcmToken)
+    }
+
     await User.updateOne({ username }, {
       $set: {
-        refreshToken
+        refreshToken,
+        fcmToken: fcmTokens
       }
     })
     res.status(200).json({
@@ -148,7 +167,7 @@ const login = async (req, res) => {
 }
 
 const logout = async (req, res) => {
-  const { username } = req.decoded
+  const { username, fcmToken } = req.decoded
   try {
     const user = await User.findOne({ username })
 
@@ -156,6 +175,9 @@ const logout = async (req, res) => {
       throw new Error('User not found')
     }
     user.refreshToken = ''
+    if (fcmToken) {
+      user.fcmToken = user.fcmToken.filter(token => token !== fcmToken)
+    }
     await user.save()
 
     res.cookie('accessToken', '', {
@@ -201,6 +223,7 @@ const loginGoogle = async (req, res) => {
   const username = faker.internet.userName()
   const email = req.decoded.email
   const gender = 'None'
+  const fcmToken = req.body.fcmToken
   try {
     if (!username || !email || !gender) {
       throw new Error('Username, email and gender are required')
@@ -208,10 +231,15 @@ const loginGoogle = async (req, res) => {
 
     const existingUser = await User.findOne({ 'preferences.google': req.decoded.id })
     if (existingUser && !existingUser.isDeleted) {
+      const fcmTokens = existingUser.fcmToken
+      if (fcmToken && !fcmTokens.includes(fcmToken)) {
+        fcmTokens.push(fcmToken)
+      }
       const { refreshToken } = generateTokens({ username: existingUser.username }, res)
       await User.updateOne({ username: existingUser.username }, {
         $set: {
-          refreshToken
+          refreshToken,
+          fcmToken: fcmTokens
         }
       })
       return res.status(200).json({
@@ -228,9 +256,14 @@ const loginGoogle = async (req, res) => {
     }
 
     if (existingUser && existingUser.isDeleted) {
+      const fcmTokens = existingUser.fcmToken
+      if (fcmToken && !fcmTokens.includes(fcmToken)) {
+        fcmTokens.push(fcmToken)
+      }
       await User.updateOne({ 'preferences.google': req.decoded.id }, {
         $set: {
-          isDeleted: false
+          isDeleted: false,
+          fcmToken: fcmTokens
         }
       })
       return res.status(201).json({
@@ -248,6 +281,10 @@ const loginGoogle = async (req, res) => {
 
     const { refreshToken } = generateTokens({ username }, res)
 
+    const fcmTokens = []
+    if (fcmToken) {
+      fcmTokens.push(fcmToken)
+    }
     const newUser = new User({
       username,
       displayName: username,
@@ -255,7 +292,8 @@ const loginGoogle = async (req, res) => {
       password: '',
       gender,
       'preferences.google': req.decoded.id,
-      refreshToken
+      refreshToken,
+      fcmToken: fcmTokens
     })
 
     await newUser.save()
