@@ -58,6 +58,11 @@ const notificationTemplate = {
     message.body = 'Tap to view the request'
     return message
   },
+  followedPost: () => {
+    const message = {}
+    message.title = 'New activity on a post you follow'
+    message.body = 'Tap to view the post'
+  },
   cakeDay: (username, age) => {
     const message = {}
     message.title = `Happy Cake Day, u/${username}!`
@@ -66,7 +71,7 @@ const notificationTemplate = {
   }
 }
 
-const sendNotification = async (username, type, resource, notificationFrom) => { // username: receiver, notificationFrom: sender
+const sendNotification = async (username, type, resource, notificationFrom) => {
   const user = await UserModel.findOne({ username: username })
   const fcmToken = user.fcmToken
   if (!fcmToken) {
@@ -106,7 +111,7 @@ const sendNotification = async (username, type, resource, notificationFrom) => {
             failedTokens.push(fcmToken[idx])
           }
         })
-        console.log('List of tokens that caused failures: ' + failedTokens);
+        console.log('List of tokens that caused failures: ' + failedTokens)
       }
       console.log('Successfully sent message:', response)
     })

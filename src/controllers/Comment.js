@@ -75,7 +75,7 @@ const createComment = async (req, res) => {
     post.followers.forEach(async follower => {
       const followerUser = await UserModel.findOne({ username: follower, isDeleted: false })
       if (followerUser.preferences.postNotifs) {
-        sendNotification(follower, 'comment', newComment, req.decoded.username)
+        sendNotification(follower, 'followedPost', newComment, req.decoded.username)
       }
     })
 

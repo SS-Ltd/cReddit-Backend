@@ -14,7 +14,7 @@ const NotificationSchema = new Schema({
   },
   type: {
     type: String,
-    enum: ['message', 'chatMessage', 'chatRequest', 'mention', 'comment', 'upvotedPost', 'upvotedComent', 'repliesComment', 'follow', 'cakeDay']
+    enum: ['message', 'chatMessage', 'chatRequest', 'mention', 'comment', 'upvotedPost', 'upvotedComent', 'repliesComment', 'follow', 'cakeDay', 'followedPost']
   },
   resourceId: {
     type: Schema.Types.ObjectId
