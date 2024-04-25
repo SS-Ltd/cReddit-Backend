@@ -1,6 +1,7 @@
 const { faker } = require('@faker-js/faker')
 const CommunityModel = require('../models/Community')
 const { usernames, communityNames, communityIDs } = require('./SeedUtils')
+const { all } = require('axios')
 
 const communities = []
 
@@ -31,7 +32,17 @@ function createRandomCommunities () {
       bannedUsers,
       mutedUsers,
       isDeleted: faker.datatype.boolean(0.05),
-      suggestedSort: faker.helpers.arrayElement(['best', 'old', 'top', 'new']),
+      settings: {
+        general: {
+          allowedPostTypes: faker.helpers.arrayElement(['Any', 'Links', 'Posts']),
+          allowCrossPosting: faker.datatype.boolean(0.9),
+          allowSpoiler: faker.datatype.boolean(0.9),
+          allowImages: faker.datatype.boolean(0.9),
+          allowPolls: faker.datatype.boolean(0.9),
+          suggestedSort: faker.helpers.arrayElement(['best', 'old', 'top', 'new']),
+          allowImageComments: faker.datatype.boolean(0.9)
+        }
+      },
       rules: {
         text: faker.lorem.sentence(),
         appliesTo: faker.helpers.arrayElement(['Posts & comments', 'Posts only', 'Comments only'])
