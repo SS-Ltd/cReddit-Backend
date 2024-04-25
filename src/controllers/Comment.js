@@ -3,6 +3,7 @@ const PostModel = require('../models/Post')
 const UserModel = require('../models/User')
 const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
+const { sendNotification } = require('../utils/Notification')
 const HistoryModel = require('../models/History')
 const ObjectId = require('mongoose').Types.ObjectId
 
@@ -33,6 +34,8 @@ const createComment = async (req, res) => {
       throw new Error('Cannot comment on a non-existing post')
     }
 
+    const postOwner = await UserModel.findOne({ username: post.username, isDeleted: false })
+
     if (comment.files.length) {
       const urls = await MediaUtils.uploadImages(comment.files)
       comment.content = urls[0]
@@ -55,6 +58,13 @@ const createComment = async (req, res) => {
 
     await newComment.save()
     await user.save()
+
+    if (postOwner) {
+      if (postOwner.preferences.commentsNotifs) {
+        await sendNotification(post.username, 'comment', newComment, req.decoded.username)
+      }
+    }
+
     res.status(201).json({
       message: 'Comment created successfully',
       commentId: newComment._id

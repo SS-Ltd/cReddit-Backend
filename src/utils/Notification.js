@@ -24,37 +24,37 @@ const notificationTemplate = {
   },
   comment: (username, communityName) => {
     const message = {}
-    message.title = `New comment on your post in ${communityName}`
+    message.title = communityName ? `New comment on your post in r/${communityName}` : 'New comment on your post'
     message.body = `u/${username} commented on your post`
     return message
   },
   mention: (username) => {
     const message = {}
-    message.title = `You were mentioned by ${username}`
+    message.title = `You were mentioned by u/${username}`
     message.body = 'Tap to view the mention'
     return message
   },
   follow: (username) => {
     const message = {}
-    message.title = `${username} started following you`
+    message.title = `u/${username} started following you`
     message.body = 'Tap to view their profile'
     return message
   },
   message: (username) => {
     const message = {}
-    message.title = `New message from ${username}`
+    message.title = `New message from u/${username}`
     message.body = 'Tap to view the message'
     return message
   },
   chatMessage: (username) => {
     const message = {}
-    message.title = `New chat message from ${username}`
+    message.title = `New chat message from u/${username}`
     message.body = 'Tap to view the chat message'
     return message
   },
   chatRequest: (username) => {
     const message = {}
-    message.title = `${username} sent you a chat request`
+    message.title = `u/${username} sent you a chat request`
     message.body = 'Tap to view the request'
     return message
   },
@@ -66,7 +66,7 @@ const notificationTemplate = {
   }
 }
 
-const sendNotification = async (username, type, resource, notificationFrom) => {
+const sendNotification = async (username, type, resource, notificationFrom) => { // username: receiver, notificationFrom: sender
   const user = await UserModel.findOne({ username: username })
   const fcmToken = user.fcmToken
   if (!fcmToken) {
@@ -76,8 +76,9 @@ const sendNotification = async (username, type, resource, notificationFrom) => {
   if (type === 'cakeDay') {
     messageStr = notificationTemplate[type](username, (resource.age))
   } else {
-    messageStr = notificationTemplate[type](username, (resource.username || resource.communityName || resource.age))
+    messageStr = notificationTemplate[type](notificationFrom, (resource.username || resource.communityName || resource.age))
   }
+
   const notification = new NotificationModel({
     user: username,
     notificationFrom: notificationFrom,
