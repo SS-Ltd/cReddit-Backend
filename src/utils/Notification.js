@@ -31,9 +31,12 @@ const notificationTemplate = {
     message.body = `u/${username} commented on your post`
     return message
   },
-  mention: (username) => {
+  mention: (username, communityName) => {
     const message = {}
-    message.title = `You were mentioned by ${username}`
+    if (communityName)
+      message.title = `u/${username} mentioned you in r/${communityName}`
+    else
+      message.title = `u/${username} mentioned you`
     message.body = 'Tap to view the mention'
     return message
   },
@@ -80,7 +83,7 @@ const sendNotification = async (username, type, resource, notificationFrom) => {
   let messageStr = {}
   if (type === 'cakeDay') {
     messageStr = notificationTemplate[type](username, (resource.age))
-  } else if (type === 'upvotedPost') {
+  } else if (type === 'upvotedPost' || type === 'mention') {
     messageStr = notificationTemplate[type](notificationFrom, resource.communityName)
   } else {
     messageStr = notificationTemplate[type](notificationFrom, (resource.username || resource.communityName || resource.age))

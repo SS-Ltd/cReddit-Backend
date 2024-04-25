@@ -46,6 +46,15 @@ const createPost = async (req, res) => {
     const user = await User.findOne({ username: post.username })
     PostUtils.upvotePost(createdPost, user)
 
+    const mentionRegex = /u\/(\w+)/g
+    let match
+    while ((match = mentionRegex.exec(createdPost.content)) !== null) {
+      const mentionedUsername = match[1]
+      const mentionedUser = await User.findOne({ username: mentionedUsername })
+      if (mentionedUser && mentionedUser.preferences.mentionsNotifs)
+        sendNotification(mentionedUsername, 'mention', createdPost, user.username)
+    }
+
     await createdPost.save()
     await user.save()
     res.status(201).json({
