@@ -13,9 +13,9 @@ const notificationTemplate = {
   upvotedPost: (username, communityName) => {
     const message = {}
     if (communityName) {
-      message.title = `${username} upvoted your post in r/${communityName}`
+      message.title = `u/${username} upvoted your post in r/${communityName}`
     } else {
-      message.title = `${username} upvoted your post`
+      message.title = `u/${username} upvoted your post`
     }
     message.body = 'Tap to view the post'
     return message
@@ -32,13 +32,18 @@ const notificationTemplate = {
     message.body = `u/${username} commented on your post`
     return message
   },
-  mention: (username, communityName) => {
+  mention: (username, resource, postTitle) => {
     const message = {}
-    if (communityName)
-      message.title = `u/${username} mentioned you in r/${communityName}`
-    else
-      message.title = `u/${username} mentioned you`
-    message.body = 'Tap to view the mention'
+    if(resource.type === 'Post') {
+      if (resource.communityName)
+        message.title = `u/${username} mentioned you in r/${resource.communityName}`
+      else
+        message.title = `u/${username} mentioned you`
+      message.body = 'Tap to view the mention'
+    } else if (resource.type === 'Comment') {
+      message.title = `u/${username} commented in "${postTitle}"`
+      message.body = `${resource.content}`
+    }
     return message
   },
   follow: (username) => {
@@ -78,20 +83,23 @@ const notificationTemplate = {
   }
 }
 
-const sendNotification = async (username, type, resource, notificationFrom) => { // username: reciever, notificationFrom: sender
+const sendNotification = async (username, type, resource, notificationFrom, postTitle = null) => { // username: reciever, notificationFrom: sender, postTitle: will be used in case of mention in a comment
   const user = await UserModel.findOne({ username: username })
   const fcmToken = user.fcmToken
   console.log('fcmToken: ', fcmToken)
-  if (!fcmToken) {
+  if (fcmToken.length === 0) {
     return
   }
 
   let messageStr = {}
   if (type === 'cakeDay') {
     messageStr = notificationTemplate[type](username, (resource.age))
-  } else if (type === 'upvotedPost' || type === 'mention') {
-    messageStr = notificationTemplate[type](notificationFrom, resource.communityName)
-  } else {
+  } else if (type === 'upvotedPost' || type === 'comment') {
+    messageStr = notificationTemplate[type](notificationFrom, resource.communityName, postTitle)
+  } else if (type === 'mention') {
+    messageStr = notificationTemplate[type](notificationFrom, resource, postTitle)
+  } 
+  else {
     messageStr = notificationTemplate[type](notificationFrom, (resource.username || resource.communityName || resource.age))
   }
 
@@ -105,30 +113,35 @@ const sendNotification = async (username, type, resource, notificationFrom) => {
 
   await notification.save()
 
+  console.log('messageStr: ', messageStr)
   const message = {
     notification: {
       title: messageStr.title,
       body: messageStr.body
     },
+    // data: {
+    //     click_action: `https://www.google.com`
+    // },
     tokens: fcmToken
   }
 
   getMessaging().sendEachForMulticast(message)
-    .then((response) => {
-      if (response.failureCount > 0) {
-        const failedTokens = []
-        response.responses.forEach((resp, idx) => {
-          if (!resp.success) {
-            failedTokens.push(fcmToken[idx])
-          }
-        })
-        console.log('List of tokens that caused failures: ' + failedTokens)
-      }
-      console.log('Successfully sent message:', response)
-    })
-    .catch((error) => {
-      console.log('Error sending message:', error)
-    })
+  .then((response) => {
+    if (response.failureCount > 0) {
+      const failedTokens = []
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          console.error('Failure sending notification to', fcmToken[idx], resp.error)
+          failedTokens.push(fcmToken[idx])
+        }
+      })
+      console.log('List of tokens that caused failures: ' + failedTokens)
+    }
+    console.log('Successfully sent message:', response)
+  })
+  .catch((error) => {
+    console.error('Error sending message:', error)
+  })
 }
 
 exports.sendNotification = sendNotification

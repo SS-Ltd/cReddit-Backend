@@ -68,16 +68,25 @@ const createComment = async (req, res) => {
 
     if (postOwner) {
       if (postOwner.preferences.commentsNotifs) {
-        sendNotification(post.username, 'comment', newComment, req.decoded.username)
+         sendNotification(post.username, 'comment', newComment, req.decoded.username)
       }
     }
 
     post.followers.forEach(async follower => {
       const followerUser = await UserModel.findOne({ username: follower, isDeleted: false })
-      if (followerUser.preferences.postNotifs) {
+      if (followerUser && followerUser.preferences.postNotifs) {
         sendNotification(follower, 'followedPost', newComment, req.decoded.username)
       }
     })
+    
+    const mentionRegex = /u\/(\w+)/g
+    let match
+    while ((match = mentionRegex.exec(newComment.content)) !== null) {
+      const mentionedUsername = match[1]
+      const mentionedUser = await UserModel.findOne({ username: mentionedUsername, isDeleted: false })
+      if (mentionedUser && mentionedUser.username != postOwner.username && mentionedUser.preferences.mentionsNotifs)
+        sendNotification(mentionedUsername, 'mention', newComment, req.decoded.username, post.title)
+    }
 
     res.status(201).json({
       message: 'Comment created successfully',
