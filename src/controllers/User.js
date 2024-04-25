@@ -516,13 +516,11 @@ const getUserView = async (req, res) => {
     }
     if (req.decoded) {
       const viewer = await UserModel.findOne({ username: req.decoded.username })
-      if (viewer && viewer.preferences.showAdultContent !== user.preferences.isNSFW) {
-        return res.status(401).json({ message: 'Unable to view NSFW content' })
-      }
 
       if (viewer && viewer.username !== user.username) {
         userData.isFollowed = viewer.follows.includes(user.username)
         userData.isBlocked = viewer.blockedUsers.includes(user.username)
+        userData.showAdultContent = viewer.preferences.showAdultContent
       }
     }
     res.status(200).json(userData)
