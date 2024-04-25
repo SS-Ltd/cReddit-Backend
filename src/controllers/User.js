@@ -93,8 +93,10 @@ const follow = async (req, res) => {
 
     await user.save()
     await userFollowed.save()
-
-    sendNotification(userFollowed.username, 'follow', user, user.username)
+    
+    if (userFollowed.preferences.newFollowerNotifs) {
+      sendNotification(userFollowed.username, 'follow', user, user.username)
+    }
 
     res.status(200).json({
       message: 'User followed'
