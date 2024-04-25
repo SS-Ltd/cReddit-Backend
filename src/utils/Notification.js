@@ -12,10 +12,11 @@ admin.initializeApp({
 const notificationTemplate = {
   upvotedPost: (username, communityName) => {
     const message = {}
-    if (communityName) 
+    if (communityName) {
       message.title = `${username} upvoted your post in r/${communityName}`
-    else
+    } else {
       message.title = `${username} upvoted your post`
+    }
     message.body = 'Tap to view the post'
     return message
   },
@@ -27,7 +28,7 @@ const notificationTemplate = {
   },
   comment: (username, communityName) => {
     const message = {}
-    message.title = `New comment on your post in ${communityName}`
+    message.title = communityName ? `New comment on your post in r/${communityName}` : 'New comment on your post'
     message.body = `u/${username} commented on your post`
     return message
   },
@@ -42,27 +43,32 @@ const notificationTemplate = {
   },
   follow: (username) => {
     const message = {}
-    message.title = `${username} started following you`
+    message.title = `u/${username} started following you`
     message.body = 'Tap to view their profile'
     return message
   },
   message: (username) => {
     const message = {}
-    message.title = `New message from ${username}`
+    message.title = `New message from u/${username}`
     message.body = 'Tap to view the message'
     return message
   },
   chatMessage: (username) => {
     const message = {}
-    message.title = `New chat message from ${username}`
+    message.title = `New chat message from u/${username}`
     message.body = 'Tap to view the chat message'
     return message
   },
   chatRequest: (username) => {
     const message = {}
-    message.title = `${username} sent you a chat request`
+    message.title = `u/${username} sent you a chat request`
     message.body = 'Tap to view the request'
     return message
+  },
+  followedPost: () => {
+    const message = {}
+    message.title = 'New activity on a post you follow'
+    message.body = 'Tap to view the post'
   },
   cakeDay: (username, age) => {
     const message = {}
@@ -75,7 +81,7 @@ const notificationTemplate = {
 const sendNotification = async (username, type, resource, notificationFrom) => { // username: reciever, notificationFrom: sender
   const user = await UserModel.findOne({ username: username })
   const fcmToken = user.fcmToken
-  console.log("fcmToken: ", fcmToken)
+  console.log('fcmToken: ', fcmToken)
   if (!fcmToken) {
     return
   }
@@ -116,7 +122,7 @@ const sendNotification = async (username, type, resource, notificationFrom) => {
             failedTokens.push(fcmToken[idx])
           }
         })
-        console.log('List of tokens that caused failures: ' + failedTokens);
+        console.log('List of tokens that caused failures: ' + failedTokens)
       }
       console.log('Successfully sent message:', response)
     })
