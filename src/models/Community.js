@@ -32,7 +32,7 @@ const CommunitySchema = new Schema({
       allowedPostTypes: {
         type: String,
         enum: ['Any', 'Links', 'Posts'],
-        default: 'any'
+        default: 'Any'
       },
       allowCrossPosting: {
         type: Boolean,
