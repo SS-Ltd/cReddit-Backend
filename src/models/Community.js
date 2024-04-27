@@ -74,27 +74,26 @@ const CommunitySchema = new Schema({
     type: Number,
     default: 1
   },
-  moderators: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ],
-  bannedUsers: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ],
-  mutedUsers: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ],
+  moderators: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  bannedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  mutedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  approvedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
   isDeleted: {
     type: Boolean,
     default: false
