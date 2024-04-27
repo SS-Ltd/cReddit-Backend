@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -797,6 +797,212 @@ describe('joinCommunity', () => {
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
+    })
+  })
+})
+
+describe('getReportedPosts', () => {
+  test('should return a list of reported posts when a valid subreddit is provided', async () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      query: {},
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'subreddit',
+      isDeleted: false
+    }
+
+    const posts = [
+      {
+        title: 'Post 1',
+        communityName: 'subreddit',
+        isDeleted: false,
+        isRemoved: false,
+        type: 'Post',
+        pollOptions: [],
+        expirationDate: null,
+        isNsfw: false
+      },
+      {
+        title: 'Comment 1',
+        communityName: 'subreddit',
+        isDeleted: false,
+        isRemoved: false,
+        pollOptions: [],
+        expirationDate: null,
+        type: 'Comment',
+        isNsfw: false
+      }
+    ]
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      upvotedPosts: [],
+      downvotedPosts: [],
+      savedPosts: [],
+      hiddenPosts: []
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getReportedPosts = jest.fn().mockResolvedValue(posts)
+
+    await getReportedPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(
+      [
+        {
+          title: 'Post 1',
+          communityName: 'subreddit',
+          isDeleted: false,
+          isRemoved: false,
+          isUpvoted: false,
+          isDownvoted: false,
+          isSaved: false,
+          isHidden: false,
+          type: 'Post',
+          isNSFW: false
+        },
+        {
+          title: 'Comment 1',
+          communityName: 'subreddit',
+          isDeleted: false,
+          isRemoved: false,
+          isUpvoted: false,
+          isDownvoted: false,
+          isSaved: false,
+          isHidden: false,
+          type: 'Comment',
+          isNSFW: false
+        }
+      ]
+    )
+  })
+
+  test('should return an empty list when there are no reported posts', async () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      query: {},
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'subreddit',
+      isDeleted: false
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      upvotedPosts: [],
+      downvotedPosts: [],
+      savedPosts: [],
+      hiddenPosts: []
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getReportedPosts = jest.fn().mockResolvedValue([])
+
+    await getReportedPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
+  })
+
+  test('should return 400 if subreddit is not provided', async () => {
+    const req = {
+      params: {},
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getReportedPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Subreddit is required'
+    })
+  })
+
+  test('should return a 404 error when the community is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'nonexistentCommunity'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getReportedPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
+    })
+  })
+
+  test('should return a 404 error if the user does not exist', async () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      query: {},
+      decoded: {
+        username: 'nonexistentuser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'subreddit',
+      isDeleted: false
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getReportedPosts(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
     })
   })
 })
