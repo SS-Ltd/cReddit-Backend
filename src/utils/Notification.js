@@ -22,7 +22,11 @@ const notificationTemplate = {
   },
   upvotedComment: (username, communityName) => {
     const message = {}
-    message.title = `${username} upvoted your comment in ${communityName}`
+    if (communityName) {
+      message.title = `u/${username} upvoted your comment in r/${communityName}`
+    } else {
+      message.title = `${username} upvoted your comment`
+    }
     message.body = 'Tap to view the comment'
     return message
   },
@@ -94,7 +98,7 @@ const sendNotification = async (username, type, resource, notificationFrom, post
   let messageStr = {}
   if (type === 'cakeDay') {
     messageStr = notificationTemplate[type](username, (resource.age))
-  } else if (type === 'upvotedPost' || type === 'comment') {
+  } else if (type === 'upvotedPost' || type === 'comment' || type === 'upvotedComment') {
     messageStr = notificationTemplate[type](notificationFrom, resource.communityName, postTitle)
   } else if (type === 'mention') {
     messageStr = notificationTemplate[type](notificationFrom, resource, postTitle)

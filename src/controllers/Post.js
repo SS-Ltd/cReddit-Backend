@@ -576,7 +576,11 @@ const votePost = async (req, res) => {
       PostUtils.upvotePost(postToVote, user)
       const postOwner = await User.findOne({ username: postToVote.username })
       if (postOwner && postOwner.preferences.postsUpvotesNotifs) 
-        sendNotification(postToVote.username, 'upvotedPost', postToVote, user.username)
+        if (postToVote.type !== 'Comment' )
+          sendNotification(postToVote.username, 'upvotedPost', postToVote, user.username)
+        else
+          console.log('upvoting comment')
+          sendNotification(postToVote.username, 'upvotedComment', postToVote, user.username)
     } else if (req.type === 'downvote') {
       PostUtils.downvotePost(postToVote, user)
     } else if (req.type === 'votePoll') {
