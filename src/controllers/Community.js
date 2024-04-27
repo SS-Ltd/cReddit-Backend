@@ -204,6 +204,10 @@ const getSortingMethod = (sort) => {
       return { views: -1, createdAt: -1, _id: -1 }
     case 'rising':
       return { mostRecentUpvote: -1, _id: -1 }
+    case 'old':
+      return { createdAt: 1, _id: 1 }
+    case 'reports':
+      return { 'reports.length': -1 }
     default:
       return { createdAt: -1, _id: -1 }
   }
@@ -409,6 +413,79 @@ const muteCommunity = async (req, res) => {
   }
 }
 
+const getReportedPosts = async (req, res) => {
+  try {
+    const subreddit = req.params.communityName
+
+    if (!subreddit) {
+      return res.status(400).json({
+        message: 'Subreddit is required'
+      })
+    }
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User does not exist'
+      })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = req.query.sort ? req.query.sort : 'new'
+    const type = req.query.type ? req.query.type : 'all'
+
+    const sortMethod = getSortingMethod(sort)
+
+    const opotions = {
+      page: page,
+      limit,
+      sortMethod,
+      type
+    }
+
+    const posts = await PostModel.getReportedPosts(subreddit, opotions)
+
+    posts.forEach(post => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
+
+      post.isNSFW = post.isNsfw
+      delete post.isNsfw
+
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    })
+
+    return res.status(200).json(posts)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting reported posts for the community'
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
@@ -418,5 +495,6 @@ module.exports = {
   getSortedCommunityPosts,
   joinCommunity,
   leaveCommunity,
-  muteCommunity
+  muteCommunity,
+  getReportedPosts
 }

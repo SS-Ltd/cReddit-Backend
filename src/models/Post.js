@@ -1506,6 +1506,236 @@ PostSchema.statics.getHomeFeed = async function (user, options) {
   }
 }
 
+PostSchema.statics.getReportedPosts = async function (communityName, options) {
+  const { page, limit, sortMethod, type } = options
+  return await this.aggregate([
+    {
+      $match: {
+        communityName: communityName,
+        isDeleted: false,
+        isRemoved: false,
+        isApproved: false,
+        $expr: {
+          $cond: {
+            if: { $eq: [type, 'Comment'] },
+            then: { $eq: ['$type', 'Comment'] },
+            else: {
+              $cond: {
+                if: { $eq: [type, 'Post'] },
+                then: { $ne: ['$type', 'Comment'] },
+                else: true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      $lookup: {
+        from: 'reports',
+        let: { postId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$post', '$$postId'] },
+              isDeleted: false
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $addFields: {
+              username: { $arrayElemAt: ['$user.username', 0] }
+            }
+          },
+          {
+            $project: {
+              user: 0,
+              __v: 0,
+              isDeleted: 0,
+              type: 0,
+              message: 0,
+              post: 0
+            }
+          }
+        ],
+        as: 'reports'
+      }
+    },
+    {
+      $match: {
+        $expr: {
+          $cond: {
+            if: { $gt: [{ $size: '$reports' }, 0] },
+            then: true,
+            else: false
+          }
+        }
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { childId: { $ifNull: ['$child', null] } },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: [
+                  '$_id',
+                  '$$childId'
+                ]
+              }
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'username',
+              foreignField: 'username',
+              as: 'user'
+            }
+          },
+          {
+            $lookup: {
+              from: 'communities',
+              localField: 'communityName',
+              foreignField: 'name',
+              as: 'community'
+            }
+          },
+          {
+            $lookup: {
+              from: 'posts',
+              let: { id: '$_id' },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $eq: ['$postID', '$$id']
+                    },
+                    isDeleted: false,
+                    isRemoved: false
+                  }
+                }
+              ],
+              as: 'comments'
+            }
+          },
+          {
+            $addFields: {
+              profilePicture: {
+                $cond: {
+                  if: { $eq: ['$communityName', null] },
+                  then: { $arrayElemAt: ['$user.profilePicture', 0] },
+                  else: { $arrayElemAt: ['$community.icon', 0] }
+                }
+              },
+              commentCount: { $size: '$comments' }
+            }
+          },
+          {
+            $project: {
+              community: 0,
+              user: 0,
+              __v: 0,
+              followers: 0,
+              upvote: 0,
+              downvote: 0,
+              views: 0,
+              isImage: 0,
+              isDeleted: 0,
+              mostRecentUpvote: 0,
+              actions: 0,
+              isRemoved: 0,
+              comments: 0
+            }
+          }
+        ],
+        as: 'child'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { id: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$postID', '$$id']
+              },
+              isDeleted: false,
+              isRemoved: false
+            }
+          }
+        ],
+        as: 'comments'
+      }
+    },
+    {
+      $lookup: {
+        from: 'posts',
+        let: { postId: { $ifNull: ['$postID', null] } },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', '$$postId']
+              }
+            }
+          },
+          {
+            $project: {
+              title: 1
+            }
+          }
+        ],
+        as: 'postTitle'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'communityName',
+        foreignField: 'name',
+        as: 'community'
+      }
+    },
+    { $sort: sortMethod },
+    { $skip: page * limit },
+    { $limit: limit },
+    {
+      $addFields: {
+        commentCount: { $size: '$comments' },
+        icon: { $arrayElemAt: ['$community.icon', 0] },
+        reports: '$reports',
+        postTitle: { $arrayElemAt: ['$postTitle.title', 0] },
+        child: { $arrayElemAt: ['$child', 0] }
+      }
+    },
+    {
+      $project: {
+        comments: 0,
+        community: 0,
+        __v: 0,
+        followers: 0,
+        upvote: 0,
+        downvote: 0,
+        views: 0,
+        isDeleted: 0,
+        mostRecentUpvote: 0
+      }
+    }
+  ])
+}
+
 PostSchema.statics.searchPosts = async function (options) {
   const { page, limit, query, safeSearch, community, user, sortMethod, filter } = options
   return await this.aggregate([
