@@ -1,10 +1,11 @@
 const { faker } = require('@faker-js/faker')
 const CommunityModel = require('../models/Community')
+const UserModel = require('../models/User')
 const { usernames, communityNames, communityIDs } = require('./SeedUtils')
 
 const communities = []
 
-function createRandomCommunities () {
+async function createRandomCommunities () {
   const numOfUsernames = usernames.length
 
   for (let i = 0; i < communityNames.length; i++) {
@@ -37,11 +38,30 @@ function createRandomCommunities () {
         appliesTo: faker.helpers.arrayElement(['Posts & comments', 'Posts only', 'Comments only'])
       }
     })
+
+    const user = await UserModel.findOne({ username: ownerName })
+    user.communities.push(communityNames[i])
+    user.moderatorInCommunities.push(communityNames[i])
+
+    await user.save()
+  }
+
+  for (let i = 0; i < usernames.length; i++) {
+    const user = await UserModel.findOne({ username: usernames[i] })
+
+    for (let j = 0; j < 5; j++) {
+      const randomIndex = Math.floor(Math.random() * communityNames.length)
+      if (!user.communities.includes(communityNames[randomIndex])) {
+        user.communities.push(communityNames[randomIndex])
+      }
+    }
+
+    await user.save()
   }
 }
 
 async function seedCommunities () {
-  createRandomCommunities()
+  await createRandomCommunities()
   await CommunityModel.deleteMany({})
   await CommunityModel.insertMany(communities)
   console.log('Communities seeded')
