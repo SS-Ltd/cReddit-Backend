@@ -84,15 +84,14 @@ const getCommunityView = async (req, res) => {
       rules: community.rules,
       description: community.description,
       topic: community.topic,
-      moderators: community.moderators
+      moderators: community.moderators,
+      isNSFW: community.isNSFW
     }
 
     if (req.decoded) {
       const user = await UserModel.findOne({ username: req.decoded.username })
 
-      if (user && (user.preferences.showAdultContent === false && community.isNSFW === true)) {
-        return res.status(401).json({ message: 'Unable to view NSFW content' })
-      }
+      communityData.showAdultContent = user.preferences.showAdultContent
 
       if (user) {
         communityData.isModerator = community.moderators.includes(req.decoded.username)
