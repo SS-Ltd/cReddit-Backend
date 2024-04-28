@@ -1,6 +1,5 @@
 const MessageModel = require('../models/Message')
 const UserModel = require('../models/User')
-const ReportModel = require('../models/Report')
 const { sendMessage } = require('../utils/Message')
 
 const createMessage = async (req, res) => {
