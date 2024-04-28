@@ -14,6 +14,6 @@ router.route('/:communityName/reported-posts').get(verifyToken, isModerator, com
 router.route('/:subreddit/mute').post(verifyToken, community.muteCommunity).delete(verifyToken, community.muteCommunity)
 router.route('/:subreddit/join').post(verifyToken, community.joinCommunity).delete(verifyToken, community.leaveCommunity)
 router.route('/:subreddit').get(isLoggedIn, community.getCommunityView)
-router.route('/:subreddit/rules').get(community.getCommunityRules)
+router.route('/:communityName/rules').get(community.getCommunityRules).put(verifyToken, isModerator, community.updateCommunityRules)
 
 module.exports = router
