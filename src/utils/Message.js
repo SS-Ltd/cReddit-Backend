@@ -2,7 +2,7 @@ const MessageModel = require('../models/Message')
 const UserModel = require('../models/User')
 const CommunityModel = require('../models/Community')
 
-const sendMessage = async (sender, receiver, subject, text) => {
+const sendMessage = async (sender, receiver, subject, text, sendNotif) => {
   const senderUser = await UserModel.findOne({ username: sender })
   if (receiver.startsWith('/r/')) {
     const communityName = receiver.slice(3)

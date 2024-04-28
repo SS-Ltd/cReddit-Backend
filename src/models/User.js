@@ -143,7 +143,7 @@ const UserSchema = new Schema({
       type: Boolean,
       default: true
     },
-    invitaionNotifs: {
+    invitationNotifs: {
       type: Boolean,
       default: true
     },

@@ -22,6 +22,7 @@ const createCommunity = async (req, res) => {
       isNSFW: isNSFW
     })
 
+    community.moderators.push(owner)
     await community.save()
 
     res.status(201).json({

@@ -81,6 +81,13 @@ const CommunitySchema = new Schema({
       refPath: 'username'
     }
   ],
+  invitations: [
+    {
+      type: String,
+      ref: 'User',
+      refPath: 'username'
+    }
+  ],
   bannedUsers: [
     {
       type: String,
