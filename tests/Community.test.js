@@ -1025,3 +1025,83 @@ describe('getReportedPosts', () => {
     })
   })
 })
+
+describe('getCommunityRules', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should return the rules of a valid community when given a valid subreddit parameter', async () => {
+    const req = {
+      params: {
+        subreddit: 'validSubreddit'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validSubreddit',
+      rules: [
+        {
+          text: 'Rule 1',
+          appliesTo: 'Posts & comments'
+        },
+        {
+          text: 'Rule 2',
+          appliesTo: 'Posts only'
+        }
+      ]
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await getCommunityRules(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validSubreddit', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(community.rules)
+  })
+
+  test('should return a 400 error message when given an empty subreddit parameter', async () => {
+    const req = {
+      params: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getCommunityRules(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Subreddit is required'
+    })
+  })
+
+  test('should return a 404 error message when given a non-existent subreddit parameter', async () => {
+    const req = {
+      params: {
+        subreddit: 'nonExistentSubreddit'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getCommunityRules(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentSubreddit', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
+    })
+  })
+})

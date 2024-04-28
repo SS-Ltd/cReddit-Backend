@@ -504,7 +504,7 @@ const getCommunityRules = async (req, res) => {
       })
     }
 
-    res.status(200).json(community.rules)
+    return res.status(200).json(community.rules)
   } catch (error) {
     console.error(error)
     res.status(500).json({
