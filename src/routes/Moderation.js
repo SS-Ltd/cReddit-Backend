@@ -7,5 +7,6 @@ const { isModerator } = require('../middlewares/VerifyModerator')
 router.route('/invite/:communityName').post(verifyToken, isModerator, moderation.inviteModerator)
 router.route('/accept-invite/:communityName').patch(verifyToken, moderation.acceptInvitation)
 router.route('/reject-invite/:communityName').patch(verifyToken, moderation.rejectInvitation)
+router.route('/leave/:communityName').patch(verifyToken, isModerator, moderation.leaveModeration)
 
 module.exports = router
