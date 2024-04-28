@@ -530,7 +530,7 @@ const updateCommunityRules = async (req, res) => {
       })
     }
 
-    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+    let community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
 
     if (!community) {
       return res.status(404).json({
@@ -541,9 +541,9 @@ const updateCommunityRules = async (req, res) => {
     community.rules = rules
     await community.save()
 
-    return res.status(200).json({
-      message: 'Rules updated successfully'
-    })
+    community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    return res.status(200).json(community.rules)
   } catch (error) {
     console.error(error)
     res.status(500).json({
@@ -552,7 +552,7 @@ const updateCommunityRules = async (req, res) => {
   }
 }
 
-const getCommunitySettings = async (req,res) => {
+const getCommunitySettings = async (req, res) => {
   try {
     const subreddit = req.params.communityName
 

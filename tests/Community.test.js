@@ -1134,7 +1134,7 @@ describe('updateCommunityRules', () => {
       json: jest.fn()
     }
 
-    const community = {
+    const oldCommunity = {
       name: 'subreddit',
       rules: [
         {
@@ -1145,16 +1145,30 @@ describe('updateCommunityRules', () => {
       save: jest.fn()
     }
 
-    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    const newCommunity = {
+      name: 'subreddit',
+      rules: [
+        {
+          text: 'Rule 1',
+          appliesTo: 'Posts & comments'
+        },
+        {
+          text: 'Rule 2',
+          appliesTo: 'Posts only'
+        }
+      ]
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValueOnce(oldCommunity).mockResolvedValueOnce(newCommunity)
 
     await updateCommunityRules(req, res)
 
-    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'subreddit', isDeleted: false })
-    expect(community.save).toHaveBeenCalled()
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(1, { name: 'subreddit', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(2, { name: 'subreddit', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(2)
+    expect(oldCommunity.save).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith({
-      message: 'Rules updated successfully'
-    })
+    expect(res.json).toHaveBeenCalledWith(req.body.rules)
   })
 
   test('should return 400 when rules are not provided', () => {
