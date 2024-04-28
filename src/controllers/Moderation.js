@@ -37,6 +37,35 @@ const inviteModerator = async (req, res) => {
   }
 }
 
+const acceptInvitation = async (req, res) => {
+  try {
+    const { communityName } = req.params
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+
+    if (!loggedInUser) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
+    if (!community.invitations.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You have not been invited to moderate this community' })
+    }
+
+    community.invitations = community.invitations.filter(invitation => invitation !== loggedInUser.username)
+    community.moderators.push(loggedInUser.username)
+
+    await community.save()
+    sendMessage(community.owner, loggedInUser.username, 'moderator added', `/u/${loggedInUser.username} has accepted an invitation to become moderator of /r/${community.name}.`, loggedInUser.preferences.invitationNotifs || true)
+
+    res.status(200).json({ message: 'Moderator invitation accepted' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
 module.exports = {
-  inviteModerator
+  inviteModerator,
+  acceptInvitation
 }
