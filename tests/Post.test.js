@@ -1717,17 +1717,28 @@ describe('getComments', () => {
       isNsfw: false
     }
 
+    const community = {
+      communityName: 'validCommunityName',
+      settings: {
+        general: {
+          suggestedSort: 'top'
+        }
+      }
+    }
+
     const comments = [
       { _id: 'comment1', content: 'comment1 content' },
       { _id: 'comment2', content: 'comment2 content' }
     ]
 
     PostModel.getPost = jest.fn().mockResolvedValue([post])
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     PostModel.getComments = jest.fn().mockResolvedValue(comments)
 
     await getComments(req, res)
 
     expect(PostModel.getPost).toHaveBeenCalled()
+    expect(CommunityModel.findOne).toHaveBeenCalled()
     expect(PostModel.getComments).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(comments)
