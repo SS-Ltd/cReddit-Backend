@@ -5,7 +5,7 @@ const { sendMessage } = require('../utils/Message')
 const createMessage = async (req, res) => {
   try {
     const to = req.body.to
-    const from = req.decoded.from
+    const from = req.decoded.username
 
     const receiver = await UserModel.findOne({ username: to })
     if (!receiver) {
