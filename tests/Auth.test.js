@@ -179,7 +179,7 @@ describe('deleteUser', () => {
     await deleteUser(req, res)
 
     expect(User.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
-    expect(User.updateOne).toHaveBeenCalledWith({ username: 'testUser' }, { $set: { isDeleted: true } })
+    expect(User.updateOne).toHaveBeenCalledWith({ username: 'testUser' }, { $set: { isDeleted: true, fcmToken: [] } })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'User deleted successfully' })
   })

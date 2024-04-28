@@ -6,6 +6,7 @@ const HistoryModel = require('../models/History')
 const CommunityModel = require('../models/Community')
 const MediaUtils = require('../utils/Media')
 const { sendEmail, sendVerificationEmail } = require('../utils/Email')
+const { sendNotification } = require('../utils/Notification')
 const { faker } = require('@faker-js/faker')
 const dotenv = require('dotenv')
 
@@ -92,6 +93,10 @@ const follow = async (req, res) => {
 
     await user.save()
     await userFollowed.save()
+    
+    if (userFollowed.preferences.newFollowerNotifs) {
+      sendNotification(userFollowed.username, 'follow', user, user.username)
+    }
 
     res.status(200).json({
       message: 'User followed'
