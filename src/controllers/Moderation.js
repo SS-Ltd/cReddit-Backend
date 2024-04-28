@@ -91,8 +91,35 @@ const rejectInvitation = async (req, res) => {
   }
 }
 
+const leaveModeration = async (req, res) => {
+  try {
+    const { communityName } = req.params
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+
+    if (!loggedInUser) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' })
+    }
+    if (!community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    community.moderators = community.moderators.filter(moderator => moderator !== loggedInUser.username)
+
+    await community.save()
+
+    res.status(200).json({ message: 'Moderator left' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
 module.exports = {
   inviteModerator,
   acceptInvitation,
-  rejectInvitation
+  rejectInvitation,
+  leaveModeration
 }
