@@ -4,16 +4,16 @@ const { sendMessage } = require('../utils/Message')
 
 const createMessage = async (req, res) => {
   try {
-    const to = req.to
-    const from = req.from
+    const to = req.body.to
+    const from = req.body.from
 
     const receiver = await UserModel.findOne({ username: to })
     if (!receiver) {
       throw new Error('Receiver not found')
     }
 
-    const subject = req.subject
-    const text = req.text
+    const subject = req.body.subject
+    const text = req.body.text
     sendMessage(from, to, subject, text)
     res.status(200).send('Message sent')
   } catch (error) {
