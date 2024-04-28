@@ -1024,7 +1024,7 @@ describe('updateSettings', () => {
         postNotifs: true,
         cakeDayNotifs: true,
         modNotifs: true,
-        invitaionNotifs: true
+        invitationNotifs: true
       },
       isVerified: false,
       follows: [],
