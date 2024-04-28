@@ -715,11 +715,184 @@ describe('leaveModeration', () => {
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'testUser', isDeleted: false })
     CommunityModel.findOne = jest.fn().mockResolvedValue(null)
 
-    await Moderation.rejectInvitation(req, res)
+    await Moderation.leaveModeration(req, res)
 
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
+  })
+})
+
+describe('removeModerator', () => {
+  test('should successfully remove community moderation', async () => {
+    const req = {
+      params: {
+        communityName: 'testcommunity'
+      },
+      body: {
+        username: 'testuser'
+      },
+      decoded: {
+        username: 'loggedInUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testcommunity',
+      isDeleted: false,
+      moderators: ['loggedInUser', 'testuser'],
+      invitations: [],
+      save: jest.fn()
+    }
+
+    const loggedInUser = {
+      username: 'loggedInUser',
+      isDeleted: false,
+      preferences: {
+        invitationNotifs: true
+      }
+    }
+
+    const user = {
+      username: 'testuser',
+      isDeleted: false,
+      preferences: {
+        invitationNotifs: true
+      }
+    }
+
+    UserModel.findOne = jest.fn()
+      .mockResolvedValueOnce(loggedInUser)
+      .mockResolvedValueOnce(user)
+    CommunityModel.findOne = jest.fn().mockResolvedValueOnce(community)
+
+    await Moderation.removeModerator(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'loggedInUser', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testcommunity', isDeleted: false })
+    expect(community.save).toHaveBeenCalled()
+    expect(community.invitations).toHaveLength(0)
+    expect(community.moderators).toHaveLength(1)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Moderator removed' })
+    expect(res.status).toHaveBeenCalledWith(200)
+  })
+
+  test('should return an error message if user is not a moderator', async () => {
+    const req = {
+      params: {
+        communityName: 'testcommunity'
+      },
+      body: {
+        username: 'testuser'
+      },
+      decoded: {
+        username: 'loggedInUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testcommunity',
+      isDeleted: false,
+      moderators: ['loggedInUser'],
+      invitations: [],
+      save: jest.fn()
+    }
+
+    const loggedInUser = {
+      username: 'loggedInUser',
+      isDeleted: false,
+      preferences: {
+        invitationNotifs: true
+      }
+    }
+
+    const user = {
+      username: 'testuser',
+      isDeleted: false,
+      preferences: {
+        invitationNotifs: true
+      }
+    }
+
+    UserModel.findOne = jest.fn()
+      .mockResolvedValueOnce(loggedInUser)
+      .mockResolvedValueOnce(user)
+    CommunityModel.findOne = jest.fn().mockResolvedValueOnce(community)
+
+    await Moderation.removeModerator(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'loggedInUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testcommunity', isDeleted: false })
+    expect(community.save).not.toHaveBeenCalled()
+    expect(community.invitations).toHaveLength(0)
+    expect(community.moderators).toHaveLength(1)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User is already not a moderator' })
+    expect(res.status).toHaveBeenCalledWith(400)
+  })
+
+  test('should return an error message when the community is deleted', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      body: {
+        username: 'testUser'
+      },
+      decoded: {
+        username: 'loggedInUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testcommunity',
+      isDeleted: false,
+      moderators: [],
+      invitations: [],
+      save: jest.fn()
+    }
+
+    const loggedInUser = {
+      username: 'loggedInUser',
+      isDeleted: false,
+      preferences: {
+        invitationNotifs: true
+      }
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      preferences: {
+        invitationNotifs: true
+      }
+    }
+
+    UserModel.findOne = jest.fn()
+      .mockResolvedValueOnce(loggedInUser)
+      .mockResolvedValueOnce(user)
+    CommunityModel.findOne = jest.fn().mockResolvedValueOnce(community)
+
+    await Moderation.removeModerator(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not a moderator' })
   })
 })
