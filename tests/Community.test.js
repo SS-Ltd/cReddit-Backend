@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -802,6 +802,10 @@ describe('joinCommunity', () => {
 })
 
 describe('getReportedPosts', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   test('should return a list of reported posts when a valid subreddit is provided', async () => {
     const req = {
       params: {
@@ -861,6 +865,9 @@ describe('getReportedPosts', () => {
 
     await getReportedPosts(req, res)
 
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'subreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.getReportedPosts).toHaveBeenCalledTimes(1)
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(
       [
@@ -928,6 +935,9 @@ describe('getReportedPosts', () => {
 
     await getReportedPosts(req, res)
 
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'subreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.getReportedPosts).toHaveBeenCalledTimes(1)
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([])
   })
@@ -945,6 +955,9 @@ describe('getReportedPosts', () => {
 
     await getReportedPosts(req, res)
 
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.getReportedPosts).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Subreddit is required'
@@ -968,6 +981,9 @@ describe('getReportedPosts', () => {
 
     await getReportedPosts(req, res)
 
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonexistentCommunity', isDeleted: false })
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.getReportedPosts).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
@@ -1000,6 +1016,9 @@ describe('getReportedPosts', () => {
 
     await getReportedPosts(req, res)
 
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'subreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentuser', isDeleted: false })
+    expect(PostModel.getReportedPosts).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'User does not exist'
