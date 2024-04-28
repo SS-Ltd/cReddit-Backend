@@ -88,10 +88,23 @@ const markAsRead = async (req, res) => {
   }
 }
 
+const getNotificationCount = async (req, res) => {
+  try {
+    const username = req.decoded.username
+
+    const count = await NotificationModel.countDocuments({ user: username, isRead: false })
+
+    res.status(200).json({ count: count })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
 module.exports = {
   subscribe,
   unsubscribe,
   getNotifications,
   markAllAsRead,
-  markAsRead
+  markAsRead,
+  getNotificationCount
 }
