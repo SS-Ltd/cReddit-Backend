@@ -524,6 +524,12 @@ const updateCommunityRules = async (req, res) => {
       })
     }
 
+    if (!subreddit) {
+      return res.status(400).json({
+        message: 'Subreddit is required'
+      })
+    }
+
     const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
 
     if (!community) {

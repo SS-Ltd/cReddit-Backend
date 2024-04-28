@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -1034,7 +1034,7 @@ describe('getCommunityRules', () => {
   test('should return the rules of a valid community when given a valid subreddit parameter', async () => {
     const req = {
       params: {
-        subreddit: 'validSubreddit'
+        communityName: 'validSubreddit'
       }
     }
     const res = {
@@ -1086,7 +1086,7 @@ describe('getCommunityRules', () => {
   test('should return a 404 error message when given a non-existent subreddit parameter', async () => {
     const req = {
       params: {
-        subreddit: 'nonExistentSubreddit'
+        communityName: 'nonExistentSubreddit'
       }
     }
     const res = {
@@ -1099,6 +1099,146 @@ describe('getCommunityRules', () => {
     await getCommunityRules(req, res)
 
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentSubreddit', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
+    })
+  })
+})
+
+describe('updateCommunityRules', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should update community rules when valid rules are provided', async () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      body: {
+        rules: [
+          {
+            text: 'Rule 1',
+            appliesTo: 'Posts & comments'
+          },
+          {
+            text: 'Rule 2',
+            appliesTo: 'Posts only'
+          }
+        ]
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'subreddit',
+      rules: [
+        {
+          text: 'Old rule',
+          appliesTo: 'Posts & comments'
+        }
+      ],
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await updateCommunityRules(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'subreddit', isDeleted: false })
+    expect(community.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Rules updated successfully'
+    })
+  })
+
+  test('should return 400 when rules are not provided', () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      body: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    updateCommunityRules(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Rules are required'
+    })
+  })
+
+  test('should return 400 when communityName is not provided', () => {
+    const req = {
+      params: {},
+      body: {
+        rules: [
+          {
+            text: 'Rule 1',
+            appliesTo: 'Posts & comments'
+          },
+          {
+            text: 'Rule 2',
+            appliesTo: 'Posts only'
+          }
+        ]
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    updateCommunityRules(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Subreddit is required'
+    })
+  })
+
+  test('should return 404 when community is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'nonexistentCommunity'
+      },
+      body: {
+        rules: [
+          {
+            text: 'Rule 1',
+            appliesTo: 'Posts & comments'
+          },
+          {
+            text: 'Rule 2',
+            appliesTo: 'Posts only'
+          }
+        ]
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await updateCommunityRules(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonexistentCommunity', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
