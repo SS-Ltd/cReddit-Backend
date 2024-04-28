@@ -77,11 +77,11 @@ const markAllAsRead = async (req, res) => {
 
     const messages = await MessageModel.find({ to: username, isRead: false, isDeleted: false })
 
-    messages.forEach(message => {
+    messages.forEach(async message => {
       message.isRead = true
+      await message.save()
     })
-
-    await messages.save()
+    res.status(200).send('All messages marked as read')
   } catch (error) {
     res.status(400).send('Error marking messages as read: ' + error)
   }
