@@ -552,6 +552,33 @@ const updateCommunityRules = async (req, res) => {
   }
 }
 
+const getCommunitySettings = async (req,res) => {
+  try {
+    const subreddit = req.params.communityName
+
+    if (!subreddit) {
+      return res.status(400).json({
+        message: 'Subreddit is required'
+      })
+    }
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    return res.status(200).json(community.settings.general)
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      message: 'Error getting settings: ' + error
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
@@ -564,5 +591,6 @@ module.exports = {
   muteCommunity,
   getReportedPosts,
   getCommunityRules,
-  updateCommunityRules
+  updateCommunityRules,
+  getCommunitySettings
 }
