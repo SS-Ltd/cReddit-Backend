@@ -579,6 +579,52 @@ const getCommunitySettings = async (req, res) => {
   }
 }
 
+const updateCommunitySettings = async (req, res) => {
+  try {
+    const subreddit = req.params.communityName
+    const settings = req.body.settings
+
+    if (!settings) {
+      return res.status(400).json({
+        message: 'Settings are required'
+      })
+    }
+
+    if (!subreddit) {
+      return res.status(400).json({
+        message: 'Subreddit is required'
+      })
+    }
+
+    let community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    if (settings.allowedPostTypes) community.settings.general.allowedPostTypes = settings.allowedPostTypes
+    if (settings.allowCrossPosting !== undefined) community.settings.general.allowCrossPosting = settings.allowCrossPosting
+    if (settings.allowSpoiler !== undefined) community.settings.general.allowSpoiler = settings.allowSpoiler
+    if (settings.allowImages !== undefined) community.settings.general.allowImages = settings.allowImages
+    if (settings.allowPolls !== undefined) community.settings.general.allowPolls = settings.allowPolls
+    if (settings.suggestedSort) community.settings.general.suggestedSort = settings.suggestedSort
+    if (settings.allowImageComments !== undefined) community.settings.general.allowImageComments = settings.allowImageComments
+
+    await community.save()
+
+    community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    return res.status(200).json(community.settings.general)
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      message: 'Error updating settings: ' + error
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
@@ -592,5 +638,6 @@ module.exports = {
   getReportedPosts,
   getCommunityRules,
   updateCommunityRules,
-  getCommunitySettings
+  getCommunitySettings,
+  updateCommunitySettings
 }
