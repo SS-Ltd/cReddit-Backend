@@ -102,7 +102,7 @@ const sendNotification = async (username, type, resource, notificationFrom, post
     messageStr = notificationTemplate[type](notificationFrom, resource.communityName, postTitle)
   } else if (type === 'mention') {
     messageStr = notificationTemplate[type](notificationFrom, resource, postTitle)
-  } 
+  }
   else {
     messageStr = notificationTemplate[type](notificationFrom, (resource.username || resource.communityName || resource.age))
   }
@@ -130,22 +130,22 @@ const sendNotification = async (username, type, resource, notificationFrom, post
   }
 
   getMessaging().sendEachForMulticast(message)
-  .then((response) => {
-    if (response.failureCount > 0) {
-      const failedTokens = []
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          console.error('Failure sending notification to', fcmToken[idx], resp.error)
-          failedTokens.push(fcmToken[idx])
-        }
-      })
-      console.log('List of tokens that caused failures: ' + failedTokens)
-    }
-    console.log('Successfully sent message:', response)
-  })
-  .catch((error) => {
-    console.error('Error sending message:', error)
-  })
+    .then((response) => {
+      if (response.failureCount > 0) {
+        const failedTokens = []
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            console.error('Failure sending notification to', fcmToken[idx], resp.error)
+            failedTokens.push(fcmToken[idx])
+          }
+        })
+        console.log('List of tokens that caused failures: ' + failedTokens)
+      }
+      console.log('Successfully sent message:', response)
+    })
+    .catch((error) => {
+      console.error('Error sending message:', error)
+    })
 }
 
 exports.sendNotification = sendNotification

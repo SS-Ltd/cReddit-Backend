@@ -38,12 +38,12 @@ const createComment = async (req, res) => {
       throw new Error('Cannot comment on a locked post')
     }
 
-    post.followers.push(req.decoded.username)
+    /* post.followers.push(req.decoded.username)
     const commenter = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
     commenter.followedPosts.push(comment.postId)
 
     await post.save()
-    await commenter.save()
+    await commenter.save() */
 
     const postOwner = await UserModel.findOne({ username: post.username, isDeleted: false })
 
@@ -70,9 +70,9 @@ const createComment = async (req, res) => {
     await newComment.save()
     await user.save()
 
-    if (postOwner) {
+    /* if (postOwner) {
       if (postOwner.preferences.commentsNotifs) {
-         sendNotification(post.username, 'comment', newComment, req.decoded.username)
+        sendNotification(post.username, 'comment', newComment, req.decoded.username)
       }
     }
 
@@ -81,8 +81,8 @@ const createComment = async (req, res) => {
       if (followerUser && followerUser.preferences.postNotifs) {
         sendNotification(follower, 'followedPost', newComment, req.decoded.username)
       }
-    })
-    
+    }) */
+
     const mentionRegex = /u\/(\w+)/g
     let match
     while ((match = mentionRegex.exec(newComment.content)) !== null) {
