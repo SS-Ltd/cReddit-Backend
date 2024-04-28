@@ -51,8 +51,9 @@ const createPost = async (req, res) => {
     while ((match = mentionRegex.exec(createdPost.content)) !== null) {
       const mentionedUsername = match[1]
       const mentionedUser = await User.findOne({ username: mentionedUsername })
-      if (mentionedUser && mentionedUser.preferences.mentionsNotifs)
+      if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
         sendNotification(mentionedUsername, 'mention', createdPost, user.username)
+      }
     }
 
     await createdPost.save()
@@ -575,12 +576,14 @@ const votePost = async (req, res) => {
     if (req.type === 'upvote') {
       PostUtils.upvotePost(postToVote, user)
       const postOwner = await User.findOne({ username: postToVote.username })
-      if (postOwner && postOwner.preferences.postsUpvotesNotifs) 
-        if (postToVote.type !== 'Comment' )
+      if (postOwner && postOwner.preferences.postsUpvotesNotifs) {
+        if (postToVote.type !== 'Comment') {
           sendNotification(postToVote.username, 'upvotedPost', postToVote, user.username)
-        else
+        } else {
           console.log('upvoting comment')
           sendNotification(postToVote.username, 'upvotedComment', postToVote, user.username)
+        }
+      }
     } else if (req.type === 'downvote') {
       PostUtils.downvotePost(postToVote, user)
     } else if (req.type === 'votePoll') {
