@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -1239,6 +1239,83 @@ describe('updateCommunityRules', () => {
     await updateCommunityRules(req, res)
 
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonexistentCommunity', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
+    })
+  })
+})
+
+describe('getCommunitySettings', () => {
+  test('should return the community settings for a valid subreddit', async () => {
+    const req = {
+      params: {
+        communityName: 'validSubreddit'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validSubreddit',
+      settings: {
+        general: {
+          allowedPostTypes: 'Posts',
+          allowCrossPosting: true,
+          allowSpoiler: true,
+          allowImages: true,
+          allowPolls: true,
+          suggestedSort: 'old',
+          allowImageComments: false
+        }
+      }
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await getCommunitySettings(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validSubreddit', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(community.settings.general)
+  })
+
+  test('should return a 400 error when subreddit is not provided', async () => {
+    const req = {
+      params: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getCommunitySettings(req, res)
+
+    expect(CommunityModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Subreddit is required'
+    })
+  })
+
+  test('should return a 404 error when the subreddit is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'nonExistentSubreddit'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getCommunitySettings(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentSubreddit', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
