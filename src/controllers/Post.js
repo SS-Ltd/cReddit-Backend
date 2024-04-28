@@ -411,7 +411,7 @@ const getComments = async (req, res) => {
       })
     }
 
-    let sortChoice = community ? community.settings.general.suggestedSort : 'best'
+    let sortChoice = community ? community.settings.suggestedSort : 'best'
     sortChoice = req.query.sort ? req.query.sort : sortChoice
     const sort = getSortingMethod(sortChoice)
 

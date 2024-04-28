@@ -1275,15 +1275,13 @@ describe('getCommunitySettings', () => {
     const community = {
       name: 'validSubreddit',
       settings: {
-        general: {
-          allowedPostTypes: 'Posts',
-          allowCrossPosting: true,
-          allowSpoiler: true,
-          allowImages: true,
-          allowPolls: true,
-          suggestedSort: 'old',
-          allowImageComments: false
-        }
+        allowedPostTypes: 'Posts',
+        allowCrossPosting: true,
+        allowSpoiler: true,
+        allowImages: true,
+        allowPolls: true,
+        suggestedSort: 'old',
+        allowImageComments: false
       }
     }
 
@@ -1293,7 +1291,7 @@ describe('getCommunitySettings', () => {
 
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validSubreddit', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(community.settings.general)
+    expect(res.json).toHaveBeenCalledWith(community.settings)
   })
 
   test('should return a 400 error when subreddit is not provided', async () => {
@@ -1368,15 +1366,13 @@ describe('updateCommunitySettings', () => {
     const oldCommunity = {
       name: 'subreddit',
       settings: {
-        general: {
-          allowedPostTypes: 'Links',
-          allowCrossPosting: true,
-          allowSpoiler: true,
-          allowImages: true,
-          allowPolls: true,
-          suggestedSort: 'old',
-          allowImageComments: false
-        }
+        allowedPostTypes: 'Links',
+        allowCrossPosting: true,
+        allowSpoiler: true,
+        allowImages: true,
+        allowPolls: true,
+        suggestedSort: 'old',
+        allowImageComments: false
       },
       save: jest.fn()
     }
@@ -1384,15 +1380,13 @@ describe('updateCommunitySettings', () => {
     const newCommunity = {
       name: 'subreddit',
       settings: {
-        general: {
-          allowedPostTypes: 'Posts',
-          allowCrossPosting: true,
-          allowSpoiler: false,
-          allowImages: true,
-          allowPolls: false,
-          suggestedSort: 'new',
-          allowImageComments: true
-        }
+        allowedPostTypes: 'Posts',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: false,
+        suggestedSort: 'new',
+        allowImageComments: true
       }
     }
 
@@ -1404,7 +1398,7 @@ describe('updateCommunitySettings', () => {
     expect(CommunityModel.findOne).toHaveBeenNthCalledWith(2, { name: 'subreddit', isDeleted: false })
     expect(CommunityModel.findOne).toHaveBeenCalledTimes(2)
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(newCommunity.settings.general)
+    expect(res.json).toHaveBeenCalledWith(newCommunity.settings)
   })
 
   test('should update community settings with valid subreddit and partial settings', async () => {
@@ -1429,15 +1423,13 @@ describe('updateCommunitySettings', () => {
     const oldCommunity = {
       name: 'subreddit',
       settings: {
-        general: {
-          allowedPostTypes: 'Links',
-          allowCrossPosting: false,
-          allowSpoiler: true,
-          allowImages: true,
-          allowPolls: true,
-          suggestedSort: 'old',
-          allowImageComments: false
-        }
+        allowedPostTypes: 'Links',
+        allowCrossPosting: false,
+        allowSpoiler: true,
+        allowImages: true,
+        allowPolls: true,
+        suggestedSort: 'old',
+        allowImageComments: false
       },
       save: jest.fn()
     }
@@ -1445,15 +1437,13 @@ describe('updateCommunitySettings', () => {
     const newCommunity = {
       name: 'subreddit',
       settings: {
-        general: {
-          allowedPostTypes: 'Links',
-          allowCrossPosting: true,
-          allowSpoiler: false,
-          allowImages: true,
-          allowPolls: true,
-          suggestedSort: 'old',
-          allowImageComments: true
-        }
+        allowedPostTypes: 'Links',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: true,
+        suggestedSort: 'old',
+        allowImageComments: true
       }
     }
 
@@ -1465,7 +1455,7 @@ describe('updateCommunitySettings', () => {
     expect(CommunityModel.findOne).toHaveBeenNthCalledWith(2, { name: 'subreddit', isDeleted: false })
     expect(CommunityModel.findOne).toHaveBeenCalledTimes(2)
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(newCommunity.settings.general)
+    expect(res.json).toHaveBeenCalledWith(newCommunity.settings)
   })
 
   test('should not change community settings when settings are empty', async () => {
@@ -1486,15 +1476,13 @@ describe('updateCommunitySettings', () => {
     const community = {
       name: 'subreddit',
       settings: {
-        general: {
-          allowedPostTypes: 'Any',
-          allowCrossPosting: false,
-          allowSpoiler: false,
-          allowImages: true,
-          allowPolls: false,
-          suggestedSort: 'top',
-          allowImageComments: false
-        }
+        allowedPostTypes: 'Any',
+        allowCrossPosting: false,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: false,
+        suggestedSort: 'top',
+        allowImageComments: false
       },
       save: jest.fn()
     }
@@ -1507,7 +1495,7 @@ describe('updateCommunitySettings', () => {
     expect(CommunityModel.findOne).toHaveBeenNthCalledWith(2, { name: 'subreddit', isDeleted: false })
     expect(CommunityModel.findOne).toHaveBeenCalledTimes(2)
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(community.settings.general)
+    expect(res.json).toHaveBeenCalledWith(community.settings)
   })
 
   test('should return 400 if settings are not provided', async () => {

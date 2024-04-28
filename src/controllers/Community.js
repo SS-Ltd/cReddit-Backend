@@ -570,7 +570,7 @@ const getCommunitySettings = async (req, res) => {
       })
     }
 
-    return res.status(200).json(community.settings.general)
+    return res.status(200).json(community.settings)
   } catch (error) {
     console.log(error)
     res.status(500).json({
@@ -604,19 +604,19 @@ const updateCommunitySettings = async (req, res) => {
       })
     }
 
-    if (settings.allowedPostTypes) community.settings.general.allowedPostTypes = settings.allowedPostTypes
-    if (settings.allowCrossPosting !== undefined) community.settings.general.allowCrossPosting = settings.allowCrossPosting
-    if (settings.allowSpoiler !== undefined) community.settings.general.allowSpoiler = settings.allowSpoiler
-    if (settings.allowImages !== undefined) community.settings.general.allowImages = settings.allowImages
-    if (settings.allowPolls !== undefined) community.settings.general.allowPolls = settings.allowPolls
-    if (settings.suggestedSort) community.settings.general.suggestedSort = settings.suggestedSort
-    if (settings.allowImageComments !== undefined) community.settings.general.allowImageComments = settings.allowImageComments
+    if (settings.allowedPostTypes) community.settings.allowedPostTypes = settings.allowedPostTypes
+    if (settings.allowCrossPosting !== undefined) community.settings.allowCrossPosting = settings.allowCrossPosting
+    if (settings.allowSpoiler !== undefined) community.settings.allowSpoiler = settings.allowSpoiler
+    if (settings.allowImages !== undefined) community.settings.allowImages = settings.allowImages
+    if (settings.allowPolls !== undefined) community.settings.allowPolls = settings.allowPolls
+    if (settings.suggestedSort) community.settings.suggestedSort = settings.suggestedSort
+    if (settings.allowImageComments !== undefined) community.settings.allowImageComments = settings.allowImageComments
 
     await community.save()
 
     community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
 
-    return res.status(200).json(community.settings.general)
+    return res.status(200).json(community.settings)
   } catch (error) {
     console.log(error)
     res.status(500).json({

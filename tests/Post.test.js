@@ -1720,9 +1720,7 @@ describe('getComments', () => {
     const community = {
       communityName: 'validCommunityName',
       settings: {
-        general: {
-          suggestedSort: 'top'
-        }
+        suggestedSort: 'top'
       }
     }
 

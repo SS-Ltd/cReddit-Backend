@@ -33,15 +33,13 @@ function createRandomCommunities () {
       mutedUsers,
       isDeleted: faker.datatype.boolean(0.05),
       settings: {
-        general: {
-          allowedPostTypes: faker.helpers.arrayElement(['Any', 'Links', 'Posts']),
-          allowCrossPosting: faker.datatype.boolean(0.9),
-          allowSpoiler: faker.datatype.boolean(0.9),
-          allowImages: faker.datatype.boolean(0.9),
-          allowPolls: faker.datatype.boolean(0.9),
-          suggestedSort: faker.helpers.arrayElement(['best', 'old', 'top', 'new']),
-          allowImageComments: faker.datatype.boolean(0.9)
-        }
+        allowedPostTypes: faker.helpers.arrayElement(['Any', 'Links', 'Posts']),
+        allowCrossPosting: faker.datatype.boolean(0.9),
+        allowSpoiler: faker.datatype.boolean(0.9),
+        allowImages: faker.datatype.boolean(0.9),
+        allowPolls: faker.datatype.boolean(0.9),
+        suggestedSort: faker.helpers.arrayElement(['best', 'old', 'top', 'new']),
+        allowImageComments: faker.datatype.boolean(0.9)
       },
       rules: {
         text: faker.lorem.sentence(),

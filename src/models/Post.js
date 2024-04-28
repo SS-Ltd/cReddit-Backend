@@ -564,7 +564,7 @@ PostSchema.statics.getPost = async function (postId) {
           $cond: {
             if: { $eq: ['$communityName', null] },
             then: 'best',
-            else: { $arrayElemAt: ['$community.settings.general.suggestedSort', 0] }
+            else: { $arrayElemAt: ['$community.settings.suggestedSort', 0] }
           }
         }
       }

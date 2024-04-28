@@ -28,37 +28,35 @@ const CommunitySchema = new Schema({
     type: String
   },
   settings: {
-    general: {
-      allowedPostTypes: {
-        type: String,
-        enum: ['Any', 'Links', 'Posts'],
-        default: 'any'
-      },
-      allowCrossPosting: {
-        type: Boolean,
-        default: true
-      },
-      allowSpoiler: {
-        type: Boolean,
-        default: true
-      },
-      allowImages: {
-        type: Boolean,
-        default: true
-      },
-      allowPolls: {
-        type: Boolean,
-        default: true
-      },
-      suggestedSort: {
-        type: String,
-        enum: ['best', 'old', 'top', 'new'],
-        default: 'best'
-      },
-      allowImageComments: {
-        type: Boolean,
-        default: true
-      }
+    allowedPostTypes: {
+      type: String,
+      enum: ['Any', 'Links', 'Posts'],
+      default: 'any'
+    },
+    allowCrossPosting: {
+      type: Boolean,
+      default: true
+    },
+    allowSpoiler: {
+      type: Boolean,
+      default: true
+    },
+    allowImages: {
+      type: Boolean,
+      default: true
+    },
+    allowPolls: {
+      type: Boolean,
+      default: true
+    },
+    suggestedSort: {
+      type: String,
+      enum: ['best', 'old', 'top', 'new'],
+      default: 'best'
+    },
+    allowImageComments: {
+      type: Boolean,
+      default: true
     }
   },
   type: {
