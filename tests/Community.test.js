@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -1330,6 +1330,267 @@ describe('getCommunitySettings', () => {
     await getCommunitySettings(req, res)
 
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentSubreddit', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
+    })
+  })
+})
+
+describe('updateCommunitySettings', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should update community settings with valid subreddit and settings', async () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      body: {
+        settings: {
+          allowedPostTypes: 'Posts',
+          allowCrossPosting: true,
+          allowSpoiler: false,
+          allowImages: true,
+          allowPolls: false,
+          suggestedSort: 'new',
+          allowImageComments: true
+        }
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const oldCommunity = {
+      name: 'subreddit',
+      settings: {
+        general: {
+          allowedPostTypes: 'Links',
+          allowCrossPosting: true,
+          allowSpoiler: true,
+          allowImages: true,
+          allowPolls: true,
+          suggestedSort: 'old',
+          allowImageComments: false
+        }
+      },
+      save: jest.fn()
+    }
+
+    const newCommunity = {
+      name: 'subreddit',
+      settings: {
+        general: {
+          allowedPostTypes: 'Posts',
+          allowCrossPosting: true,
+          allowSpoiler: false,
+          allowImages: true,
+          allowPolls: false,
+          suggestedSort: 'new',
+          allowImageComments: true
+        }
+      }
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValueOnce(oldCommunity).mockResolvedValueOnce(newCommunity)
+
+    await updateCommunitySettings(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(1, { name: 'subreddit', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(2, { name: 'subreddit', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(2)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(newCommunity.settings.general)
+  })
+
+  test('should update community settings with valid subreddit and partial settings', async () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      body: {
+        settings: {
+          allowCrossPosting: true,
+          allowSpoiler: false,
+          allowImageComments: true
+        }
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const oldCommunity = {
+      name: 'subreddit',
+      settings: {
+        general: {
+          allowedPostTypes: 'Links',
+          allowCrossPosting: false,
+          allowSpoiler: true,
+          allowImages: true,
+          allowPolls: true,
+          suggestedSort: 'old',
+          allowImageComments: false
+        }
+      },
+      save: jest.fn()
+    }
+
+    const newCommunity = {
+      name: 'subreddit',
+      settings: {
+        general: {
+          allowedPostTypes: 'Links',
+          allowCrossPosting: true,
+          allowSpoiler: false,
+          allowImages: true,
+          allowPolls: true,
+          suggestedSort: 'old',
+          allowImageComments: true
+        }
+      }
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValueOnce(oldCommunity).mockResolvedValueOnce(newCommunity)
+
+    await updateCommunitySettings(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(1, { name: 'subreddit', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(2, { name: 'subreddit', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(2)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(newCommunity.settings.general)
+  })
+
+  test('should not change community settings when settings are empty', async () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      body: {
+        settings: {}
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'subreddit',
+      settings: {
+        general: {
+          allowedPostTypes: 'Any',
+          allowCrossPosting: false,
+          allowSpoiler: false,
+          allowImages: true,
+          allowPolls: false,
+          suggestedSort: 'top',
+          allowImageComments: false
+        }
+      },
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await updateCommunitySettings(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(1, { name: 'subreddit', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(2, { name: 'subreddit', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(2)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(community.settings.general)
+  })
+
+  test('should return 400 if settings are not provided', async () => {
+    const req = {
+      params: {
+        communityName: 'subreddit'
+      },
+      body: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await updateCommunitySettings(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Settings are required'
+    })
+  })
+
+  test('should return 400 if subreddit is not provided', async () => {
+    const req = {
+      params: {},
+      body: {
+        settings: {
+          allowedPostTypes: 'Posts',
+          allowCrossPosting: true,
+          allowSpoiler: false,
+          allowImages: true,
+          allowPolls: false,
+          suggestedSort: 'new',
+          allowImageComments: true
+        }
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await updateCommunitySettings(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Subreddit is required'
+    })
+  })
+
+  test('should return 404 if community is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'nonexistent'
+      },
+      body: {
+        settings: {
+          allowedPostTypes: 'Any',
+          allowCrossPosting: true,
+          allowSpoiler: false,
+          allowImages: true,
+          allowPolls: false,
+          suggestedSort: 'new',
+          allowImageComments: true
+        }
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await updateCommunitySettings(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonexistent', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
