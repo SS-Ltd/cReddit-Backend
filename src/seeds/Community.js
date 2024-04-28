@@ -27,15 +27,13 @@ async function createRandomCommunities () {
       topic: faker.lorem.sentence(),
       description: faker.lorem.paragraph(),
       settings: {
-        general: {
-          allowedPostTypes: faker.helpers.arrayElement(['Any', 'Links', 'Posts']),
-          allowCrossPosting: faker.datatype.boolean(),
-          allowSpoiler: faker.datatype.boolean(0.9),
-          allowImages: faker.datatype.boolean(0.9),
-          allowPolls: faker.datatype.boolean(0.9),
-          suggestedSort: faker.helpers.arrayElement(['best', 'old', 'top', 'new']),
-          allowImageComments: faker.datatype.boolean(0.9)
-        }
+        allowedPostTypes: faker.helpers.arrayElement(['Any', 'Links', 'Posts']),
+        allowCrossPosting: faker.datatype.boolean(),
+        allowSpoiler: faker.datatype.boolean(0.9),
+        allowImages: faker.datatype.boolean(0.9),
+        allowPolls: faker.datatype.boolean(0.9),
+        suggestedSort: faker.helpers.arrayElement(['best', 'old', 'top', 'new']),
+        allowImageComments: faker.datatype.boolean(0.9)
       },
       type: faker.helpers.arrayElement(['public', 'private', 'restricted']),
       isNSFW: faker.datatype.boolean(0.2),
