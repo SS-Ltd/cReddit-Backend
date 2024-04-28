@@ -486,6 +486,33 @@ const getReportedPosts = async (req, res) => {
   }
 }
 
+const getCommunityRules = async (req, res) => {
+  try {
+    const subreddit = req.params.subreddit
+
+    if (!subreddit) {
+      return res.status(400).json({
+        message: 'Subreddit is required'
+      })
+    }
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    res.status(200).json(community.rules)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'Error getting rules: ' + error
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
@@ -496,5 +523,6 @@ module.exports = {
   joinCommunity,
   leaveCommunity,
   muteCommunity,
-  getReportedPosts
+  getReportedPosts,
+  getCommunityRules
 }
