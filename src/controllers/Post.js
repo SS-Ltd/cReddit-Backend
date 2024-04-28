@@ -556,55 +556,6 @@ const getHomeFeed = async (req, res) => {
   }
 }
 
-/*const votePost = async (req, res) => {
-  const postId = req.params.postId
-  const username = req.decoded.username
-  const pollOption = req.body?.pollOption
-
-  try {
-    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
-      throw new Error('Invalid post id')
-    }
-
-    const postToVote = await Post.findOne({ _id: postId, isDeleted: false, isRemoved: false })
-    if (!postToVote) {
-      throw new Error('Post does not exist')
-    }
-
-    const user = await User.findOne({ username, isDeleted: false })
-
-    if (req.type === 'upvote') {
-      PostUtils.upvotePost(postToVote, user)
-    } else if (req.type === 'downvote') {
-      PostUtils.downvotePost(postToVote, user)
-    } else if (req.type === 'votePoll') {
-      PostUtils.votePoll(postToVote, user, pollOption)
-    }
-
-    await postToVote.save()
-    await user.save()
-
-    if (user && !postToVote.isNsfw && postToVote.type !== 'Comment') {
-      const history = await HistoryModel.findOne({ owner: user.username, post: postId })
-      if (history) {
-        history.updatedAt = new Date()
-        await history.save()
-      } else {
-        await HistoryModel.create({
-          owner: user.username,
-          post: postId
-        })
-      }
-    }
-
-    
-
-    res.status(200).json({ message: 'Post voted successfully', postVotes: postToVote.netVote })
-  } catch (error) {
-    res.status(400).json({ message: error.message })
-  }
-}*/
-
 const votePost = async (req, res) => {
   const postId = req.params.postId
   const username = req.decoded.username
