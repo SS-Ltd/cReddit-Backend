@@ -30,10 +30,17 @@ const getMessages = async (req, res) => {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 25
 
-    const messages = await MessageModel.find({ $or: [{ from: username }, { to: username }], isDeleted: false })
+    let messages = await MessageModel.find({ $or: [{ from: username }, { to: username }], isDeleted: false })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
+
+    messages = messages.map(message => { return message.toObject() })
+    messages.forEach(message => {
+      if (message.from === username) {
+        message.isRead = true
+      }
+    })
 
     if (!messages || messages.length === 0) {
       return res.status(404).send('No messages found')
