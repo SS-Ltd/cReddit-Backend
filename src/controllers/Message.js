@@ -27,8 +27,34 @@ const createMessage = async (req, res) => {
 const getMessages = async (req, res) => {
   try {
     const username = req.decoded.username
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 25
+
+    const messages = await MessageModel.find({ $or: [{ from: username }, { to: username }], isDeleted: false })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+
+    if (!messages || messages.length === 0) {
+      return res.status(404).send('No messages found')
+    }
+
+    res.status(200).send(messages)
+  } catch (error) {
+    res.status(400).send('Error getting messages: ' + error.message)
+  }
+}
+
+const getInbox = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 25
 
     const messages = await MessageModel.find({ to: username, isDeleted: false })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
 
     if (!messages || messages.length === 0) {
       return res.status(404).send('No messages found')
@@ -43,8 +69,13 @@ const getMessages = async (req, res) => {
 const getUnreadMessages = async (req, res) => {
   try {
     const username = req.decoded.username
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 25
 
     const messages = await MessageModel.find({ to: username, isRead: false, isDeleted: false })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
 
     if (!messages || messages.length === 0) {
       return res.status(404).send('No messages found')
@@ -93,8 +124,13 @@ const markAllAsRead = async (req, res) => {
 const getSentMessages = async (req, res) => {
   try {
     const username = req.decoded.username
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 25
 
     const messages = await MessageModel.find({ from: username, isDeleted: false })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
 
     if (!messages || messages.length === 0) {
       return res.status(404).send('No messages found')
@@ -127,5 +163,6 @@ module.exports = {
   markAllAsRead,
   getSentMessages,
   deleteMessage,
-  getUnreadMessages
+  getUnreadMessages,
+  getInbox
 }
