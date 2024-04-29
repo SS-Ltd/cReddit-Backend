@@ -301,11 +301,7 @@ const getPost = async (req, res) => {
       })
     }
 
-    if (post.isNsfw && (!user || !user.preferences.showAdultContent) && post.username !== user.username) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
-    }
+    post.showAdultContent = user ? user.preferences.showAdultContent : false
 
     await Post.findOneAndUpdate(
       { _id: postId, isDeleted: false, isRemoved: false },
@@ -391,12 +387,6 @@ const getComments = async (req, res) => {
           message: 'User does not exist'
         })
       }
-    }
-
-    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
     }
 
     const communityName = post.communityName
