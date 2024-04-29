@@ -5,7 +5,7 @@ const { sendMessage } = require('../utils/Message')
 const createMessage = async (req, res) => {
   try {
     const to = req.body.to
-    const from = req.body.from
+    const from = req.decoded.username
 
     const receiver = await UserModel.findOne({ username: to })
     if (!receiver) {
@@ -14,10 +14,13 @@ const createMessage = async (req, res) => {
 
     const subject = req.body.subject
     const text = req.body.text
-    sendMessage(from, to, subject, text)
-    res.status(200).send('Message sent')
+    const ID = await sendMessage(from, to, subject, text)
+    res.status(200).json({
+      message: 'Message sent',
+      messageID: ID
+    })
   } catch (error) {
-    res.status(400).send('Error sending message: ' + error.message)
+    res.status(400).json({ message: 'Error sending message: ' + error.message })
   }
 }
 
