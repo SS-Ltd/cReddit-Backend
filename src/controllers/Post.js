@@ -16,16 +16,32 @@ const createPost = async (req, res) => {
   try {
     PostUtils.validatePost(post)
 
-    if (post.type === 'Images & Video') {
-      const urls = await MediaUtils.uploadImages(req.files)
-      post.content = urls.join(' ')
-    }
-
     if (post.communityName) {
       const community = await Community.findOne({ name: post.communityName })
       if (!community) {
         throw new Error('Community does not exist')
       }
+
+      PostUtils.validatePostAccordingToCommunitySettings(post, community)
+
+      if (community.isNSFW) {
+        post.isNsfw = true
+      }
+    }
+
+    if (post.type === 'Images & Video') {
+      const urls = await MediaUtils.uploadImages(req.files)
+      post.content = urls.join(' ')
+    }
+
+    const user = await User.findOne({ username: post.username, isDeleted: false })
+
+    if (!user) {
+      throw new Error('User does not exist')
+    }
+
+    if (!post.communityName) {
+      post.isNsfw = user.preferences.isNSFW
     }
 
     const createdPost = new Post({
@@ -42,7 +58,6 @@ const createPost = async (req, res) => {
       downvotedPosts: []
     })
 
-    const user = await User.findOne({ username: post.username })
     PostUtils.upvotePost(createdPost, user)
 
     await createdPost.save()

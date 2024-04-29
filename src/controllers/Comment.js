@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 const PostModel = require('../models/Post')
 const UserModel = require('../models/User')
+const CommunityModel = require('../models/Community')
 const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
 const HistoryModel = require('../models/History')
@@ -35,6 +36,17 @@ const createComment = async (req, res) => {
 
     if (post.isLocked) {
       throw new Error('Cannot comment on a locked post')
+    }
+
+    if (post.communityName) {
+      const community = await CommunityModel.findOne({ name: post.communityName })
+      if (!community) {
+        throw new Error('Community does not exist')
+      }
+
+      if (community.settings.allowImageComments && comment.files.length) {
+        throw new Error('Community only allows text comments')
+      }
     }
 
     if (comment.files.length) {

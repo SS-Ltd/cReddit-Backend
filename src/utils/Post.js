@@ -51,6 +51,36 @@ const validatePost = (post) => {
   }
 }
 
+const validatePostAccordingToCommunitySettings = (post, community) => {
+  if (!community.settings.allowSpoiler && post.isSpoiler) {
+    post.isSpoiler = false
+  }
+
+  if (!community.settings.allowCrossPosting && post.child) {
+    throw new Error('Crossposting is not allowed in this community')
+  }
+
+  if (community.moderators.includes(post.username)) {
+    return
+  }
+
+  if (post.type !== 'Link' && community.settings.allowedPostTypes === 'Links') {
+    throw new Error('Community only allows links')
+  }
+
+  if (post.type !== 'Post' && community.settings.allowedPostTypes === 'Posts') {
+    throw new Error('Community only allows text posts')
+  }
+
+  if (post.type === 'Images & Video' && community.settings.allowImages === false) {
+    throw new Error('Community does not allow images or videos')
+  }
+
+  if (post.type === 'Poll' && community.settings.allowPolls === false) {
+    throw new Error('Community does not allow polls')
+  }
+}
+
 const upvotePost = (post, user) => {
   const postId = post._id
   if (user.upvotedPosts.find(upvotedPost => upvotedPost.postId.equals(postId))) {
@@ -118,5 +148,6 @@ module.exports = {
   validatePost,
   upvotePost,
   downvotePost,
-  votePoll
+  votePoll,
+  validatePostAccordingToCommunitySettings
 }
