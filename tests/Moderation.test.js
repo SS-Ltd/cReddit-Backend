@@ -302,9 +302,11 @@ describe('acceptInvitation', () => {
     const loggedInUser = {
       username: 'loggedInUser',
       isDeleted: false,
+      moderatorInCommunities: [],
       preferences: {
         invitationNotifs: true
-      }
+      },
+      save: jest.fn()
     }
 
     UserModel.findOne = jest.fn()
@@ -318,6 +320,7 @@ describe('acceptInvitation', () => {
     expect(community.save).toHaveBeenCalled()
     expect(community.invitations).toHaveLength(0)
     expect(community.moderators).toContain('loggedInUser')
+    expect(loggedInUser.moderatorInCommunities).toContain('testcommunity')
     expect(res.json).toHaveBeenCalledWith({ message: 'Moderator invitation accepted' })
     expect(res.status).toHaveBeenCalledWith(200)
   })
@@ -632,9 +635,11 @@ describe('leaveModeration', () => {
     const loggedInUser = {
       username: 'loggedInUser',
       isDeleted: false,
+      moderatorInCommunities: ['testcommunity'],
       preferences: {
         invitationNotifs: true
-      }
+      },
+      save: jest.fn()
     }
 
     UserModel.findOne = jest.fn()
@@ -648,6 +653,7 @@ describe('leaveModeration', () => {
     expect(community.save).toHaveBeenCalled()
     expect(community.invitations).toHaveLength(0)
     expect(community.moderators).toHaveLength(0)
+    expect(loggedInUser.moderatorInCommunities).toHaveLength(0)
     expect(res.json).toHaveBeenCalledWith({ message: 'Moderator left' })
     expect(res.status).toHaveBeenCalledWith(200)
   })
@@ -762,9 +768,11 @@ describe('removeModerator', () => {
     const user = {
       username: 'testuser',
       isDeleted: false,
+      moderatorInCommunities: ['testcommunity'],
       preferences: {
         invitationNotifs: true
-      }
+      },
+      save: jest.fn()
     }
 
     UserModel.findOne = jest.fn()
@@ -780,6 +788,7 @@ describe('removeModerator', () => {
     expect(community.save).toHaveBeenCalled()
     expect(community.invitations).toHaveLength(0)
     expect(community.moderators).toHaveLength(1)
+    expect(user.moderatorInCommunities).toHaveLength(0)
     expect(res.json).toHaveBeenCalledWith({ message: 'Moderator removed' })
     expect(res.status).toHaveBeenCalledWith(200)
   })

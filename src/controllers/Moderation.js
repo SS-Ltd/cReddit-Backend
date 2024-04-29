@@ -58,6 +58,7 @@ const acceptInvitation = async (req, res) => {
     loggedInUser.moderatorInCommunities.push(community.name)
 
     await community.save()
+    await loggedInUser.save()
     sendMessage(community.owner, loggedInUser.username, 'moderator added', `/u/${loggedInUser.username} has accepted an invitation to become moderator of /r/${community.name}.`, loggedInUser.preferences.invitationNotifs || true)
 
     res.status(200).json({ message: 'Moderator invitation accepted' })
@@ -109,9 +110,10 @@ const leaveModeration = async (req, res) => {
     }
 
     community.moderators = community.moderators.filter(moderator => moderator !== loggedInUser.username)
-    loggedInUser.moderatorInCommunities = loggedInUser.moderatorInCommunities.filter(community => community !== community.name)
+    loggedInUser.moderatorInCommunities = loggedInUser.moderatorInCommunities.filter(community => communityName !== community)
 
     await community.save()
+    await loggedInUser.save()
 
     res.status(200).json({ message: 'Moderator left' })
   } catch (error) {
@@ -141,9 +143,10 @@ const removeModerator = async (req, res) => {
     }
 
     community.moderators = community.moderators.filter(moderator => moderator !== user.username)
-    user.moderatorInCommunities = user.moderatorInCommunities.filter(community => community !== community.name)
+    user.moderatorInCommunities = user.moderatorInCommunities.filter(community => communityName !== community)
 
     await community.save()
+    await user.save()
 
     res.status(200).json({ message: 'Moderator removed' })
   } catch (error) {
