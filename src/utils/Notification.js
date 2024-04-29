@@ -38,11 +38,12 @@ const notificationTemplate = {
   },
   mention: (username, resource, postTitle) => {
     const message = {}
-    if(resource.type === 'Post') {
-      if (resource.communityName)
+    if (resource.type === 'Post') {
+      if (resource.communityName) {
         message.title = `u/${username} mentioned you in r/${resource.communityName}`
-      else
+      } else {
         message.title = `u/${username} mentioned you`
+      }
       message.body = 'Tap to view the mention'
     } else if (resource.type === 'Comment') {
       message.title = `u/${username} commented in "${postTitle}"`
@@ -87,7 +88,7 @@ const notificationTemplate = {
   }
 }
 
-const sendNotification = async (username, type, resource, notificationFrom, postTitle = null) => { // username: reciever, notificationFrom: sender, postTitle: will be used in case of mention in a comment
+const sendNotification = async (username, type, resource, notificationFrom, postTitle = null) => {
   const user = await UserModel.findOne({ username: username })
   const fcmToken = user.fcmToken
   console.log('fcmToken: ', fcmToken)
@@ -102,8 +103,7 @@ const sendNotification = async (username, type, resource, notificationFrom, post
     messageStr = notificationTemplate[type](notificationFrom, resource.communityName, postTitle)
   } else if (type === 'mention') {
     messageStr = notificationTemplate[type](notificationFrom, resource, postTitle)
-  }
-  else {
+  } else {
     messageStr = notificationTemplate[type](notificationFrom, (resource.username || resource.communityName || resource.age))
   }
 
@@ -123,9 +123,6 @@ const sendNotification = async (username, type, resource, notificationFrom, post
       title: messageStr.title,
       body: messageStr.body
     },
-    // data: {
-    //     click_action: `https://www.google.com`
-    // },
     tokens: fcmToken
   }
 
