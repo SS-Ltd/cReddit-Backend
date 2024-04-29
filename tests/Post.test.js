@@ -61,8 +61,23 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    const community = {
+      name: 'Test Community',
+      settings: {
+        allowedPostTypes: 'Posts',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: false,
+        suggestedSort: 'new',
+        allowImageComments: true
+      },
+      isNSFW: false,
+      moderators: []
+    }
+
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
-    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
 
     await PostController.createPost(req, res)
 
@@ -100,7 +115,7 @@ describe('createPost', () => {
       ]
     }
 
-    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn(), preferences: { isNSFW: false } })
     MediaUtils.cloudinary.uploader.upload = jest.fn().mockResolvedValue({ secure_url: 'secure_url' })
 
     const res = {
@@ -146,7 +161,7 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
-    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn(), preferences: { isNSFW: false } })
 
     await PostController.createPost(req, res)
 
@@ -187,8 +202,23 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    const community = {
+      name: 'Test Community',
+      settings: {
+        allowedPostTypes: 'Any',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: true,
+        suggestedSort: 'new',
+        allowImageComments: true
+      },
+      isNSFW: false,
+      moderators: []
+    }
+
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
-    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
 
     await PostController.createPost(req, res)
 
@@ -228,8 +258,23 @@ describe('createPost', () => {
       json: jest.fn()
     }
 
+    const community = {
+      name: 'Test Community',
+      settings: {
+        allowedPostTypes: 'Posts',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: false,
+        suggestedSort: 'new',
+        allowImageComments: true
+      },
+      isNSFW: false,
+      moderators: []
+    }
+
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
-    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'Test Community' })
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
 
     await PostController.createPost(req, res)
 

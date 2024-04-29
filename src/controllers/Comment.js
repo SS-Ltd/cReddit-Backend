@@ -44,7 +44,7 @@ const createComment = async (req, res) => {
         throw new Error('Community does not exist')
       }
 
-      if (community.settings.allowImageComments && comment.files.length) {
+      if (!community.settings.allowImageComments && comment.files.length) {
         throw new Error('Community only allows text comments')
       }
     }
