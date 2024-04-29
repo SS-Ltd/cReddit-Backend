@@ -238,12 +238,6 @@ const getSortedCommunityPosts = async (req, res) => {
       }
     }
 
-    if (community.isNSFW && (!user || !user.preferences.showAdultContent)) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
-    }
-
     const page = req.query.page ? parseInt(req.query.page) - 1 : 0
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
     const sort = req.query.sort ? req.query.sort : 'hot'
