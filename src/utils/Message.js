@@ -48,6 +48,7 @@ const sendMessage = async (sender, receiver, subject, text, sendNotif) => {
     })
 
     await message.save()
+    return message._id
   }
 }
 

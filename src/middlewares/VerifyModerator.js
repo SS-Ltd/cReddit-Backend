@@ -10,7 +10,7 @@ const isModerator = async (req, res, next) => {
     }
 
     if (!community.moderators.includes(username)) {
-      return res.status(403).json({ message: 'Unauthorized' })
+      return res.status(401).json({ message: 'Unauthorized' })
     }
 
     next()

@@ -10,7 +10,7 @@ function createRandomReports () {
       user: usernames[Math.floor(Math.random() * usernames.length)],
       post: postIDs[Math.floor(Math.random() * postIDs.length)],
       message: messageIDs[Math.floor(Math.random() * messageIDs.length)],
-      type: faker.helpers.arrayElement(['post', 'message', 'comment']),
+      type: faker.helpers.arrayElement(['Post', 'Images & Video', 'Link', 'Poll', 'Comment', 'message']),
       reason: faker.helpers.arrayElement(['spam', 'inappropriate', 'hate speech', 'violence', 'other']),
       isDeleted: faker.datatype.boolean(0.1)
     })

@@ -1896,7 +1896,7 @@ describe('votePost', () => {
     }
 
     const postToVote = { _id: postId, upvote: 0, downvote: 0, netVote: 0, save: jest.fn() }
-    const user = { username, upvotedPosts: [], downvotedPosts: [], save: jest.fn() }
+    const user = { username, preferences: { postsUpvotesNotifs: false }, upvotedPosts: [], downvotedPosts: [], save: jest.fn() }
 
     PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
@@ -2048,7 +2048,7 @@ describe('votePost', () => {
     }
 
     const postToVote = { _id: postId, upvote: 1, downvote: 0, netVote: 1, save: jest.fn() }
-    const user = { username, upvotedPosts: [{ postId: new ObjectId('660460b9e212f19e0a5c274b'), savedAt: new Date() }], downvotedPosts: [], save: jest.fn() }
+    const user = { username, preferences: { postsUpvotesNotifs: false }, upvotedPosts: [{ postId: new ObjectId('660460b9e212f19e0a5c274b'), savedAt: new Date() }], downvotedPosts: [], save: jest.fn() }
 
     PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
@@ -2110,7 +2110,7 @@ describe('votePost', () => {
     }
 
     const postToVote = { _id: postId, type: 'Poll', pollOptions: [{ text: 'option1', voters: [] }, { text: 'option2', voters: [] }], save: jest.fn() }
-    const user = { username, save: jest.fn() }
+    const user = { username, preferences: { postsUpvotesNotifs: false }, save: jest.fn() }
 
     PostModel.findOne = jest.fn().mockResolvedValue(postToVote)
     UserModel.findOne = jest.fn().mockResolvedValue(user)

@@ -28,37 +28,35 @@ const CommunitySchema = new Schema({
     type: String
   },
   settings: {
-    general: {
-      allowedPostTypes: {
-        type: String,
-        enum: ['Any', 'Links', 'Posts'],
-        default: 'Any'
-      },
-      allowCrossPosting: {
-        type: Boolean,
-        default: true
-      },
-      allowSpoiler: {
-        type: Boolean,
-        default: true
-      },
-      allowImages: {
-        type: Boolean,
-        default: true
-      },
-      allowPolls: {
-        type: Boolean,
-        default: true
-      },
-      suggestedSort: {
-        type: String,
-        enum: ['best', 'old', 'top', 'new'],
-        default: 'best'
-      },
-      allowImageComments: {
-        type: Boolean,
-        default: true
-      }
+    allowedPostTypes: {
+      type: String,
+      enum: ['Any', 'Links', 'Posts'],
+      default: 'Any'
+    },
+    allowCrossPosting: {
+      type: Boolean,
+      default: true
+    },
+    allowSpoiler: {
+      type: Boolean,
+      default: true
+    },
+    allowImages: {
+      type: Boolean,
+      default: true
+    },
+    allowPolls: {
+      type: Boolean,
+      default: true
+    },
+    suggestedSort: {
+      type: String,
+      enum: ['best', 'old', 'top', 'new'],
+      default: 'best'
+    },
+    allowImageComments: {
+      type: Boolean,
+      default: true
     }
   },
   type: {
@@ -74,28 +72,27 @@ const CommunitySchema = new Schema({
     type: Number,
     default: 1
   },
-  moderators: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ],
+  moderators: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  bannedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  mutedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  approvedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
   invitations: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ],
-  bannedUsers: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ],
-  mutedUsers: [
     {
       type: String,
       ref: 'User',
