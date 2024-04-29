@@ -301,8 +301,6 @@ const getPost = async (req, res) => {
       })
     }
 
-    post.showAdultContent = user ? user.preferences.showAdultContent : false
-
     await Post.findOneAndUpdate(
       { _id: postId, isDeleted: false, isRemoved: false },
       { $inc: { views: 1 } }

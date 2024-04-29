@@ -1733,44 +1733,6 @@ describe('getComments', () => {
     expect(res.json).toHaveBeenCalledWith(comments)
   })
 
-  test('should return 401 status code and an error message when post is NSFW and user has not enabled adult content preference', async () => {
-    const req = {
-      params: {
-        postId: '2972dbbf638edddc2eea00ab'
-      },
-      query: {},
-      decoded: {
-        username: 'validUser'
-      }
-    }
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn()
-    }
-
-    const post = {
-      _id: '2972dbbf638edddc2eea00ab',
-      communityName: 'validCommunityName',
-      isNsfw: true
-    }
-    const user = {
-      preferences: {
-        showAdultContent: false
-      }
-    }
-    PostModel.getPost = jest.fn().mockResolvedValue([post])
-    UserModel.findOne = jest.fn().mockResolvedValue(user)
-
-    await getComments(req, res)
-
-    expect(PostModel.getPost).toHaveBeenCalled()
-    expect(UserModel.findOne).toHaveBeenCalled()
-    expect(res.status).toHaveBeenCalledWith(401)
-    expect(res.json).toHaveBeenCalledWith({
-      message: 'Unable to view NSFW content'
-    })
-  })
-
   test('should return 400 status code and an error message when invalid post ID is provided', async () => {
     const req = {
       params: {

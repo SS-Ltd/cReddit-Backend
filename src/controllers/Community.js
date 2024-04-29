@@ -91,8 +91,6 @@ const getCommunityView = async (req, res) => {
     if (req.decoded) {
       const user = await UserModel.findOne({ username: req.decoded.username })
 
-      communityData.showAdultContent = user.preferences.showAdultContent
-
       if (user) {
         communityData.isModerator = community.moderators.includes(req.decoded.username)
         communityData.isMember = user.communities.includes(community.name)
