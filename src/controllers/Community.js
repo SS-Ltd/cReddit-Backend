@@ -95,7 +95,7 @@ const getCommunityView = async (req, res) => {
       }
 
       if (user) {
-        communityData.isModerator = user.moderatorInCommunities.includes(req.decoded.username)
+        communityData.isModerator = user.moderatorInCommunities.includes(community.name)
         communityData.isMember = user.communities.includes(community.name)
         communityData.isMuted = user.mutedCommunities.includes(community.name)
       }
