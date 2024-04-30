@@ -31,7 +31,7 @@ const CommunitySchema = new Schema({
     allowedPostTypes: {
       type: String,
       enum: ['Any', 'Links', 'Posts'],
-      default: 'any'
+      default: 'Any'
     },
     allowCrossPosting: {
       type: Boolean,
@@ -72,21 +72,27 @@ const CommunitySchema = new Schema({
     type: Number,
     default: 1
   },
-  moderators: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ],
-  bannedUsers: [
-    {
-      type: String,
-      ref: 'User',
-      refPath: 'username'
-    }
-  ],
-  mutedUsers: [
+  moderators: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  bannedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  mutedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  approvedUsers: [{
+    type: String,
+    ref: 'User',
+    refPath: 'username'
+  }],
+  invitations: [
     {
       type: String,
       ref: 'User',

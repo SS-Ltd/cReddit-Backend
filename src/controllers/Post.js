@@ -6,6 +6,7 @@ const mongoose = require('mongoose')
 const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
 const HistoryModel = require('../models/History')
+const { sendNotification } = require('../utils/Notification')
 const ObjectId = require('mongoose').Types.ObjectId
 
 const createPost = async (req, res) => {
@@ -59,6 +60,16 @@ const createPost = async (req, res) => {
     })
 
     PostUtils.upvotePost(createdPost, user)
+
+    const mentionRegex = /u\/(\w+)/g
+    let match
+    while ((match = mentionRegex.exec(createdPost.content)) !== null) {
+      const mentionedUsername = match[1]
+      const mentionedUser = await User.findOne({ username: mentionedUsername })
+      if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
+        sendNotification(mentionedUsername, 'mention', createdPost, user.username)
+      }
+    }
 
     await createdPost.save()
     await user.save()
@@ -579,6 +590,15 @@ const votePost = async (req, res) => {
 
     if (req.type === 'upvote') {
       PostUtils.upvotePost(postToVote, user)
+      const postOwner = await User.findOne({ username: postToVote.username })
+      if (postOwner && postOwner.preferences.postsUpvotesNotifs) {
+        if (postToVote.type !== 'Comment') {
+          sendNotification(postToVote.username, 'upvotedPost', postToVote, user.username)
+        } else {
+          console.log('upvoting comment')
+          sendNotification(postToVote.username, 'upvotedComment', postToVote, user.username)
+        }
+      }
     } else if (req.type === 'downvote') {
       PostUtils.downvotePost(postToVote, user)
     } else if (req.type === 'votePoll') {

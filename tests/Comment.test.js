@@ -261,7 +261,7 @@ describe('createComment', () => {
       }
     }
 
-    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', preferences: { commentsNotifs: false }, upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community' })
     Community.findOne = jest.fn().mockResolvedValue(community)
 
@@ -301,7 +301,7 @@ describe('createComment', () => {
       }
     }
 
-    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', preferences: { commentsNotifs: false }, upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
     PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community' })
     Community.findOne = jest.fn().mockResolvedValue(community)
 

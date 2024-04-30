@@ -28,6 +28,7 @@ function createRandomEntities () {
     postIDs.push(faker.database.mongodbObjectId())
     posts.push({
       postId: postIDs[i],
+      communityId: faker.helpers.arrayElement([...communityNames, null]),
       savedAt: faker.date.recent()
     })
   }

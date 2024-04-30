@@ -895,7 +895,8 @@ describe('getUserView', () => {
       followers: ['follower1', 'follower2'],
       createdAt: '2022-01-01',
       preferences: {
-        isNSFW: true
+        isNSFW: true,
+        allowFollow: true
       }
     }
     UserModel.findOne = jest.fn().mockImplementation(async (query) => {
@@ -915,6 +916,7 @@ describe('getUserView', () => {
       username: 'validUsername',
       displayName: 'John Doe',
       about: 'Lorem ipsum',
+      allowFollow: true,
       email: 'johndoe@example.com',
       profilePicture: 'profile.jpg',
       banner: 'banner.jpg',
@@ -922,7 +924,8 @@ describe('getUserView', () => {
       cakeDay: '2022-01-01',
       isNSFW: true,
       isFollowed: false,
-      isBlocked: false
+      isBlocked: false,
+      showAdultContent: true
     })
   })
 
@@ -1021,7 +1024,7 @@ describe('updateSettings', () => {
         postNotifs: true,
         cakeDayNotifs: true,
         modNotifs: true,
-        invitaionNotifs: true
+        invitationNotifs: true
       },
       isVerified: false,
       follows: [],

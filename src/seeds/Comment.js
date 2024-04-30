@@ -1,6 +1,6 @@
 const { faker } = require('@faker-js/faker')
 const CommentModel = require('../models/Post')
-const { usernames, postIDs, commentIDs } = require('./SeedUtils')
+const { usernames, posts, commentIDs } = require('./SeedUtils')
 
 const comments = []
 
@@ -8,6 +8,7 @@ function createRandomComments () {
   for (let i = 0; i < commentIDs.length; i++) {
     const upvotes = faker.number.int({ min: 10000, max: 100000 })
     const downvotes = faker.number.int({ min: 0, max: 50000 })
+    const randomNumber = faker.number.int({ min: 0, max: posts.length - 1 })
 
     comments.push({
       _id: commentIDs[i],
@@ -26,7 +27,8 @@ function createRandomComments () {
       isRemoved: faker.datatype.boolean(0.05),
       followers: [],
       mostRecentUpvote: faker.date.recent(),
-      postID: faker.helpers.arrayElement(postIDs),
+      postID: posts[randomNumber].postId,
+      communityName: posts[randomNumber].communityId,
       isImage: false,
       type: 'Comment'
     })

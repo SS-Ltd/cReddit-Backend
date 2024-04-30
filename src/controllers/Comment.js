@@ -4,6 +4,7 @@ const UserModel = require('../models/User')
 const CommunityModel = require('../models/Community')
 const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
+const { sendNotification } = require('../utils/Notification')
 const HistoryModel = require('../models/History')
 const ObjectId = require('mongoose').Types.ObjectId
 
@@ -49,6 +50,15 @@ const createComment = async (req, res) => {
       }
     }
 
+    /* post.followers.push(req.decoded.username)
+    const commenter = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    commenter.followedPosts.push(comment.postId)
+
+    await post.save()
+    await commenter.save() */
+
+    const postOwner = await UserModel.findOne({ username: post.username, isDeleted: false })
+
     if (comment.files.length) {
       const urls = await MediaUtils.uploadImages(comment.files)
       comment.content = urls[0]
@@ -71,6 +81,29 @@ const createComment = async (req, res) => {
 
     await newComment.save()
     await user.save()
+
+    /* if (postOwner) {
+      if (postOwner.preferences.commentsNotifs) {
+        sendNotification(post.username, 'comment', newComment, req.decoded.username)
+      }
+    }
+
+    post.followers.forEach(async follower => {
+      const followerUser = await UserModel.findOne({ username: follower, isDeleted: false })
+      if (followerUser && followerUser.preferences.postNotifs) {
+        sendNotification(follower, 'followedPost', newComment, req.decoded.username)
+      }
+    }) */
+
+    const mentionRegex = /u\/(\w+)/g
+    let match
+    while ((match = mentionRegex.exec(newComment.content)) !== null) {
+      const mentionedUsername = match[1]
+      const mentionedUser = await UserModel.findOne({ username: mentionedUsername, isDeleted: false })
+      if (mentionedUser && mentionedUser.username != postOwner.username && mentionedUser.preferences.mentionsNotifs)
+        sendNotification(mentionedUsername, 'mention', newComment, req.decoded.username, post.title)
+    }
+
     res.status(201).json({
       message: 'Comment created successfully',
       commentId: newComment._id

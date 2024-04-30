@@ -22,6 +22,7 @@ const createCommunity = async (req, res) => {
       isNSFW: isNSFW
     })
 
+    community.moderators.push(owner)
     await community.save()
 
     res.status(201).json({
@@ -96,6 +97,7 @@ const getCommunityView = async (req, res) => {
       if (user) {
         communityData.isModerator = community.moderators.includes(req.decoded.username)
         communityData.isMember = user.communities.includes(community.name)
+        communityData.isMuted = user.mutedCommunities.includes(community.name)
       }
     }
 
