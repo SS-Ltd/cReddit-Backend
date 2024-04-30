@@ -29,6 +29,6 @@ const ChatMessageSchema = new Schema({
     required: true
   },
   reactions: [ReactionSchema]
-})
+}, { timestamps: true })
 
 module.exports = mongoose.model('ChatMessage', ChatMessageSchema)
