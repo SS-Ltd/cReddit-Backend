@@ -12,6 +12,12 @@ const notificationRouter = require('./routes/Notification')
 const dotenv = require('dotenv')
 const cors = require('cors')
 const SearchUtils = require('./utils/Search')
+const http = require('http')
+const { Server } = require('socket.io')
+const socketio = require('socket.io')
+const { connectSocket } = require('./utils/Socket')
+
+
 
 dotenv.config()
 
@@ -22,6 +28,18 @@ app.use(express.json())
 app.use(cors({ credentials: true, origin: process.env.BASE_URL }))
 app.use(cors())
 app.use(cookies())
+
+const server = http.createServer(app)
+console.log('Server created: ', server)
+const io = new Server(server, {
+  pingTimeout: 60000,
+  cors: {
+    origin: 'http://localhost:3001',
+    credentials: true,
+  },
+})
+connectSocket(io)
+
 
 const port = process.env.PORT
 
@@ -46,6 +64,6 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on port ${port}`)
 })
