@@ -571,6 +571,63 @@ const getHomeFeed = async (req, res) => {
   }
 }
 
+const getPopular = async (req, res) => {
+  try {
+    const decoded = req.decoded
+    let user = null
+
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+
+    let posts = []
+
+    const options = {}
+    options.random = false
+    options.page = page
+    options.limit = limit
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? [] : user.moderatorInCommunities
+
+    const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
+    const showAdultContent = user ? user.preferences.showAdultContent : false
+
+    posts = await Post.getPopular(options, mutedCommunities, showAdultContent)
+
+    posts.forEach(post => {
+      delete post.pollOptions
+      delete post.expirationDate
+
+      post.isNSFW = post.isNsfw
+      delete post.isNsfw
+
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = user ? user.communities.includes(post.communityName) : false
+      post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
+    })
+
+    return res.status(200).json(posts)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting home feed'
+    })
+  }
+}
+
 const votePost = async (req, res) => {
   const postId = req.params.postId
   const username = req.decoded.username
@@ -676,6 +733,61 @@ const reportPost = async (req, res) => {
     res.status(500).json({ message: error.message || 'Error reporting post' })
   }
 }
+
+const acceptPost = async (req, res) => {
+  try {
+    const username = req.decoded.username
+
+    const user = await User.findOne({ username: username, isDeleted: false })
+    const post = await Post.findOne({ _id: req.params.postId, isDeleted: false })
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    if (!user.moderatorInCommunities.includes(post.communityName)) {
+      return res.status(401).json({ message: 'You are not authorized to approve this post' })
+    }
+
+    post.isApproved = req.body.isApproved
+    await post.save()
+    res.status(200).json({ message: 'Post approved successfully' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error approving post: ' + error.message })
+  }
+}
+
+const removePost = async (req, res) => {
+  try {
+    const username = req.decoded.username
+
+    const user = await User.findOne({ username: username, isDeleted: false })
+    const post = await Post.findOne({ _id: req.params.postId, isDeleted: false })
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    if (!user.moderatorInCommunities.includes(post.communityName)) {
+      return res.status(401).json({ message: 'You are not authorized to remove this post' })
+    }
+
+    post.isRemoved = req.body.isRemoved
+    await post.save()
+    res.status(200).json({ message: 'Post removed successfully' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing post: ' + error.message })
+  }
+}
+
 module.exports = {
   getPost,
   createPost,
@@ -689,5 +801,8 @@ module.exports = {
   reportPost,
   votePost,
   getSortingMethod,
-  filterWithTime
+  filterWithTime,
+  acceptPost,
+  removePost,
+  getPopular
 }
