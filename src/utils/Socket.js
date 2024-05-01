@@ -28,7 +28,7 @@ const connectSocket = (io) => {
         return socket.emit('error', { message: 'User is not a member of this chat room' })
       }
 
-      socket.to(data.roomId).emit('newMessage', data.message)
+      socket.to(data.roomId).emit('newMessage', { username, message })
       const chatMessage = new ChatMessageModel({
         user: username,
         content: message,
