@@ -17,13 +17,21 @@ const createPost = async (req, res) => {
   try {
     PostUtils.validatePost(post)
 
+    let childPost = null
+    if (post.type === 'Cross Post') {
+      childPost = await Post.findOne({ _id: post.postId, isDeleted: false })
+      if (!childPost) {
+        throw new Error('Child post does not exist')
+      }
+    }
+
     if (post.communityName) {
       const community = await Community.findOne({ name: post.communityName })
       if (!community) {
         throw new Error('Community does not exist')
       }
 
-      PostUtils.validatePostAccordingToCommunitySettings(post, community)
+      PostUtils.validatePostAccordingToCommunitySettings(post, community, childPost)
 
       if (community.isNSFW) {
         post.isNsfw = true
@@ -51,6 +59,7 @@ const createPost = async (req, res) => {
       communityName: post.communityName || null,
       title: post.title,
       content: post.content || '',
+      child: childPost ? childPost._id : null,
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
       expirationDate: post.expirationDate || null,
       isSpoiler: post.isSpoiler || false,

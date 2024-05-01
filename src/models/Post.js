@@ -5,7 +5,7 @@ const PostSchema = new Schema({
   type: {
     type: String,
     required: true,
-    enum: ['Post', 'Images & Video', 'Link', 'Poll', 'Comment']
+    enum: ['Post', 'Images & Video', 'Link', 'Poll', 'Comment', 'Cross Post']
   },
   child: {
     type: mongoose.Schema.Types.ObjectId,

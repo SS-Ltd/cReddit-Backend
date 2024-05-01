@@ -1,3 +1,4 @@
+const PostModel = require('../models/Post')
 const URL = require('url').URL
 
 function isValidUrl (string) {
@@ -14,8 +15,15 @@ const validatePost = (post) => {
     throw new Error('Post type and title are required')
   }
 
-  if (!['Post', 'Images & Video', 'Link', 'Poll'].includes(post.type)) {
+  if (!['Post', 'Images & Video', 'Link', 'Poll', 'Cross Post'].includes(post.type)) {
     throw new Error('Invalid type')
+  }
+
+  if (['Post', 'Images & Video', 'Link', 'Poll'].includes(post.type)) {
+    if (post.postId) {
+      post.unusedData = true
+      post.postId = null
+    }
   }
 
   if (post.type === 'Images & Video') {
@@ -49,22 +57,35 @@ const validatePost = (post) => {
     post.expirationDate = null
     post.unusedData = true
   }
+
+  if (post.type === 'Cross Post') {
+    if (!post.postId) {
+      throw new Error('Child post is required')
+    }
+    if (post.content || post.files || post.pollOptions || post.expirationDate) {
+      post.content = null
+      post.files = []
+      post.pollOptions = []
+      post.expirationDate = null
+      post.unusedData = true
+    }
+  }
 }
 
-const validatePostAccordingToCommunitySettings = (post, community) => {
+const validatePostAccordingToCommunitySettings = (post, community, childPost) => {
   if (!community.settings.allowSpoiler && post.isSpoiler) {
     post.isSpoiler = false
   }
 
-  if (!community.settings.allowCrossPosting && post.child) {
-    throw new Error('Crossposting is not allowed in this community')
+  if (!community.settings.allowCrossPosting && post.postId) {
+    throw new Error('Cross-posting is not allowed in this community')
   }
 
   if (community.moderators.includes(post.username)) {
     return
   }
 
-  if (post.type !== 'Link' && community.settings.allowedPostTypes === 'Links') {
+  if (post.type !== 'Link' && (post.type !== 'Cross Post' || childPost.type !== 'Link') && community.settings.allowedPostTypes === 'Links') {
     throw new Error('Community only allows links')
   }
 
