@@ -24,6 +24,12 @@ const createPost = async (req, res) => {
         throw new Error('Community does not exist')
       }
 
+      if (post.date) {
+        if (!community.moderators.includes(post.username)) {
+          throw new Error('Only moderators can schedule posts')
+        }
+      }
+
       PostUtils.validatePostAccordingToCommunitySettings(post, community)
 
       if (community.isNSFW) {
@@ -57,51 +63,29 @@ const createPost = async (req, res) => {
       isSpoiler: post.isSpoiler || false,
       isNsfw: post.isNSFW || false,
       upvotedPosts: [],
-      downvotedPosts: []
+      downvotedPosts: [],
+      createdAt: post.date || new Date()
     })
 
     PostUtils.upvotePost(createdPost, user)
 
-    if (!post.date) {
-      const mentionRegex = /u\/(\w+)/g
-      let match
-      while ((match = mentionRegex.exec(createdPost.content)) !== null) {
-        const mentionedUsername = match[1]
-        const mentionedUser = await User.findOne({ username: mentionedUsername })
-        if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
-          sendNotification(mentionedUsername, 'mention', createdPost, user.username)
-        }
+    const mentionRegex = /u\/(\w+)/g
+    let match
+    while ((match = mentionRegex.exec(createdPost.content)) !== null) {
+      const mentionedUsername = match[1]
+      const mentionedUser = await User.findOne({ username: mentionedUsername })
+      if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
+        sendNotification(mentionedUsername, 'mention', createdPost, user.username)
       }
-
-      await createdPost.save()
-      await user.save()
-
-      res.status(201).json({
-        message: 'Post created successfully' + (post.unusedData ? ' while ignoring additional fields' : ''),
-        postId: createdPost._id
-      })
-    } else {
-      const date = new Date(post.date)
-
-      schedule.scheduleJob(date, async function () {
-        const mentionRegex = /u\/(\w+)/g
-        let match
-        while ((match = mentionRegex.exec(createdPost.content)) !== null) {
-          const mentionedUsername = match[1]
-          const mentionedUser = await User.findOne({ username: mentionedUsername })
-          if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
-            sendNotification(mentionedUsername, 'mention', createdPost, user.username)
-          }
-        }
-
-        await createdPost.save()
-        await user.save()
-      })
-
-      res.status(201).json({
-        messgae: 'Post scheduled successfully'
-      })
     }
+
+    await user.save()
+    await createdPost.save()
+
+    res.status(201).json({
+      message: 'Post created successfully' + (post.unusedData ? ' while ignoring additional fields' : ''),
+      postId: createdPost._id
+    })
   } catch (error) {
     console.log(error)
     res.status(400).json({ message: error.message })
@@ -702,20 +686,6 @@ const reportPost = async (req, res) => {
     res.status(500).json({ message: error.message || 'Error reporting post' })
   }
 }
-
-// const schedulePost = async (req, res) => {
-//   const post = req.body
-//   const date = new Date(post.date)
-
-//   try {
-//     const job = schedule.scheduleJob(date, function () {
-//       createPost(req, res)
-//     })
-//   } catch (error) {
-//     console.log(error)
-//     res.status(500).json({ message: error.message || 'Error scheduling post' })
-//   }
-// }
 
 module.exports = {
   getPost,
