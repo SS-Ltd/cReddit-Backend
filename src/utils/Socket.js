@@ -6,7 +6,6 @@ const connectSocket = (io) => {
   console.log('Connecting to the server: ', io)
   return io.on('connection', (socket) => {
     console.log('Connected to the server')
-
     socket.on('disconnect', () => {
       console.log('Disconnected from the server')
     })
@@ -40,13 +39,12 @@ const connectSocket = (io) => {
       })
       await chatMessage.save()
 
-      socket.to(data.roomId).emit('newMessage', { username, message }) // this will broadcast the message to all users in the room except the sender
+      socket.to(roomId).emit('newMessage', { username, message }) // this will broadcast the message to all users in the room except the sender
       socket.emit('newMessage', { username, message }) // this will send the message to the sender
     })
 
     socket.on('joinRoom', async (data) => {
       const { username, rooms } = data
-
       const user = await UserModel.findOne({ username, isDeleted: false })
       if (!user) {
         return socket.emit('error', { message: 'User not found' })
@@ -59,16 +57,15 @@ const connectSocket = (io) => {
       })
 
       for (const room of validRooms) {
-        socket.join(room._id)
-        console.log('Joined room: ', room._id)
-        socket.to(room._id).emit('onlineUser', { username, room: room._id })
+        socket.join(room._id.toString())
+        socket.to(room._id.toString()).emit('onlineUser', { username, room: room._id })
         socket.emit('onlineUser', { username, room: room._id })
       }
     })
 
     socket.on('leaveRoom', (room) => {
-      socket.leave(room)
       console.log('Left room: ', room)
+      socket.leave(room)
     })
   })
 }
