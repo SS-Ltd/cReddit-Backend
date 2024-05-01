@@ -448,14 +448,14 @@ const getReportedPosts = async (req, res) => {
 
     const sortMethod = getSortingMethod(sort)
 
-    const opotions = {
+    const options = {
       page: page,
       limit,
       sortMethod,
       type
     }
 
-    const posts = await PostModel.getReportedPosts(subreddit, opotions)
+    const posts = await PostModel.getReportedPosts(subreddit, options)
 
     posts.forEach(post => {
       if (post.type !== 'Poll') {
@@ -627,6 +627,52 @@ const updateCommunitySettings = async (req, res) => {
   }
 }
 
+const getScheduledPosts = async (req, res) => {
+  try {
+    const subreddit = req.params.communityName
+
+    if (!subreddit) {
+      return res.status(400).json({
+        message: 'Subreddit is required'
+      })
+    }
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User does not exist'
+      })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+
+    const options = {
+      page,
+      limit
+    }
+
+    const scheduledPosts = await PostModel.getScheduledPosts(subreddit, options)
+    console.log(scheduledPosts)
+
+    return res.status(200).json(scheduledPosts)
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      message: 'An error occurred while getting scheduled posts'
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
@@ -641,5 +687,6 @@ module.exports = {
   getCommunityRules,
   updateCommunityRules,
   getCommunitySettings,
-  updateCommunitySettings
+  updateCommunitySettings,
+  getScheduledPosts
 }

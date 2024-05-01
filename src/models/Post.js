@@ -1736,6 +1736,35 @@ PostSchema.statics.getReportedPosts = async function (communityName, options) {
   ])
 }
 
+PostSchema.statics.getScheduledPosts = async function (communityName, options) {
+  const { page, limit } = options
+  return await this.aggregate([
+    {
+      $match: {
+        communityName: communityName,
+        isDeleted: false,
+        createdAt: { $gt: new Date() }
+      }
+    },
+    { $skip: page * limit },
+    { $limit: limit },
+    {
+      $project: {
+        title: 1,
+        communityName: 1,
+        username: 1,
+        type: 1,
+        content: 1,
+        pollOptions: 1,
+        expirationDate: 1,
+        isSpoiler: 1,
+        isNsfw: 1,
+        createdAt: 1
+      }
+    }
+  ])
+}
+
 PostSchema.statics.searchPosts = async function (options) {
   const { page, limit, query, safeSearch, community, user, sortMethod, filter } = options
   return await this.aggregate([
