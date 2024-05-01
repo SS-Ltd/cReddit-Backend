@@ -100,7 +100,7 @@ const createComment = async (req, res) => {
     while ((match = mentionRegex.exec(newComment.content)) !== null) {
       const mentionedUsername = match[1]
       const mentionedUser = await UserModel.findOne({ username: mentionedUsername, isDeleted: false })
-      if (mentionedUser && mentionedUser.username != postOwner.username && mentionedUser.preferences.mentionsNotifs) {
+      if (mentionedUser && mentionedUser.username !== postOwner.username && mentionedUser.preferences.mentionsNotifs) {
         sendNotification(mentionedUsername, 'mention', newComment, req.decoded.username, post.title)
       }
     }
