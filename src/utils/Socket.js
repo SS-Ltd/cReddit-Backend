@@ -14,6 +14,11 @@ const connectSocket = (io) => {
     socket.on('chatMessage', async (data) => { // data = { roomId, message }
       console.log('Message: ', data)
       const { username, roomId, message } = data
+
+      if (!username || !roomId || !message) {
+        return socket.emit('error', { message: 'Username, room ID, and message are required' })
+      }
+
       const chatRoom = await ChatRoomModel.findById({ _id: roomId, isDeleted: false })
       if (!chatRoom) {
         return socket.emit('error', { message: 'Chat room not found' })
@@ -28,13 +33,15 @@ const connectSocket = (io) => {
         return socket.emit('error', { message: 'User is not a member of this chat room' })
       }
 
-      socket.to(data.roomId).emit('newMessage', { username, message })
       const chatMessage = new ChatMessageModel({
         user: username,
         content: message,
         room: roomId
       })
       await chatMessage.save()
+
+      socket.to(data.roomId).emit('newMessage', { username, message })
+      socket.emit('newMessage', { username, message })
     })
 
     socket.on('joinRoom', async (data) => {
@@ -57,6 +64,7 @@ const connectSocket = (io) => {
       socket.join(room)
       console.log('Joined room: ', room)
       socket.to(room).emit('newUser', { username, room })
+      socket.emit('joinedRoom', { username, room })
     })
 
     socket.on('leaveRoom', (room) => {
