@@ -15,10 +15,7 @@ const cors = require('cors')
 const SearchUtils = require('./utils/Search')
 const http = require('http')
 const { Server } = require('socket.io')
-const socketio = require('socket.io')
 const { connectSocket } = require('./utils/Socket')
-
-
 
 dotenv.config()
 
@@ -36,11 +33,11 @@ const io = new Server(server, {
   pingTimeout: 60000,
   cors: {
     origin: 'http://localhost:3001',
-    credentials: true,
-  },
+    credentials: true
+  }
 })
+app.set('io', io)
 connectSocket(io)
-
 
 const port = process.env.PORT
 
