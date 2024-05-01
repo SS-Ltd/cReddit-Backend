@@ -25,10 +25,13 @@ const ChatRoomSchema = new Schema({
 // TODO: Reseed and test this out
 
 ChatRoomSchema.statics.getRooms = async function (username) {
-  return await this.aggregte([
+  return await this.aggregate([
     {
       $match: {
-        members: { $in: [username] }
+        $or: [
+          { members: { $in: [username] } },
+          { host: username }
+        ]
       }
     },
     {
