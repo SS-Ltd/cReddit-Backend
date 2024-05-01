@@ -1,7 +1,6 @@
 const ChatMessageModel = require('../models/ChatMessage')
 const ChatRoomModel = require('../models/ChatRoom')
 const UserModel = require('../models/User')
-const { emitSocketEvent } = require('../utils/Socket')
 
 const createChatRoom = async (req, res) => {
   try {
@@ -105,7 +104,14 @@ const getRoomChat = async (req, res) => {
       return res.status(404).json({ message: 'Chat room not found' })
     }
 
-    const chatMessages = await ChatMessageModel.find({ room: roomId }).sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit).exec()
+    let chatMessages = null
+    const findLeaveMessage = await ChatMessageModel.findOne({ room: roomId, content: `${username} left the chat` })
+    if (findLeaveMessage) {
+      // get the messagge before the leave message
+      chatMessages = await ChatMessageModel.find({ room: roomId, createdAt: { $lt: findLeaveMessage.createdAt } }).sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit).exec()
+    } else {
+      chatMessages = await ChatMessageModel.find({ room: roomId }).sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit).exec()
+    }
 
     res.status(200).json(chatMessages)
   } catch (error) {
