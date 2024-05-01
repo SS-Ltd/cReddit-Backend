@@ -16,11 +16,21 @@ const createCommunity = async (req, res) => {
       return res.status(400).json({ message: 'Community already exists' })
     }
 
+    const user = await UserModel.findOne({ username: owner, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
     const community = new CommunityModel({
       owner: owner,
       name: name,
       isNSFW: isNSFW
     })
+
+    user.moderatorInCommunities.push(name)
+    user.communities.push(name)
+    await user.save()
 
     community.moderators.push(owner)
     await community.save()
@@ -325,6 +335,10 @@ const joinCommunity = async (req, res) => {
       return res.status(400).json({
         message: 'User is already a member of the community'
       })
+    }
+
+    if (community.blockedUsers.includes(username)) {
+      return res.status(400).json({ message: 'User is blocked from the community' })
     }
 
     user.communities.push(subreddit)

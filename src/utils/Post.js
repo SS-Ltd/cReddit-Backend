@@ -1,4 +1,3 @@
-const PostModel = require('../models/Post')
 const URL = require('url').URL
 
 function isValidUrl (string) {
