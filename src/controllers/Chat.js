@@ -1,10 +1,12 @@
 const ChatMessageModel = require('../models/ChatMessage')
 const ChatRoomModel = require('../models/ChatRoom')
 const UserModel = require('../models/User')
+const { emitSocketEvent } = require('../utils/Socket')
 
 const createChatRoom = async (req, res) => {
   try {
     const { name, members } = req.body
+    console.log('Creating chat room: ', name, members)
     const host = req.decoded.username
 
     if (!members) {
@@ -50,6 +52,8 @@ const createChatRoom = async (req, res) => {
 
     await chatRoom.save()
 
+    emitSocketEvent(req, chatRoom._id, 'chatRequest', { chatRoom })
+
     res.status(201).json({
       message: 'Chat room created successfully',
       roomID: chatRoom._id
@@ -89,7 +93,7 @@ const getRoomChat = async (req, res) => {
 
     const { roomId } = req.params
 
-    const chatRoom = await ChatRoomModel.find({ roomId, isDeleted: false })
+    const chatRoom = await ChatRoomModel.find({ _id: roomId, isDeleted: false })
 
     if (!chatRoom) {
       return res.status(404).json({ message: 'Chat room not found' })

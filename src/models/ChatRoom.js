@@ -25,9 +25,7 @@ const ChatRoomSchema = new Schema({
 ChatRoomSchema.statics.getRooms = async function (username) {
   return await this.aggregate([
     {
-      $match: {
-        members: { $in: [username] }
-      }
+      $match: { members: { $in: [username] } }
     },
     {
       $lookup: {
