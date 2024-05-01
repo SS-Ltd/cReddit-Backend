@@ -3,8 +3,7 @@ const Schema = mongoose.Schema
 
 const ChatRoomSchema = new Schema({
   name: {
-    type: String,
-    required: true
+    type: String
   },
   members: [{
     type: String,
@@ -15,8 +14,7 @@ const ChatRoomSchema = new Schema({
   host: {
     type: String,
     ref: 'User',
-    refPath: 'username',
-    required: true
+    refPath: 'username'
   }
 }, {
   timestamps: true
@@ -25,7 +23,7 @@ const ChatRoomSchema = new Schema({
 // TODO: Reseed and test this out
 
 ChatRoomSchema.statics.getRooms = async function (username) {
-  return await this.aggregte([
+  return await this.aggregate([
     {
       $match: {
         members: { $in: [username] }
@@ -40,7 +38,10 @@ ChatRoomSchema.statics.getRooms = async function (username) {
       }
     },
     {
-      $unwind: '$messages'
+      $unwind: {
+        path: '$messages',
+        preserveNullAndEmptyArrays: true
+      }
     },
     {
       $sort: {

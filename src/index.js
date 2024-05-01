@@ -15,10 +15,7 @@ const cors = require('cors')
 const SearchUtils = require('./utils/Search')
 const http = require('http')
 const { Server } = require('socket.io')
-const socketio = require('socket.io')
 const { connectSocket } = require('./utils/Socket')
-
-
 
 dotenv.config()
 
