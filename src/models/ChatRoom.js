@@ -44,11 +44,6 @@ ChatRoomSchema.statics.getRooms = async function (username) {
       }
     },
     {
-      $sort: {
-        'messages.createdAt': -1
-      }
-    },
-    {
       $group: {
         _id: '$_id',
         room: { $first: '$$ROOT' },
@@ -63,8 +58,39 @@ ChatRoomSchema.statics.getRooms = async function (username) {
       }
     },
     {
+      $addFields: {
+        name: {
+          $cond: {
+            if: { $eq: [{ $size: '$members' }, 2] },
+            then: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: '$members',
+                    as: 'member',
+                    cond: { $ne: ['$$member', 'Peyton26'] }
+                  }
+                },
+                0
+              ]
+            },
+            else: '$name'
+          }
+        },
+        sortBy: {
+          $ifNull: ['$lastSentMessage.createdAt', '$createdAt']
+        }
+      }
+    },
+    {
+      $sort: {
+        sortBy: -1
+      }
+    },
+    {
       $project: {
-        messages: 0
+        messages: 0,
+        sortBy: 0
       }
     }
   ])
