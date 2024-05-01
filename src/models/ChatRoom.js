@@ -15,6 +15,10 @@ const ChatRoomSchema = new Schema({
     type: String,
     ref: 'User',
     refPath: 'username'
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
