@@ -52,7 +52,13 @@ const createChatRoom = async (req, res) => {
 
     await chatRoom.save()
 
-    emitSocketEvent(req, chatRoom._id, 'chatRequest', { chatRoom })
+    const chatMessages = new ChatMessageModel({
+      user: null,
+      content: `${host} joined the chat`,
+      room: chatRoom._id
+    })
+
+    await chatMessages.save()
 
     res.status(201).json({
       message: 'Chat room created successfully',
