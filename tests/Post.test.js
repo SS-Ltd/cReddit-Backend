@@ -92,7 +92,8 @@ describe('createPost', () => {
       isSpoiler: false,
       isNsfw: false,
       upvotedPosts: [],
-      downvotedPosts: []
+      downvotedPosts: [],
+      createdAt: expect.any(Date)
     })
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
     expect(res.status).toHaveBeenCalledWith(201)
@@ -137,7 +138,8 @@ describe('createPost', () => {
       isSpoiler: false,
       isNsfw: false,
       upvotedPosts: [],
-      downvotedPosts: []
+      downvotedPosts: [],
+      createdAt: expect.any(Date)
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -176,7 +178,8 @@ describe('createPost', () => {
       isSpoiler: true,
       isNsfw: false,
       upvotedPosts: [],
-      downvotedPosts: []
+      downvotedPosts: [],
+      createdAt: expect.any(Date)
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
@@ -233,7 +236,8 @@ describe('createPost', () => {
       isSpoiler: false,
       isNsfw: true,
       upvotedPosts: [],
-      downvotedPosts: []
+      downvotedPosts: [],
+      createdAt: expect.any(Date)
     })
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
     expect(res.status).toHaveBeenCalledWith(201)
@@ -289,7 +293,8 @@ describe('createPost', () => {
       isSpoiler: false,
       isNsfw: true,
       upvotedPosts: [],
-      downvotedPosts: []
+      downvotedPosts: [],
+      createdAt: expect.any(Date)
     })
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully while ignoring additional fields' })
