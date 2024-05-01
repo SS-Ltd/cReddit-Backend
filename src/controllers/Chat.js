@@ -113,8 +113,43 @@ const getRoomChat = async (req, res) => {
   }
 }
 
+const leaveChatRoom = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    const { roomId } = req.params
+
+    const chatRoom = await ChatRoomModel.findOne({ _id: roomId, isDeleted: false })
+
+    if (!chatRoom) {
+      return res.status(404).json({ message: 'Chat room not found' })
+    }
+
+    if (!chatRoom.members.includes(username)) {
+      return res.status(403).json({ message: 'User is not a member of this chat room' })
+    }
+
+    const index = chatRoom.members.indexOf(username)
+    chatRoom.members.splice(index, 1)
+
+    await chatRoom.save()
+
+    const chatMessage = new ChatMessageModel({
+      user: null,
+      content: `${username} left the chat`,
+      room: roomId
+    })
+
+    await chatMessage.save()
+
+    res.status(200).json({ message: 'Left chat room successfully' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error leaving chat room: ' + error.message })
+  }
+}
+
 module.exports = {
   createChatRoom,
   getRooms,
-  getRoomChat
+  getRoomChat,
+  leaveChatRoom
 }
