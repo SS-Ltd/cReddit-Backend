@@ -70,7 +70,7 @@ const createChatRoom = async (req, res) => {
 
 const getRooms = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1
+    const page = parseInt(req.query.page) - 1 || 1
     const limit = parseInt(req.query.limit) || 10
     const username = req.decoded.username
 
