@@ -22,7 +22,7 @@ const ChatRoomSchema = new Schema({
 
 // TODO: Reseed and test this out
 
-ChatRoomSchema.statics.getRooms = async function (username) {
+ChatRoomSchema.statics.getRooms = async function (page, limit, username) {
   return await this.aggregate([
     {
       $match: { members: { $in: [username] } }
@@ -85,6 +85,8 @@ ChatRoomSchema.statics.getRooms = async function (username) {
         sortBy: -1
       }
     },
+    { $skip: page * limit },
+    { $limit: limit },
     {
       $project: {
         messages: 0,

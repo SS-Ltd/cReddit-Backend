@@ -65,6 +65,8 @@ const createChatRoom = async (req, res) => {
 
 const getRooms = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
     const username = req.decoded.username
 
     const user = UserModel.findOne({ username, isDeleted: false })
@@ -73,7 +75,7 @@ const getRooms = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    const chatRooms = await ChatRoomModel.getRooms(username)
+    const chatRooms = await ChatRoomModel.getRooms(page, limit, username)
 
     res.status(200).json(chatRooms)
   } catch (error) {
@@ -83,7 +85,8 @@ const getRooms = async (req, res) => {
 
 const getRoomChat = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
     const username = req.decoded.username
     const user = UserModel.findOne({ username, isDeleted: false })
 
