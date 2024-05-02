@@ -17,8 +17,7 @@ const ChatMessageSchema = new Schema({
   user: {
     type: String,
     ref: 'User',
-    refPath: 'user',
-    required: true
+    refPath: 'user'
   },
   room: {
     type: Schema.Types.ObjectId,
@@ -28,7 +27,11 @@ const ChatMessageSchema = new Schema({
     type: String,
     required: true
   },
-  reactions: [ReactionSchema]
+  reactions: [ReactionSchema],
+  isDeleted: {
+    type: Boolean,
+    default: false
+  }
 }, { timestamps: true })
 
 module.exports = mongoose.model('ChatMessage', ChatMessageSchema)

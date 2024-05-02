@@ -93,7 +93,7 @@ const follow = async (req, res) => {
 
     await user.save()
     await userFollowed.save()
-    
+
     if (userFollowed.preferences.newFollowerNotifs) {
       sendNotification(userFollowed.username, 'follow', user, user.username)
     }

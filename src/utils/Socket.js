@@ -6,7 +6,6 @@ const connectSocket = (io) => {
   console.log('Connecting to the server: ', io)
   return io.on('connection', (socket) => {
     console.log('Connected to the server')
-
     socket.on('disconnect', () => {
       console.log('Disconnected from the server')
     })
@@ -14,6 +13,11 @@ const connectSocket = (io) => {
     socket.on('chatMessage', async (data) => { // data = { roomId, message }
       console.log('Message: ', data)
       const { username, roomId, message } = data
+
+      if (!username || !roomId || !message) {
+        return socket.emit('error', { message: 'Username, room ID, and message are required' })
+      }
+
       const chatRoom = await ChatRoomModel.findById({ _id: roomId, isDeleted: false })
       if (!chatRoom) {
         return socket.emit('error', { message: 'Chat room not found' })
@@ -28,40 +32,40 @@ const connectSocket = (io) => {
         return socket.emit('error', { message: 'User is not a member of this chat room' })
       }
 
-      socket.to(data.roomId).emit('newMessage', { username, message })
       const chatMessage = new ChatMessageModel({
         user: username,
         content: message,
         room: roomId
       })
       await chatMessage.save()
+
+      socket.to(roomId).emit('newMessage', { username, message }) // this will broadcast the message to all users in the room except the sender
+      socket.emit('newMessage', { username, message }) // this will send the message to the sender
     })
 
     socket.on('joinRoom', async (data) => {
-      const { username, room } = data
-
+      const { username, rooms } = data
       const user = await UserModel.findOne({ username, isDeleted: false })
       if (!user) {
         return socket.emit('error', { message: 'User not found' })
       }
 
-      const chatRoom = await ChatRoomModel.findById({ _id: room, isDeleted: false })
-      if (!chatRoom) {
-        return socket.emit('error', { message: 'Chat room not found' })
-      }
+      const validRooms = await ChatRoomModel.find({
+        _id: { $in: rooms },
+        members: { $in: [username] },
+        isDeleted: false
+      })
 
-      if (!chatRoom.members.includes(username)) {
-        return socket.emit('error', { message: 'User is not a member of this chat room' })
+      for (const room of validRooms) {
+        socket.join(room._id.toString())
+        socket.to(room._id.toString()).emit('onlineUser', { username, room: room._id })
+        socket.emit('onlineUser', { username, room: room._id })
       }
-
-      socket.join(room)
-      console.log('Joined room: ', room)
-      socket.to(room).emit('newUser', { username, room })
     })
 
     socket.on('leaveRoom', (room) => {
-      socket.leave(room)
       console.log('Left room: ', room)
+      socket.leave(room)
     })
   })
 }

@@ -5,5 +5,6 @@ const router = express.Router()
 
 router.route('/').post(verifyToken, chat.createChatRoom).get(verifyToken, chat.getRooms)
 router.route('/:roomId').get(verifyToken, chat.getRoomChat)
+router.route('/leaveChat/:roomId').delete(verifyToken, chat.leaveChatRoom)
 
 module.exports = router
