@@ -328,7 +328,7 @@ const joinCommunity = async (req, res) => {
       })
     }
 
-    if (community.blockedUsers.includes(username)) {
+    if (community && community.blockedUsers && community.blockedUsers.includes(username)) {
       return res.status(400).json({ message: 'User is blocked from the community' })
     }
 
