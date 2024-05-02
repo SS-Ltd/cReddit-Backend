@@ -33,6 +33,6 @@ const ChatMessageSchema = new Schema({
     type: Boolean,
     default: false
   }
-})
+}, { timestamps: true })
 
 module.exports = mongoose.model('ChatMessage', ChatMessageSchema)
