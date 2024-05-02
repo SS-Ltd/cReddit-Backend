@@ -94,15 +94,12 @@ const getCommunityView = async (req, res) => {
       rules: community.rules,
       description: community.description,
       topic: community.topic,
-      moderators: community.moderators
+      moderators: community.moderators,
+      isNSFW: community.isNSFW
     }
 
     if (req.decoded) {
       const user = await UserModel.findOne({ username: req.decoded.username })
-
-      if (user && (user.preferences.showAdultContent === false && community.isNSFW === true)) {
-        return res.status(401).json({ message: 'Unable to view NSFW content' })
-      }
 
       if (user) {
         communityData.isModerator = user.moderatorInCommunities.includes(community.name)
@@ -254,12 +251,6 @@ const getSortedCommunityPosts = async (req, res) => {
           message: 'User does not exist'
         })
       }
-    }
-
-    if (community.isNSFW && (!user || !user.preferences.showAdultContent)) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
     }
 
     const page = req.query.page ? parseInt(req.query.page) - 1 : 0

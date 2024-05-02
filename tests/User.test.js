@@ -924,8 +924,7 @@ describe('getUserView', () => {
       cakeDay: '2022-01-01',
       isNSFW: true,
       isFollowed: false,
-      isBlocked: false,
-      showAdultContent: true
+      isBlocked: false
     })
   })
 
