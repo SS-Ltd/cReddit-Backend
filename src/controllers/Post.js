@@ -282,19 +282,19 @@ const getSortingMethod = (sort) => {
 const filterWithTime = (time) => {
   switch (time) {
     case 'now':
-      return { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 60 * 60 * 1000) }
     case 'today':
-      return { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     case 'week':
-      return { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     case 'month':
-      return { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
     case 'year':
-      return { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
     case 'all':
-      return { $gte: new Date(0) }
+      return { $lte: new Date(Date.now()) }
     default:
-      return { $gte: new Date(0) }
+      return { $lte: new Date(Date.now()) }
   }
 }
 

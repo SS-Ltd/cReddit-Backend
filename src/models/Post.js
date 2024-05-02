@@ -903,7 +903,8 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
         ],
         isDeleted: false,
         isRemoved: false,
-        type: { $ne: 'Comment' }
+        type: { $ne: 'Comment' },
+        createdAt: { $lte: new Date(Date.now()) }
       }
     },
     {

@@ -332,7 +332,8 @@ UserSchema.methods.getPosts = async function (options) {
                 $and: [
                   { $eq: ['$_id', '$$postId'] },
                   { $ne: ['$isDeleted', true] },
-                  { $ne: ['$isRemoved', true] }
+                  { $ne: ['$isRemoved', true] },
+                  { $lte: ['$createdAt', new Date(Date.now())] }
                 ]
               }
             }

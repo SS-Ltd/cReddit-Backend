@@ -93,7 +93,7 @@ const follow = async (req, res) => {
 
     await user.save()
     await userFollowed.save()
-    
+
     if (userFollowed.preferences.newFollowerNotifs) {
       sendNotification(userFollowed.username, 'follow', user, user.username)
     }
@@ -886,19 +886,19 @@ const getHiddenPosts = async (req, res) => {
 const filterWithTime = (time) => {
   switch (time) {
     case 'now':
-      return { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 60 * 60 * 1000) }
     case 'today':
-      return { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     case 'week':
-      return { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     case 'month':
-      return { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
     case 'year':
-      return { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
     case 'all':
-      return { $gte: new Date(0) }
+      return { $lte: new Date(Date.now()) }
     default:
-      return { $gte: new Date(0) }
+      return { $lte: new Date(Date.now()) }
   }
 }
 
@@ -1068,6 +1068,7 @@ const getUpvotedPosts = async (req, res) => {
 
     res.status(200).json(result)
   } catch (error) {
+    console.log(error)
     res.status(400).json({ message: 'Error getting upvoted posts' })
   }
 }
