@@ -10,6 +10,18 @@ const { sendNotification } = require('../utils/Notification')
 const ObjectId = require('mongoose').Types.ObjectId
 const schedule = require('node-schedule')
 
+const sendNotificationUtil = async (post, user) => {
+  const mentionRegex = /u\/(\w+)/g
+  let match
+  while ((match = mentionRegex.exec(post.content)) !== null) {
+    const mentionedUsername = match[1]
+    const mentionedUser = await User.findOne({ username: mentionedUsername })
+    if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
+      sendNotification(mentionedUsername, 'mention', post, user.username)
+    }
+  }
+}
+
 const createPost = async (req, res) => {
   const post = req.body
   post.files = req.files
@@ -70,28 +82,12 @@ const createPost = async (req, res) => {
     PostUtils.upvotePost(createdPost, user)
 
     if (!post.date) {
-      const mentionRegex = /u\/(\w+)/g
-      let match
-      while ((match = mentionRegex.exec(createdPost.content)) !== null) {
-        const mentionedUsername = match[1]
-        const mentionedUser = await User.findOne({ username: mentionedUsername })
-        if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
-          sendNotification(mentionedUsername, 'mention', createdPost, user.username)
-        }
-      }
+      sendNotificationUtil(createdPost, user)
     } else {
       const date = new Date(post.date)
 
       const job = schedule.scheduleJob(date, async () => {
-        const mentionRegex = /u\/(\w+)/g
-        let match
-        while ((match = mentionRegex.exec(createdPost.content)) !== null) {
-          const mentionedUsername = match[1]
-          const mentionedUser = await User.findOne({ username: mentionedUsername })
-          if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
-            sendNotification(mentionedUsername, 'mention', createdPost, user.username)
-          }
-        }
+        sendNotificationUtil(createdPost, user)
       })
 
       createdPost.job = job.name
@@ -123,6 +119,12 @@ const deletePost = async (req, res) => {
     }
     if (post.username !== req.decoded.username) {
       return res.status(403).json({ message: 'You are not authorized to delete this post' })
+    }
+    if (post.job) {
+      const oldJob = schedule.scheduledJobs[post.job]
+      if (oldJob) {
+        oldJob.cancel()
+      }
     }
     post.isDeleted = true
     await post.save()
@@ -190,28 +192,11 @@ const editPost = async (req, res) => {
 
       if (new Date(date) > new Date()) {
         const job = schedule.scheduleJob(new Date(date), async () => {
-          const mentionRegex = /u\/(\w+)/g
-          let match
-          while ((match = mentionRegex.exec(newPost.content)) !== null) {
-            const mentionedUsername = match[1]
-            const mentionedUser = await User.findOne({ username: mentionedUsername })
-            if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
-              sendNotification(mentionedUsername, 'mention', newPost, user.username)
-            }
-          }
+          sendNotificationUtil(newPost, user)
         })
         newPost.job = job.name
-      }
-      else {
-        const mentionRegex = /u\/(\w+)/g
-        let match
-        while ((match = mentionRegex.exec(newPost.content)) !== null) {
-          const mentionedUsername = match[1]
-          const mentionedUser = await User.findOne({ username: mentionedUsername })
-          if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
-            sendNotification(mentionedUsername, 'mention', newPost, user.username)
-          }
-        }
+      } else {
+        sendNotificationUtil(newPost, user)
       }
 
       PostUtils.upvotePost(newPost, user)
