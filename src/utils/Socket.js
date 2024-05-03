@@ -5,7 +5,7 @@ const UserModel = require('../models/User')
 const connectSocket = (io) => {
   console.log('Connecting to the server: ', io)
   return io.on('connection', (socket) => {
-    console.log('Connected to the server')
+    console.log(socket.decoded, ' connected to the server')
     socket.on('disconnect', () => {
       console.log('Disconnected from the server')
     })

@@ -17,13 +17,16 @@ const verifyToken = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
-    req.decoded = decoded
+    req.decoded = authenticate(token)
     next()
   } catch (error) {
     console.error('Error verifying token: ', error)
     return res.status(403).json({ message: 'Invalid token' })
   }
+}
+
+const authenticate = (accessToken) => {
+  return jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET)
 }
 
 const verifyGoogleToken = async (req, res, next) => {
@@ -51,5 +54,6 @@ const verifyGoogleToken = async (req, res, next) => {
 module.exports = {
   isLoggedIn,
   verifyToken,
-  verifyGoogleToken
+  verifyGoogleToken,
+  authenticate
 }

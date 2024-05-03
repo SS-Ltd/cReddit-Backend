@@ -13,6 +13,7 @@ const chatRouter = require('./routes/Chat')
 const dotenv = require('dotenv')
 const cors = require('cors')
 const SearchUtils = require('./utils/Search')
+const { authenticate } = require('./middlewares/Verify')
 const http = require('http')
 const { Server } = require('socket.io')
 const { connectSocket } = require('./utils/Socket')
@@ -30,12 +31,19 @@ app.use(cookies())
 const server = http.createServer(app)
 console.log('Server created: ', server)
 const io = new Server(server, {
+  cookie: true,
   pingTimeout: 60000,
   cors: {
     origin: 'http://localhost:3001',
     credentials: true
   }
 })
+
+io.use((socket, next) => {
+  socket.decoded = authenticate(socket.request.headers.cookie)
+  next()
+})
+
 app.set('io', io)
 connectSocket(io)
 
