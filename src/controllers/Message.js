@@ -134,7 +134,7 @@ const getSentMessages = async (req, res) => {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 25
 
-    const messages = await MessageModel.find({ from: username, isDeleted: false })
+    const messages = await MessageModel.find({ from: username, isDeleted: false, subject: { $not: /^invitation|^post|^Mentioned/ } })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -195,6 +195,7 @@ const deleteMessage = async (req, res) => {
     const message = await MessageModel.findOne({ _id: messageId, isDeleted: false, from: username })
     message.isDeleted = true
 
+    await message.save()
     res.status(200).send('Message deleted successfully')
   } catch (error) {
     res.status(400).send('Error deleting message: ' + error.message)
