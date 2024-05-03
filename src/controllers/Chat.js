@@ -110,7 +110,7 @@ const getRoomChat = async (req, res) => {
     let chatMessages = null
     const findLeaveMessage = await ChatMessageModel.findOne({ room: roomId, content: `${username} left the chat` })
     if (findLeaveMessage) {
-      // get the messagge before the leave message
+      // get the message before the leave message
       chatMessages = await ChatMessageModel.find({ room: roomId, createdAt: { $lt: findLeaveMessage.createdAt } }).sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit).exec()
     } else {
       chatMessages = await ChatMessageModel.find({ room: roomId }).sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit).exec()
