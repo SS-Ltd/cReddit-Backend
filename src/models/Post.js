@@ -1745,6 +1745,7 @@ PostSchema.statics.searchHashtags = async function (options) {
     },
     {
       $match: {
+        type: { $in: ['Post', 'Comment'] },
         isDeleted: false,
         isRemoved: false,
         isImage: false,
