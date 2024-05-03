@@ -155,9 +155,6 @@ const editPost = async (req, res) => {
     }
     if (date) {
       console.log(new Date(date), new Date())
-      if (new Date(date) < new Date()) {
-        return res.status(400).json({ message: 'Invalid date' })
-      }
 
       const user = await User.findOne({ username: post.username })
 
@@ -171,10 +168,10 @@ const editPost = async (req, res) => {
         expirationDate: post.expirationDate,
         isSpoiler: post.isSpoiler,
         isNsfw: post.isNsfw,
-        upvote: post.upvote,
-        downvote: post.downvote,
-        netVote: post.netVote,
-        views: post.views,
+        upvote: 0,
+        downvote: 0,
+        netVote: 0,
+        views: 0,
         isImage: post.isImage,
         isLocked: post.isLocked,
         isDeleted: false,
@@ -191,7 +188,21 @@ const editPost = async (req, res) => {
         oldJob.cancel()
       }
 
-      const job = schedule.scheduleJob(new Date(date), async () => {
+      if (new Date(date) > new Date()) {
+        const job = schedule.scheduleJob(new Date(date), async () => {
+          const mentionRegex = /u\/(\w+)/g
+          let match
+          while ((match = mentionRegex.exec(newPost.content)) !== null) {
+            const mentionedUsername = match[1]
+            const mentionedUser = await User.findOne({ username: mentionedUsername })
+            if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
+              sendNotification(mentionedUsername, 'mention', newPost, user.username)
+            }
+          }
+        })
+        newPost.job = job.name
+      }
+      else {
         const mentionRegex = /u\/(\w+)/g
         let match
         while ((match = mentionRegex.exec(newPost.content)) !== null) {
@@ -201,9 +212,7 @@ const editPost = async (req, res) => {
             sendNotification(mentionedUsername, 'mention', newPost, user.username)
           }
         }
-      })
-
-      newPost.job = job.name
+      }
 
       PostUtils.upvotePost(newPost, user)
 
