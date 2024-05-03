@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 const PostModel = require('../models/Post')
 const UserModel = require('../models/User')
+const MessageModel = require('../models/Message')
 const CommunityModel = require('../models/Community')
 const MediaUtils = require('../utils/Media')
 const PostUtils = require('../utils/Post')
@@ -95,16 +96,36 @@ const createComment = async (req, res) => {
       }
     }) */
 
-    const mentionRegex = /u\/(\w+)/g
-    let match
-    while ((match = mentionRegex.exec(newComment.content)) !== null) {
-      const mentionedUsername = match[1]
-      const mentionedUser = await UserModel.findOne({ username: mentionedUsername, isDeleted: false })
-      if (mentionedUser && mentionedUser.username !== postOwner.username && mentionedUser.preferences.mentionsNotifs) {
-        sendNotification(mentionedUsername, 'mention', newComment, req.decoded.username, post.title)
+    const message = new MessageModel({
+      from: comment.username,
+      to: post.username,
+      subject: 'post reply: ' + post.title,
+      text: comment.isImage ? 'Image' : comment.content
+    })
+
+    if (!newComment.isImage) {
+      const mentionRegex = /u\/(\w+)/
+      const regex = new RegExp(mentionRegex, 'gi')
+      const matches = newComment.content.match(regex)
+      if (matches) {
+        const mentionedUsers = new Set(matches.map(match => match.slice(2)))
+        const validUsers = await UserModel.find({ username: { $in: Array.from(mentionedUsers) } })
+        const messages = validUsers.map(user => ({
+          from: newComment.username,
+          to: user.username,
+          subject: 'Mentioned in a comment',
+          text: newComment.content.length > 100 ? newComment.content.slice(0, 100) + '...' : newComment.content
+        }))
+        validUsers.forEach(user => {
+          if (user.username !== postOwner.username && user.preferences.mentionsNotifs) {
+            sendNotification(user.username, 'mention', newComment, req.decoded.username, post.title)
+          }
+        })
+        await MessageModel.create(messages)
       }
     }
 
+    await message.save()
     res.status(201).json({
       message: 'Comment created successfully',
       commentId: newComment._id

@@ -149,6 +149,44 @@ const getSentMessages = async (req, res) => {
   }
 }
 
+const getPostReplies = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    const user = await UserModel.findOne({ username, isDeleted: false })
+    if (!user) {
+      return res.status(404).send('User not found')
+    }
+
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+
+    const messages = await MessageModel.find({ to: username, isDeleted: false, subject: { $regex: /^post reply:/ } }).sort({ createdAt: -1 }).skip(page * limit).limit(limit).exec()
+
+    res.status(200).json(messages)
+  } catch (error) {
+    res.status(500).send('Error getting post replies: ' + error.message)
+  }
+}
+
+const getUsernameMentions = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    const user = await UserModel.findOne({ username, isDeleted: false })
+    if (!user) {
+      return res.status(404).send('User not found')
+    }
+
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+
+    const messages = await MessageModel.find({ to: username, isDeleted: false, subject: { $regex: /^Mentioned/ } }).sort({ createdAt: -1 }).skip(page * limit).limit(limit).exec()
+
+    res.status(200).json(messages)
+  } catch (error) {
+    res.status(500).send('Error getting post replies: ' + error.message)
+  }
+}
+
 const deleteMessage = async (req, res) => {
   try {
     const username = req.decoded.username
@@ -169,6 +207,8 @@ module.exports = {
   markAsRead,
   markAllAsRead,
   getSentMessages,
+  getPostReplies,
+  getUsernameMentions,
   deleteMessage,
   getUnreadMessages,
   getInbox
