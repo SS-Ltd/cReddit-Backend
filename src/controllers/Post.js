@@ -156,6 +156,59 @@ const editPost = async (req, res) => {
   }
 }
 
+const markSpoiler = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    const user = await User.findOne({ username, isDeleted: false })
+
+    const post = await Post.findOne({ _id: req.params.postId, isDeleted: false })
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (!user.moderatorInCommunities.includes(post.communityName)) {
+      return res.status(401).json({ message: 'You are not authorized to mark this post as spoiler' })
+    }
+
+    const community = await Community.findOne({ name: post.communityName })
+    if (community && !community.settings.allowSpoilers && req.body.isSpoiler) {
+      return res.status(400).json({ message: 'Community does not allow spoilers' })
+    }
+
+    post.isSpoiler = req.body.isSpoiler
+    await post.save()
+
+    res.status(200).json({ message: 'Post marked as spoiler successfully' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error marking post as spoiler' })
+  }
+}
+
+const markNSFW = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    const user = await User.findOne({ username, isDeleted: false })
+
+    const post = await Post.findOne({ _id: req.params.postId, isDeleted: false })
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (!user.moderatorInCommunities.includes(post.communityName)) {
+      return res.status(401).json({ message: 'You are not authorized to mark this post as NSFW' })
+    }
+
+    post.isNsfw = req.body.isNSFW
+    await post.save()
+
+    res.status(200).json({ message: 'Post marked as spoiler successfully' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error marking post as spoiler' })
+  }
+}
+
 const savePost = async (req, res) => {
   const postId = req.params.postId
   const username = req.decoded.username
@@ -814,5 +867,7 @@ module.exports = {
   filterWithTime,
   acceptPost,
   removePost,
-  getPopular
+  getPopular,
+  markSpoiler,
+  markNSFW
 }
