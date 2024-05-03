@@ -764,7 +764,7 @@ describe('joinCommunity', () => {
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'testUser', isDeleted: false, communities: [], save: jest.fn() })
 
-    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'testSubreddit', isDeleted: false, members: 5, save: jest.fn() })
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'testSubreddit', isDeleted: false, members: 5, blockedUsers: [], save: jest.fn() })
 
     await joinCommunity(req, res)
 
