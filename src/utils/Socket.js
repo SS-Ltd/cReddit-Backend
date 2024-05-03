@@ -4,14 +4,14 @@ const UserModel = require('../models/User')
 
 const connectSocket = (io) => {
   console.log('Connecting to the server: ', io)
-  return io.on('connection', (socket) => {
+  return io.on('connection', async (socket) => {
     console.log(socket.decoded, ' connected to the server')
     socket.on('disconnect', () => {
       console.log(socket.decoded, ' disconnected from the server')
     })
 
     const username = socket.decoded.username
-    const rooms = ChatRoomModel.find({ members: { $in: [username] } })
+    const rooms = await ChatRoomModel.find({ members: { $in: [username] } })
 
     for (const room of rooms) {
       socket.join(room._id.toString())
