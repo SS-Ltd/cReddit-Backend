@@ -26,7 +26,14 @@ const verifyToken = (req, res, next) => {
 }
 
 const authenticate = (accessToken) => {
-  return jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET)
+  console.log('accessToken: ', accessToken)
+  return jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) {
+      console.log('Error verifying token: ', err)
+      return null
+    }
+    return user
+  })
 }
 
 const verifyGoogleToken = async (req, res, next) => {

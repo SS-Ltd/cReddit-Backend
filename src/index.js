@@ -40,7 +40,11 @@ const io = new Server(server, {
 })
 
 io.use((socket, next) => {
-  socket.decoded = authenticate(socket.request.headers.cookie)
+  const token = socket.request.headers.cookie.split(';').find((c) => c.trim().startsWith('accessToken=')).split('=')[1]
+  console.log('Token: ', token)
+  const username = authenticate(token)
+  console.log(username)
+  socket.decoded = username
   next()
 })
 

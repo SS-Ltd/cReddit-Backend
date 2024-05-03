@@ -7,15 +7,22 @@ const connectSocket = (io) => {
   return io.on('connection', (socket) => {
     console.log(socket.decoded, ' connected to the server')
     socket.on('disconnect', () => {
-      console.log('Disconnected from the server')
+      console.log(socket.decoded, ' disconnected from the server')
     })
+
+    const username = socket.decoded.username
+    const rooms = ChatRoomModel.find({ members: { $in: [username] } })
+
+    for (const room of rooms) {
+      socket.join(room._id.toString())
+    }
 
     socket.on('chatMessage', async (data) => { // data = { roomId, message }
       console.log('Message: ', data)
-      const { username, roomId, message } = data
+      const { roomId, message } = data
 
-      if (!username || !roomId || !message) {
-        return socket.emit('error', { message: 'Username, room ID, and message are required' })
+      if (!roomId || !message) {
+        return socket.emit('error', { message: 'room ID and message are required' })
       }
 
       const chatRoom = await ChatRoomModel.findById({ _id: roomId, isDeleted: false })
@@ -38,29 +45,10 @@ const connectSocket = (io) => {
         room: roomId
       })
       await chatMessage.save()
+      const profilePicture = user.profilePicture
 
-      socket.to(roomId).emit('newMessage', { username, message }) // this will broadcast the message to all users in the room except the sender
-      socket.emit('newMessage', { username, message }) // this will send the message to the sender
-    })
-
-    socket.on('joinRoom', async (data) => {
-      const { username, rooms } = data
-      const user = await UserModel.findOne({ username, isDeleted: false })
-      if (!user) {
-        return socket.emit('error', { message: 'User not found' })
-      }
-
-      const validRooms = await ChatRoomModel.find({
-        _id: { $in: rooms },
-        members: { $in: [username] },
-        isDeleted: false
-      })
-
-      for (const room of validRooms) {
-        socket.join(room._id.toString())
-        socket.to(room._id.toString()).emit('onlineUser', { username, room: room._id })
-        socket.emit('onlineUser', { username, room: room._id })
-      }
+      socket.to(roomId).emit('newMessage', { username, message, roomId, profilePicture })
+      socket.emit('newMessage', { username, message, roomId, profilePicture })
     })
 
     socket.on('leaveRoom', (room) => {
