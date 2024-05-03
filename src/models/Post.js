@@ -126,6 +126,9 @@ const PostSchema = new Schema({
   }],
   mostRecentUpvote: {
     type: Date
+  },
+  job: {
+    type: String
   }
 }, { timestamps: true })
 

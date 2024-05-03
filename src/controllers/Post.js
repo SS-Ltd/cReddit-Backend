@@ -69,14 +69,32 @@ const createPost = async (req, res) => {
 
     PostUtils.upvotePost(createdPost, user)
 
-    const mentionRegex = /u\/(\w+)/g
-    let match
-    while ((match = mentionRegex.exec(createdPost.content)) !== null) {
-      const mentionedUsername = match[1]
-      const mentionedUser = await User.findOne({ username: mentionedUsername })
-      if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
-        sendNotification(mentionedUsername, 'mention', createdPost, user.username)
+    if (!post.date) {
+      const mentionRegex = /u\/(\w+)/g
+      let match
+      while ((match = mentionRegex.exec(createdPost.content)) !== null) {
+        const mentionedUsername = match[1]
+        const mentionedUser = await User.findOne({ username: mentionedUsername })
+        if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
+          sendNotification(mentionedUsername, 'mention', createdPost, user.username)
+        }
       }
+    } else {
+      const date = new Date(post.date)
+
+      const job = schedule.scheduleJob(date, async () => {
+        const mentionRegex = /u\/(\w+)/g
+        let match
+        while ((match = mentionRegex.exec(createdPost.content)) !== null) {
+          const mentionedUsername = match[1]
+          const mentionedUser = await User.findOne({ username: mentionedUsername })
+          if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
+            sendNotification(mentionedUsername, 'mention', createdPost, user.username)
+          }
+        }
+      })
+
+      createdPost.job = job.name
     }
 
     await user.save()
@@ -116,7 +134,7 @@ const deletePost = async (req, res) => {
 
 const editPost = async (req, res) => {
   const postId = req.params.postId
-  const { newContent } = req.body
+  const { newContent, date } = req.body
   const username = req.decoded.username
   if (!mongoose.Types.ObjectId.isValid(postId)) {
     return res.status(400).json({ message: 'Invalid post id' })
@@ -135,8 +153,68 @@ const editPost = async (req, res) => {
     if (post.type !== 'Post' && post.type !== 'Poll') {
       return res.status(400).json({ message: 'You cannot edit this post type' })
     }
-    post.content = newContent
-    post.isEdited = true
+    if (date) {
+      console.log(new Date(date), new Date())
+      if (new Date(date) < new Date()) {
+        return res.status(400).json({ message: 'Invalid date' })
+      }
+
+      const user = await User.findOne({ username: post.username })
+
+      const newPost = new Post({
+        type: post.type,
+        username: post.username,
+        communityName: post.communityName,
+        title: post.title,
+        content: newContent,
+        pollOptions: post.pollOptions,
+        expirationDate: post.expirationDate,
+        isSpoiler: post.isSpoiler,
+        isNsfw: post.isNsfw,
+        upvote: post.upvote,
+        downvote: post.downvote,
+        netVote: post.netVote,
+        views: post.views,
+        isImage: post.isImage,
+        isLocked: post.isLocked,
+        isDeleted: false,
+        isEdited: true,
+        isRemoved: false,
+        followers: post.followers,
+        actions: post.actions,
+        mostRecentUpvote: post.mostRecentUpvote,
+        createdAt: new Date(date)
+      })
+
+      const oldJob = schedule.scheduledJobs[post.job]
+      if (oldJob) {
+        oldJob.cancel()
+      }
+
+      const job = schedule.scheduleJob(new Date(date), async () => {
+        const mentionRegex = /u\/(\w+)/g
+        let match
+        while ((match = mentionRegex.exec(newPost.content)) !== null) {
+          const mentionedUsername = match[1]
+          const mentionedUser = await User.findOne({ username: mentionedUsername })
+          if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
+            sendNotification(mentionedUsername, 'mention', newPost, user.username)
+          }
+        }
+      })
+
+      newPost.job = job.name
+
+      PostUtils.upvotePost(newPost, user)
+
+      await newPost.save()
+      await user.save()
+
+      await Post.findOneAndUpdate({ _id: postId }, { $set: { isDeleted: true } })
+    } else {
+      post.content = newContent
+      post.isEdited = true
+    }
     await post.save()
     res.status(200).json({ message: 'Post edited successfully' })
   } catch (error) {
