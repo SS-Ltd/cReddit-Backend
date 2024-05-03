@@ -107,14 +107,9 @@ const getRoomChat = async (req, res) => {
       return res.status(404).json({ message: 'Chat room not found' })
     }
 
-    let chatMessages = null
     const findLeaveMessage = await ChatMessageModel.findOne({ room: roomId, content: `${username} left the chat` })
-    if (findLeaveMessage) {
-      // get the message before the leave message
-      chatMessages = await ChatMessageModel.find({ room: roomId, createdAt: { $lt: findLeaveMessage.createdAt } }).sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit).exec()
-    } else {
-      chatMessages = await ChatMessageModel.find({ room: roomId }).sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit).exec()
-    }
+
+    const chatMessages = await ChatMessageModel.getChatMessages(roomId, findLeaveMessage?.createdAt || new Date())
 
     res.status(200).json(chatMessages)
   } catch (error) {
@@ -138,7 +133,7 @@ const leaveChatRoom = async (req, res) => {
     }
 
     const index = chatRoom.members.indexOf(username)
-    chatRoom.members.splice(index, 1)
+    chatRoom.members = chatRoom.members.splice(index, 1)
 
     await chatRoom.save()
 

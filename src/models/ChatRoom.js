@@ -49,7 +49,7 @@ ChatRoomSchema.statics.getRooms = async function (page, limit, username) {
       $group: {
         _id: '$_id',
         room: { $first: '$$ROOT' },
-        lastSentMessage: { $first: '$messages' }
+        lastSentMessage: { $last: '$messages' }
       }
     },
     {

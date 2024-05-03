@@ -17,7 +17,7 @@ const ChatMessageSchema = new Schema({
   user: {
     type: String,
     ref: 'User',
-    refPath: 'user'
+    refPath: 'username'
   },
   room: {
     type: Schema.Types.ObjectId,
@@ -33,5 +33,35 @@ const ChatMessageSchema = new Schema({
     default: false
   }
 }, { timestamps: true })
+
+ChatMessageSchema.statics.getChatMessages = async function (roomId, date) {
+  return await this.aggregate([
+    {
+      $match: {
+        room: new mongoose.Types.ObjectId(roomId),
+        isDeleted: false,
+        createdAt: { $lte: date }
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $addFields: {
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+      }
+    },
+    {
+      $project: {
+        user: 0
+      }
+    }
+  ])
+}
 
 module.exports = mongoose.model('ChatMessage', ChatMessageSchema)
