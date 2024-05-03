@@ -1,6 +1,7 @@
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
 const HistoryModel = require('../src/models/History')
+const MessageModel = require('../src/models/Message')
 const { getComment } = require('../src/controllers/Comment')
 const comment = require('../src/controllers/Comment')
 const MediaUtils = require('../src/utils/Media')
@@ -27,6 +28,14 @@ jest.mock('../src/models/History', () => {
   return {
     findOne: jest.fn()
   }
+})
+
+jest.mock('../src/models/Message', () => {
+  return jest.fn().mockImplementation(() => {
+    return {
+      save: jest.fn()
+    }
+  })
 })
 
 describe('getComment', () => {
@@ -262,8 +271,32 @@ describe('createComment', () => {
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', preferences: { commentsNotifs: false }, upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
-    PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community' })
+    PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community', username: 'Test User', title: 'Test Post' })
     Community.findOne = jest.fn().mockResolvedValue(community)
+    PostModel.mockImplementation(() => {
+      return {
+        type: 'Comment',
+        communityName: 'Test Community',
+        username: 'Test User',
+        content: 'Test Comment',
+        postID: '660d7e17baa5c72965311c7f',
+        isImage: false,
+        upvotedPosts: [],
+        downvotedPosts: [],
+        save: jest.fn()
+      }
+    })
+    MessageModel.mockImplementation(() => {
+      return {
+        from: 'Test User',
+        to: 'Test User 2',
+        subject: 'post reply: ' + 'Test Post',
+        text: 'Test Comment',
+        save: jest.fn()
+      }
+    })
+    MessageModel.create = jest.fn().mockResolvedValue()
+    UserModel.find = jest.fn().mockResolvedValue([{ username: 'Test User', preferences: { commentsNotifs: false } }])
 
     await comment.createComment(req, res)
 
