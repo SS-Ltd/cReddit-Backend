@@ -195,6 +195,7 @@ const deleteMessage = async (req, res) => {
     const message = await MessageModel.findOne({ _id: messageId, isDeleted: false, from: username })
     message.isDeleted = true
 
+    await message.save()
     res.status(200).send('Message deleted successfully')
   } catch (error) {
     res.status(400).send('Error deleting message: ' + error.message)
