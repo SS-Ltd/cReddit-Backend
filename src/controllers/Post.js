@@ -537,13 +537,13 @@ const getHomeFeed = async (req, res) => {
     options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
     options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? [] : user.moderatorInCommunities
 
-    const communities = (!user || user.communities.length === 0) ? null : user.communities
+    const communities = (!user || user.communities.length === 0) ? [] : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
     const follows = (!user || user.follows.length === 0) ? null : user.follows
     const showAdultContent = user ? user.preferences.showAdultContent : false
 
     if (sort === 'best' || !user) {
-      posts = await Post.getRandomHomeFeed(options, mutedCommunities, showAdultContent)
+      posts = await Post.getRandomHomeFeed(options, communities, mutedCommunities, showAdultContent)
     } else {
       posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, follows, showAdultContent)
     }

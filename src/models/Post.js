@@ -875,7 +875,7 @@ PostSchema.statics.byCommunity = async function (communityName, options, showAdu
   ])
 }
 
-PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities, showAdultContent) {
+PostSchema.statics.getRandomHomeFeed = async function (options, communities, mutedCommunities, showAdultContent) {
   const { limit, username, blockedUsers, moderatedCommunities } = options
 
   return await this.aggregate([
@@ -908,6 +908,35 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
     },
     {
       $lookup: {
+        from: 'communities',
+        let: { name: '$communityName' },
+        pipeline: [
+          {
+            $match: {
+              $and: [
+                {
+                  $expr: {
+                    $eq: ['$name', '$$name']
+                  }
+                },
+                {
+                  $expr: {
+                    $cond: {
+                      if: { $ne: ['$type', 'public'] },
+                      then: { $in: ['$name', communities] },
+                      else: true
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        as: 'community'
+      }
+    },
+    {
+      $lookup: {
         from: 'posts',
         let: { id: '$_id' },
         pipeline: [
@@ -930,14 +959,6 @@ PostSchema.statics.getRandomHomeFeed = async function (options, mutedCommunities
         localField: 'username',
         foreignField: 'username',
         as: 'user'
-      }
-    },
-    {
-      $lookup: {
-        from: 'communities',
-        localField: 'communityName',
-        foreignField: 'name',
-        as: 'community'
       }
     },
     {
@@ -1300,20 +1321,14 @@ PostSchema.statics.getSortedHomeFeed = async function (options, communities, mut
               {
                 $expr: {
                   $cond: {
-                    if: { $ne: [communities, null] },
-                    then: { $in: ['$communityName', communities] },
-                    else: true
+                    if: { $ne: [follows, null] },
+                    then: { $and: [{ $in: ['$username', follows] }, { $eq: ['$communityName', null] }] },
+                    else: false
                   }
                 }
               },
               {
-                $expr: {
-                  $cond: {
-                    if: { $ne: [follows, null] },
-                    then: { $and: [{ $in: ['$username', follows] }, { $eq: ['$communityName', null] }] },
-                    else: true
-                  }
-                }
+                communityName: { $in: communities }
               }
             ]
           },

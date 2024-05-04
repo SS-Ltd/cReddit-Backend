@@ -112,11 +112,13 @@ const upvotePost = (post, user) => {
     post.downvote -= 1
     post.netVote += 2
     user.upvotedPosts.push({ postId, SavedAt: new Date() })
+    post.mostRecentUpvote = new Date()
     user.downvotedPosts = user.downvotedPosts.filter(downvotedPost => !downvotedPost.postId.equals(postId))
   } else {
     post.upvote += 1
     post.netVote += 1
     user.upvotedPosts.push({ postId, SavedAt: new Date() })
+    post.mostRecentUpvote = new Date()
   }
 }
 
