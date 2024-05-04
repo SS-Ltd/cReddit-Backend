@@ -53,7 +53,8 @@ ChatMessageSchema.statics.getChatMessages = async function (roomId, date) {
     },
     {
       $addFields: {
-        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] }
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        username: { $arrayElemAt: ['$user.username', 0] }
       }
     },
     {
