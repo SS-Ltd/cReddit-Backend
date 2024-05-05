@@ -90,11 +90,6 @@ const notificationTemplate = {
 
 const sendNotification = async (username, type, resource, notificationFrom, postTitle = null) => {
   const user = await UserModel.findOne({ username: username })
-  const fcmToken = user.fcmToken
-  console.log('fcmToken: ', fcmToken)
-  if (fcmToken.length === 0) {
-    return
-  }
 
   let messageStr = {}
   if (type === 'cakeDay') {
@@ -117,7 +112,11 @@ const sendNotification = async (username, type, resource, notificationFrom, post
 
   await notification.save()
 
-  console.log('messageStr: ', messageStr)
+  const fcmToken = user.fcmToken
+  if (fcmToken.length === 0) {
+    return
+  }
+
   const message = {
     notification: {
       title: messageStr.title,
