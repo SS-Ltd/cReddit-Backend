@@ -9,9 +9,14 @@ const searchRouter = require('./routes/Search')
 const modRouter = require('./routes/Moderation')
 const messageRouter = require('./routes/Message')
 const notificationRouter = require('./routes/Notification')
+const chatRouter = require('./routes/Chat')
 const dotenv = require('dotenv')
 const cors = require('cors')
 const SearchUtils = require('./utils/Search')
+const { authenticate } = require('./middlewares/Verify')
+const http = require('http')
+const { Server } = require('socket.io')
+const { connectSocket } = require('./utils/Socket')
 
 dotenv.config()
 
@@ -20,8 +25,30 @@ connectDB()
 const app = express()
 app.use(express.json())
 app.use(cors({ credentials: true, origin: process.env.BASE_URL }))
-app.use(cors())
 app.use(cookies())
+
+const server = http.createServer(app)
+console.log('Server created: ', server)
+const io = new Server(server, {
+  cookie: true,
+  pingTimeout: 60000,
+  cors: {
+    origin: process.env.BASE_URL,
+    credentials: true
+  }
+})
+
+io.use((socket, next) => {
+  const token = socket.request.headers.cookie.split(';').find((c) => c.trim().startsWith('accessToken=')).split('=')[1]
+  console.log('Token: ', token)
+  const username = authenticate(token)
+  console.log(username)
+  socket.decoded = username
+  next()
+})
+
+app.set('io', io)
+connectSocket(io)
 
 const port = process.env.PORT
 
@@ -37,6 +64,7 @@ app.use('/notification', notificationRouter)
 app.use('/search', searchRouter)
 app.use('/mod', modRouter)
 app.use('/message', messageRouter)
+app.use('/chat', chatRouter)
 
 SearchUtils.upsertSearchIndex('communitySearchIndex', 'communities')
 SearchUtils.upsertSearchIndex('postSearchIndex', 'posts')
@@ -46,6 +74,6 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on port ${port}`)
 })

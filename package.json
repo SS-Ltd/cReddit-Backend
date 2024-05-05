@@ -28,6 +28,7 @@
     "multer": "^1.4.5-lts.1",
     "node-schedule": "^2.1.1",
     "nodemailer": "^6.9.12",
+    "socket.io": "^4.7.5",
     "urllib": "^3.23.0"
   },
   "devDependencies": {
