@@ -9,5 +9,6 @@ router.route('/accept-invite/:communityName').patch(verifyToken, moderation.acce
 router.route('/reject-invite/:communityName').patch(verifyToken, moderation.rejectInvitation)
 router.route('/leave/:communityName').patch(verifyToken, isModerator, moderation.leaveModeration)
 router.route('/remove/:communityName').patch(verifyToken, isModerator, moderation.removeModerator)
+router.route('/approve/:communityName').patch(verifyToken, isModerator, moderation.approveUser)
 
 module.exports = router

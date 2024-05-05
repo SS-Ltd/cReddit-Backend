@@ -181,12 +181,43 @@ const banUser = async (req, res) => {
       return res.status(400).json({ message: 'You cannot ban a moderator' })
     }
 
-    if (!community.members.includes(userToBan.username)) {
-      return res.status(400).json({ message: 'User is not a member of this community' })
-    }
-
     const note = modNote || null
     community.bannedUsers.push({ name: userToBan.username, reasonToBan: rule, modNote: note })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
+const approveUser = async (req, res) => {
+  try {
+    const { username } = req.body
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    const userToApprove = await UserModel.findOne({ username, isDeleted: false })
+    if (!userToApprove) {
+      return res.status(400).json({ message: 'User does not exist' })
+    }
+
+    if (community.approvedUsers.includes(userToApprove.username) && userToApprove.approvedInCommunities.includes(communityName)) {
+      return res.status(400).json({ message: 'User is already approved' })
+    }
+
+    community.approvedUsers.push(userToApprove.username)
+    userToApprove.approvedInCommunities.push(communityName)
+
+    await community.save()
+    await userToApprove.save()
+
+    return res.status(200).json({ message: 'User approved' })
   } catch (error) {
     res.status(500).json({ message: error.message || 'An error occurred' })
   }
@@ -197,5 +228,6 @@ module.exports = {
   acceptInvitation,
   rejectInvitation,
   leaveModeration,
-  removeModerator
+  removeModerator,
+  approveUser
 }
