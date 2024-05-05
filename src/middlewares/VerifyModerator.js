@@ -30,13 +30,15 @@ const isPrivate = async (req, res, next) => {
       return res.status(404).json({ message: 'Post not found' })
     }
 
-    const community = await CommunityModel.findOne({ name: post.communityName, isDeleted: false })
-    if (!community) {
-      return res.status(404).json({ message: 'Community not found' })
-    }
+    if (post.communityName) {
+      const community = await CommunityModel.findOne({ name: post.communityName, isDeleted: false })
+      if (!community) {
+        return res.status(404).json({ message: 'Community not found' })
+      }
 
-    if (community.type === 'private' && !(community.moderators.includes(username) || community.approvedUsers.includes(username))) {
-      return res.status(401).json({ message: 'Unauthorized' })
+      if (community.type === 'private' && !(community.moderators.includes(username) || community.approvedUsers.includes(username))) {
+        return res.status(401).json({ message: 'Unauthorized' })
+      }
     }
 
     next()

@@ -41,7 +41,7 @@ const createComment = async (req, res) => {
     }
 
     if (post.communityName) {
-      const community = await CommunityModel.findOne({ name: post.communityName, isDeleted: false})
+      const community = await CommunityModel.findOne({ name: post.communityName, isDeleted: false })
       if (!community) {
         throw new Error('Community does not exist')
       }
@@ -50,7 +50,7 @@ const createComment = async (req, res) => {
         throw new Error('You are banned from this community')
       }
 
-      if (community.type === 'private' && !(community.moderators.includes(post.username) || community.approvedUsers.includes(post.username))) {
+      if (community.type === 'private' && !(community.moderators.includes(comment.username) || community.approvedUsers.includes(comment.username))) {
         throw new Error('Only moderators and approved users can comment in this community')
       }
 
