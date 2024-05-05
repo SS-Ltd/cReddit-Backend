@@ -1,5 +1,6 @@
 const Post = require('../models/Post')
 const User = require('../models/User')
+const MessageModel = require('../models/Message')
 const Community = require('../models/Community')
 const Report = require('../models/Report')
 const mongoose = require('mongoose')
@@ -17,13 +18,21 @@ const createPost = async (req, res) => {
   try {
     PostUtils.validatePost(post)
 
+    let childPost = null
+    if (post.type === 'Cross Post') {
+      childPost = await Post.findOne({ _id: post.postId, isDeleted: false })
+      if (!childPost) {
+        throw new Error('Child post does not exist')
+      }
+    }
+
     if (post.communityName) {
       const community = await Community.findOne({ name: post.communityName })
       if (!community) {
         throw new Error('Community does not exist')
       }
 
-      PostUtils.validatePostAccordingToCommunitySettings(post, community)
+      PostUtils.validatePostAccordingToCommunitySettings(post, community, childPost)
 
       if (community.isNSFW) {
         post.isNsfw = true
@@ -51,6 +60,7 @@ const createPost = async (req, res) => {
       communityName: post.communityName || null,
       title: post.title,
       content: post.content || '',
+      child: childPost ? childPost._id : null,
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
       expirationDate: post.expirationDate || null,
       isSpoiler: post.isSpoiler || false,
@@ -61,13 +71,25 @@ const createPost = async (req, res) => {
 
     PostUtils.upvotePost(createdPost, user)
 
-    const mentionRegex = /u\/(\w+)/g
-    let match
-    while ((match = mentionRegex.exec(createdPost.content)) !== null) {
-      const mentionedUsername = match[1]
-      const mentionedUser = await User.findOne({ username: mentionedUsername })
-      if (mentionedUser && mentionedUser.preferences.mentionsNotifs) {
-        sendNotification(mentionedUsername, 'mention', createdPost, user.username)
+    if (post.type !== 'Images & Video' && post.content) {
+      const mentionRegex = /u\/(\w+)/
+      const regex = new RegExp(mentionRegex, 'gi')
+      const matches = post.content.match(regex)
+      if (matches) {
+        const mentionedUsers = new Set(matches.map(match => match.slice(2)))
+        const validUsers = await User.find({ username: { $in: Array.from(mentionedUsers) } })
+        const messages = validUsers.map(user => ({
+          from: post.username,
+          to: user.username,
+          subject: 'Mentioned in a post: ' + post.title,
+          text: post.content.length > 100 ? post.content.slice(0, 100) + '...' : post.content
+        }))
+        validUsers.forEach(validUser => {
+          if (validUser.preferences.mentionsNotifs) {
+            sendNotification(validUser.username, 'mention', createdPost, user.username)
+          }
+        })
+        await MessageModel.create(messages)
       }
     }
 
@@ -327,12 +349,6 @@ const getPost = async (req, res) => {
       })
     }
 
-    if (post.isNsfw && (!user || !user.preferences.showAdultContent) && post.username !== user.username) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
-    }
-
     await Post.findOneAndUpdate(
       { _id: postId, isDeleted: false, isRemoved: false },
       { $inc: { views: 1 } }
@@ -417,12 +433,6 @@ const getComments = async (req, res) => {
           message: 'User does not exist'
         })
       }
-    }
-
-    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
     }
 
     const communityName = post.communityName
@@ -527,13 +537,13 @@ const getHomeFeed = async (req, res) => {
     options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
     options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? [] : user.moderatorInCommunities
 
-    const communities = (!user || user.communities.length === 0) ? null : user.communities
+    const communities = (!user || user.communities.length === 0) ? [] : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
     const follows = (!user || user.follows.length === 0) ? null : user.follows
     const showAdultContent = user ? user.preferences.showAdultContent : false
 
     if (sort === 'best' || !user) {
-      posts = await Post.getRandomHomeFeed(options, mutedCommunities, showAdultContent)
+      posts = await Post.getRandomHomeFeed(options, communities, mutedCommunities, showAdultContent)
     } else {
       posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, follows, showAdultContent)
     }

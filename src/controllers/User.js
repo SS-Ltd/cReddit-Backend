@@ -32,7 +32,8 @@ const getUser = async (req, res) => {
       banner: user.banner,
       followers: user.followers.length,
       cakeDay: user.createdAt,
-      isNSFW: user.preferences.isNSFW
+      isNSFW: user.preferences.isNSFW,
+      showAdultContent: user.preferences.showAdultContent
     })
   } catch (error) {
     res.status(400).json({ message: 'Error getting user: ' + error.message })
@@ -525,7 +526,6 @@ const getUserView = async (req, res) => {
       if (viewer && viewer.username !== user.username) {
         userData.isFollowed = viewer.follows.includes(user.username)
         userData.isBlocked = viewer.blockedUsers.includes(user.username)
-        userData.showAdultContent = viewer.preferences.showAdultContent
       }
     }
     res.status(200).json(userData)
