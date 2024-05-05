@@ -41,9 +41,13 @@ const createComment = async (req, res) => {
     }
 
     if (post.communityName) {
-      const community = await CommunityModel.findOne({ name: post.communityName })
+      const community = await CommunityModel.findOne({ name: post.communityName, isDeleted: false})
       if (!community) {
         throw new Error('Community does not exist')
+      }
+
+      if (community.bannedUsers.find(bannedUser => bannedUser.name === comment.username)) {
+        throw new Error('You are banned from this community')
       }
 
       if (!community.settings.allowImageComments && comment.files.length) {
