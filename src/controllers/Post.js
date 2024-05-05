@@ -49,10 +49,8 @@ const createPost = async (req, res) => {
         throw new Error('You are banned from this community')
       }
 
-      if (post.date) {
-        if (!community.moderators.includes(post.username)) {
-          throw new Error('Only moderators can schedule posts')
-        }
+      if (community.type !== 'public' && !(community.moderators.includes(post.username) || community.approvedUsers.includes(post.username))) {
+        throw new Error('Only moderators and approved users can post in this community')
       }
 
       if (post.date) {

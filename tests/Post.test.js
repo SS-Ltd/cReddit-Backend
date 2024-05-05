@@ -63,6 +63,7 @@ describe('createPost', () => {
 
     const community = {
       name: 'Test Community',
+      type: 'public',
       settings: {
         allowedPostTypes: 'Posts',
         allowCrossPosting: true,
@@ -211,6 +212,7 @@ describe('createPost', () => {
 
     const community = {
       name: 'Test Community',
+      type: 'public',
       settings: {
         allowedPostTypes: 'Any',
         allowCrossPosting: true,
@@ -270,6 +272,7 @@ describe('createPost', () => {
 
     const community = {
       name: 'Test Community',
+      type: 'public',
       settings: {
         allowedPostTypes: 'Posts',
         allowCrossPosting: true,
