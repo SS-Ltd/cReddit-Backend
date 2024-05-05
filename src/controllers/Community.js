@@ -95,7 +95,8 @@ const getCommunityView = async (req, res) => {
       description: community.description,
       topic: community.topic,
       moderators: community.moderators,
-      isNSFW: community.isNSFW
+      isNSFW: community.isNSFW,
+      type: community.type
     }
 
     if (req.decoded) {

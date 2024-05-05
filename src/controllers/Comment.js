@@ -50,6 +50,10 @@ const createComment = async (req, res) => {
         throw new Error('You are banned from this community')
       }
 
+      if (community.type === 'private' && !(community.moderators.includes(post.username) || community.approvedUsers.includes(post.username))) {
+        throw new Error('Only moderators and approved users can comment in this community')
+      }
+
       if (!community.settings.allowImageComments && comment.files.length) {
         throw new Error('Community only allows text comments')
       }
