@@ -17,6 +17,8 @@ router.route('/:postId/upvote').patch(verifyToken, (req, res, next) => { req.typ
 router.route('/:postId/downvote').patch(verifyToken, (req, res, next) => { req.type = 'downvote'; next() }, post.votePost)
 router.route('/:postId/vote-poll').patch(verifyToken, (req, res, next) => { req.type = 'votePoll'; next() }, post.votePost)
 router.route('/:postId/report').post(verifyToken, post.reportPost)
+router.route('/:postId/mark-spoiler').patch(verifyToken, post.markSpoiler)
+router.route('/:postId/mark-nsfw').patch(verifyToken, post.markNSFW)
 router.route('/:postId').get(isLoggedIn, post.getPost).delete(verifyToken, post.deletePost).patch(verifyToken, post.editPost)
 
 module.exports = router
