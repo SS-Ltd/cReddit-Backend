@@ -40,9 +40,13 @@ const createPost = async (req, res) => {
     }
 
     if (post.communityName) {
-      const community = await Community.findOne({ name: post.communityName })
+      const community = await Community.findOne({ name: post.communityName, isDeleted: false})
       if (!community) {
         throw new Error('Community does not exist')
+      }
+
+      if (community.bannedUsers.find(bannedUser => bannedUser.name === post.username)) {
+        throw new Error('You are banned from this community')
       }
 
       if (post.date) {

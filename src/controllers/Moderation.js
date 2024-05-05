@@ -271,6 +271,25 @@ const approveUser = async (req, res) => {
   }
 }
 
+const getBannedUsers = async (req, res) => {
+  try {
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    res.status(200).json({ bannedUsers: community.bannedUsers })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
 const unapproveUser = async (req, res) => {
   try {
     const { username } = req.body
@@ -319,5 +338,6 @@ module.exports = {
   banUser,
   unbanUser,
   approveUser,
+  getBannedUsers,
   unapproveUser
 }
