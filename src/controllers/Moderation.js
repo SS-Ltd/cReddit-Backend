@@ -164,6 +164,10 @@ const banUser = async (req, res) => {
     }
 
     const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
     if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
       return res.status(400).json({ message: 'You are not a moderator of this community' })
     }
@@ -207,6 +211,10 @@ const unbanUser = async (req, res) => {
     }
 
     const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
     if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
       return res.status(400).json({ message: 'You are not a moderator of this community' })
     }
