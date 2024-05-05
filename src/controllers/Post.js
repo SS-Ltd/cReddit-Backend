@@ -1,5 +1,6 @@
 const Post = require('../models/Post')
 const User = require('../models/User')
+const MessageModel = require('../models/Message')
 const Community = require('../models/Community')
 const Report = require('../models/Report')
 const mongoose = require('mongoose')
@@ -30,6 +31,14 @@ const createPost = async (req, res) => {
   try {
     PostUtils.validatePost(post)
 
+    let childPost = null
+    if (post.type === 'Cross Post') {
+      childPost = await Post.findOne({ _id: post.postId, isDeleted: false })
+      if (!childPost) {
+        throw new Error('Child post does not exist')
+      }
+    }
+
     if (post.communityName) {
       const community = await Community.findOne({ name: post.communityName })
       if (!community) {
@@ -42,7 +51,13 @@ const createPost = async (req, res) => {
         }
       }
 
-      PostUtils.validatePostAccordingToCommunitySettings(post, community)
+      if (post.date) {
+        if (!community.moderators.includes(post.username)) {
+          throw new Error('Only moderators can schedule posts')
+        }
+      }
+
+      PostUtils.validatePostAccordingToCommunitySettings(post, community, childPost)
 
       if (community.isNSFW) {
         post.isNsfw = true
@@ -70,6 +85,7 @@ const createPost = async (req, res) => {
       communityName: post.communityName || null,
       title: post.title,
       content: post.content || '',
+      child: childPost ? childPost._id : null,
       pollOptions: post.pollOptions?.map(option => ({ text: option, votes: 0 })) || [],
       expirationDate: post.expirationDate || null,
       isSpoiler: post.isSpoiler || false,
@@ -80,6 +96,28 @@ const createPost = async (req, res) => {
     })
 
     PostUtils.upvotePost(createdPost, user)
+
+    if (post.type !== 'Images & Video' && post.content) {
+      const mentionRegex = /u\/(\w+)/
+      const regex = new RegExp(mentionRegex, 'gi')
+      const matches = post.content.match(regex)
+      if (matches) {
+        const mentionedUsers = new Set(matches.map(match => match.slice(2)))
+        const validUsers = await User.find({ username: { $in: Array.from(mentionedUsers) } })
+        const messages = validUsers.map(user => ({
+          from: post.username,
+          to: user.username,
+          subject: 'Mentioned in a post: ' + post.title,
+          text: post.content.length > 100 ? post.content.slice(0, 100) + '...' : post.content
+        }))
+        validUsers.forEach(validUser => {
+          if (validUser.preferences.mentionsNotifs) {
+            sendNotification(validUser.username, 'mention', createdPost, user.username)
+          }
+        })
+        await MessageModel.create(messages)
+      }
+    }
 
     if (!post.date) {
       sendNotificationUtil(createdPost, user)
@@ -409,12 +447,6 @@ const getPost = async (req, res) => {
       })
     }
 
-    if (post.isNsfw && (!user || !user.preferences.showAdultContent) && post.username !== user.username) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
-    }
-
     await Post.findOneAndUpdate(
       { _id: postId, isDeleted: false, isRemoved: false },
       { $inc: { views: 1 } }
@@ -499,12 +531,6 @@ const getComments = async (req, res) => {
           message: 'User does not exist'
         })
       }
-    }
-
-    if (post.isNsfw && (!user || !user.preferences.showAdultContent)) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
     }
 
     const communityName = post.communityName
@@ -609,13 +635,13 @@ const getHomeFeed = async (req, res) => {
     options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
     options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? [] : user.moderatorInCommunities
 
-    const communities = (!user || user.communities.length === 0) ? null : user.communities
+    const communities = (!user || user.communities.length === 0) ? [] : user.communities
     const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
     const follows = (!user || user.follows.length === 0) ? null : user.follows
     const showAdultContent = user ? user.preferences.showAdultContent : false
 
     if (sort === 'best' || !user) {
-      posts = await Post.getRandomHomeFeed(options, mutedCommunities, showAdultContent)
+      posts = await Post.getRandomHomeFeed(options, communities, mutedCommunities, showAdultContent)
     } else {
       posts = await Post.getSortedHomeFeed(options, communities, mutedCommunities, follows, showAdultContent)
     }
@@ -632,6 +658,63 @@ const getHomeFeed = async (req, res) => {
           delete option._id
         })
       }
+
+      post.isNSFW = post.isNsfw
+      delete post.isNsfw
+
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = user ? user.communities.includes(post.communityName) : false
+      post.isModerator = user ? user.moderatorInCommunities.includes(post.communityName) : false
+    })
+
+    return res.status(200).json(posts)
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      message: 'An error occurred while getting home feed'
+    })
+  }
+}
+
+const getPopular = async (req, res) => {
+  try {
+    const decoded = req.decoded
+    let user = null
+
+    if (decoded) {
+      user = await User.findOne({ username: decoded.username, isDeleted: false })
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User does not exist'
+        })
+      }
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+
+    let posts = []
+
+    const options = {}
+    options.random = false
+    options.page = page
+    options.limit = limit
+    options.username = user ? user.username : null
+    options.blockedUsers = (!user || user.blockedUsers.length === 0) ? [] : user.blockedUsers
+    options.moderatedCommunities = (!user || user.moderatorInCommunities.length === 0) ? [] : user.moderatorInCommunities
+
+    const mutedCommunities = (!user || user.mutedCommunities.length === 0) ? null : user.mutedCommunities
+    const showAdultContent = user ? user.preferences.showAdultContent : false
+
+    posts = await Post.getPopular(options, mutedCommunities, showAdultContent)
+
+    posts.forEach(post => {
+      delete post.pollOptions
+      delete post.expirationDate
 
       post.isNSFW = post.isNsfw
       delete post.isNsfw
@@ -759,6 +842,60 @@ const reportPost = async (req, res) => {
   }
 }
 
+const acceptPost = async (req, res) => {
+  try {
+    const username = req.decoded.username
+
+    const user = await User.findOne({ username: username, isDeleted: false })
+    const post = await Post.findOne({ _id: req.params.postId, isDeleted: false })
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    if (!user.moderatorInCommunities.includes(post.communityName)) {
+      return res.status(401).json({ message: 'You are not authorized to approve this post' })
+    }
+
+    post.isApproved = req.body.isApproved
+    await post.save()
+    res.status(200).json({ message: 'Post approved successfully' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error approving post: ' + error.message })
+  }
+}
+
+const removePost = async (req, res) => {
+  try {
+    const username = req.decoded.username
+
+    const user = await User.findOne({ username: username, isDeleted: false })
+    const post = await Post.findOne({ _id: req.params.postId, isDeleted: false })
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    if (!user.moderatorInCommunities.includes(post.communityName)) {
+      return res.status(401).json({ message: 'You are not authorized to remove this post' })
+    }
+
+    post.isRemoved = req.body.isRemoved
+    await post.save()
+    res.status(200).json({ message: 'Post removed successfully' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing post: ' + error.message })
+  }
+}
+
 module.exports = {
   getPost,
   createPost,
@@ -772,5 +909,8 @@ module.exports = {
   reportPost,
   votePost,
   getSortingMethod,
-  filterWithTime
+  filterWithTime,
+  acceptPost,
+  removePost,
+  getPopular
 }

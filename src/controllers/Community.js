@@ -16,11 +16,21 @@ const createCommunity = async (req, res) => {
       return res.status(400).json({ message: 'Community already exists' })
     }
 
+    const user = await UserModel.findOne({ username: owner, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
     const community = new CommunityModel({
       owner: owner,
       name: name,
       isNSFW: isNSFW
     })
+
+    user.moderatorInCommunities.push(name)
+    user.communities.push(name)
+    await user.save()
 
     community.moderators.push(owner)
     await community.save()
@@ -84,18 +94,15 @@ const getCommunityView = async (req, res) => {
       rules: community.rules,
       description: community.description,
       topic: community.topic,
-      moderators: community.moderators
+      moderators: community.moderators,
+      isNSFW: community.isNSFW
     }
 
     if (req.decoded) {
       const user = await UserModel.findOne({ username: req.decoded.username })
 
-      if (user && (user.preferences.showAdultContent === false && community.isNSFW === true)) {
-        return res.status(401).json({ message: 'Unable to view NSFW content' })
-      }
-
       if (user) {
-        communityData.isModerator = community.moderators.includes(req.decoded.username)
+        communityData.isModerator = user.moderatorInCommunities.includes(community.name)
         communityData.isMember = user.communities.includes(community.name)
         communityData.isMuted = user.mutedCommunities.includes(community.name)
       }
@@ -246,12 +253,6 @@ const getSortedCommunityPosts = async (req, res) => {
       }
     }
 
-    if (community.isNSFW && (!user || !user.preferences.showAdultContent)) {
-      return res.status(401).json({
-        message: 'Unable to view NSFW content'
-      })
-    }
-
     const page = req.query.page ? parseInt(req.query.page) - 1 : 0
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
     const sort = req.query.sort ? req.query.sort : 'hot'
@@ -325,6 +326,10 @@ const joinCommunity = async (req, res) => {
       return res.status(400).json({
         message: 'User is already a member of the community'
       })
+    }
+
+    if (community && community.blockedUsers && community.blockedUsers.includes(username)) {
+      return res.status(400).json({ message: 'User is blocked from the community' })
     }
 
     user.communities.push(subreddit)
