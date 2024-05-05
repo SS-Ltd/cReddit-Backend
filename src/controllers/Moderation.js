@@ -173,7 +173,7 @@ const banUser = async (req, res) => {
       return res.status(400).json({ message: 'User does not exist' })
     }
 
-    if (community.bannedUsers.includes(userToBan.username)) {
+    if (community.bannedUsers.find(u => u.name === userToBan.username)) {
       return res.status(400).json({ message: 'User is already banned' })
     }
 
@@ -181,8 +181,51 @@ const banUser = async (req, res) => {
       return res.status(400).json({ message: 'You cannot ban a moderator' })
     }
 
+    if (community.rules.find(r => r.text === rule) === undefined) {
+      return res.status(400).json({ message: 'Rule does not exist' })
+    }
+
     const note = modNote || null
     community.bannedUsers.push({ name: userToBan.username, reasonToBan: rule, modNote: note })
+    userToBan.bannedInCommunities.push(community.name)
+
+    await userToBan.save()
+    await community.save()
+    res.status(200).json({ message: 'User banned' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
+const unbanUser = async (req, res) => {
+  try {
+    const { username } = req.body
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    const userToUnban = await UserModel.findOne({ username, isDeleted: false })
+    if (!userToUnban) {
+      return res.status(400).json({ message: 'User does not exist' })
+    }
+
+    if (community.bannedUsers.find(u => u.name === userToUnban.username) === undefined) {
+      return res.status(400).json({ message: 'User is not banned' })
+    }
+
+    community.bannedUsers = community.bannedUsers.filter(bannedUser => bannedUser.name !== userToUnban.username)
+    userToUnban.bannedInCommunities = userToUnban.bannedInCommunities.filter(community => communityName !== community)
+
+    await userToUnban.save()
+    await community.save()
+    res.status(200).json({ message: 'User unbanned' })
   } catch (error) {
     res.status(500).json({ message: error.message || 'An error occurred' })
   }
@@ -234,5 +277,7 @@ module.exports = {
   rejectInvitation,
   leaveModeration,
   removeModerator,
+  banUser,
+  unbanUser,
   approveUser
 }
