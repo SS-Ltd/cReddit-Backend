@@ -33,7 +33,7 @@ const io = new Server(server, {
   cookie: true,
   pingTimeout: 60000,
   cors: {
-    origin: process.env.BASE_URL,
+    origin: '*',
     credentials: true
   }
 })
