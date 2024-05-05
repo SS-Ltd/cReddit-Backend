@@ -1236,6 +1236,179 @@ describe('banUser', () => {
   })
 })
 
+describe('getBannedUser', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should retrieve banned users when community and moderator are valid', async () => {
+    const req = {
+      params: {
+        communityName: 'validCommunity'
+      },
+      decoded: {
+        username: 'validModerator'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validCommunity',
+      isDeleted: false,
+      moderators: ['validModerator'],
+      bannedUsers: [{
+        name: 'user1',
+        reasonToBan: 'testReason1'
+      }, {
+        name: 'user2',
+        reasonToBan: 'testReason2'
+      }],
+      rules: [{
+        text: 'testRule1'
+      }, {
+        text: 'testRule2'
+      }]
+    }
+
+    const loggedInUser = {
+      username: 'validModerator',
+      isDeleted: false,
+      moderatorInCommunities: ['validCommunity']
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(loggedInUser)
+
+    await Moderation.getBannedUsers(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validModerator', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      bannedUsers: [{
+        name: 'user1',
+        reasonToBan: 'testReason1'
+      }, {
+        name: 'user2',
+        reasonToBan: 'testReason2'
+      }]
+    })
+  })
+
+  test('should return error when community name is invalid', async () => {
+    const req = {
+      params: {
+        communityName: 'invalidCommunity'
+      },
+      decoded: {
+        username: 'validModerator'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = null
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await Moderation.getBannedUsers(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'invalidCommunity', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community does not exist' })
+  })
+
+  test('should return error for non-existent moderator', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      decoded: {
+        username: 'nonExistentModerator'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testCommunity',
+      isDeleted: false,
+      moderators: ['testModerator'],
+      bannedUsers: []
+    }
+
+    const loggedInUser = null
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(loggedInUser)
+
+    await Moderation.getBannedUsers(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonExistentModerator', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Moderator does not exist' })
+  })
+
+  test('should return error when moderator does not belong to community', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      decoded: {
+        username: 'testModerator'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testCommunity',
+      isDeleted: false,
+      moderators: ['otherModerator'],
+      bannedUsers: []
+    }
+
+    const loggedInUser = {
+      username: 'testModerator',
+      isDeleted: false,
+      moderatorInCommunities: []
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(loggedInUser)
+
+    await Moderation.getApprovedUsers(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testModerator', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not a moderator of this community' })
+  })
+})
+
 describe('approveUser', () => {
   beforeEach(() => {
     jest.clearAllMocks()
