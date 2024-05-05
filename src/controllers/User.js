@@ -4,6 +4,7 @@ const emailValidator = require('email-validator')
 const UserModel = require('../models/User')
 const HistoryModel = require('../models/History')
 const CommunityModel = require('../models/Community')
+const PostModel = require('../models/Post')
 const MediaUtils = require('../utils/Media')
 const { sendEmail, sendVerificationEmail } = require('../utils/Email')
 const { sendNotification } = require('../utils/Notification')
@@ -902,7 +903,7 @@ const filterWithTime = (time) => {
   }
 }
 
-const getSortingMethod = (sort, time) => {
+const getSortingMethod = (sort) => {
   switch (sort) {
     case 'new':
       return { createdAt: -1, _id: -1 }
@@ -1216,6 +1217,76 @@ const getJoinedCommunities = async (req, res) => {
   }
 }
 
+const getUserOverview = async (req, res) => {
+  try {
+    const decoded = req.decoded
+    let visitor = null
+
+    if (decoded) {
+      visitor = await UserModel.findOne({ username: decoded.username })
+      if (!visitor) {
+        return res.status(404).json({ message: 'Visitor not found' })
+      }
+    }
+
+    const username = req.params.username
+    if (!username) {
+      throw new Error('Username is required')
+    }
+
+    const user = await UserModel.findOne({ username, isDeleted: false })
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) : 1
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = req.query.sort || 'new'
+    let time = (req.query.time === 'top' && req.query.time) || 'all'
+    time = filterWithTime(time)
+    const sortMethod = getSortingMethod(sort)
+
+    const options = {
+      username: username,
+      page: page,
+      limit: limit,
+      sort: sortMethod,
+      time: time,
+      mutedCommunities: !visitor || visitor.username === username ? [] : visitor.mutedCommunities,
+      showAdultContent: !visitor ? false : visitor.preferences.showAdultContent,
+      communities: !visitor ? [] : visitor.communities
+    }
+
+    const posts = await PostModel.getUserOverview(options)
+
+    posts.forEach((post) => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach((option) => {
+          option.votes = option.voters.length
+          option.isVoted = visitor ? option.voters.includes(visitor) : false
+          delete option.voters
+          delete option._id
+        })
+      }
+
+      post.isUpvoted = visitor ? visitor.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = visitor ? visitor.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = visitor ? visitor.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = visitor ? visitor.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isJoined = visitor ? visitor.communities.includes(post.communityName) : false
+      post.isModerator = visitor ? visitor.moderatorInCommunities.includes(post.communityName) : false
+      post.isBlocked = visitor ? visitor.blockedUsers.includes(post.username) : false
+    })
+
+    res.status(200).json(posts)
+  } catch (error) {
+    res.status(400).json({ message: 'Error getting user overview: ' + error.message })
+  }
+}
+
 module.exports = {
   getUser,
   follow,
@@ -1240,5 +1311,6 @@ module.exports = {
   getDownvotedPosts,
   getHistory,
   clearHistory,
-  getJoinedCommunities
+  getJoinedCommunities,
+  getUserOverview
 }

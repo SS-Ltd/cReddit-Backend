@@ -33,6 +33,7 @@ router.route('/joined-communities').get(verifyToken, user.getJoinedCommunities)
 router.route('/settings').put(verifyToken, multer.uploadAvatarBanner, user.updateSettings).get(verifyToken, user.getSettings)
 router.route('/:username/posts').get(isLoggedIn, user.getPosts)
 router.route('/:username/comments').get(isLoggedIn, user.getComments)
+router.route('/:username/overview').get(isLoggedIn, user.getUserOverview)
 router.route('/upvoted').get(verifyToken, user.getUpvotedPosts)
 router.route('/downvoted').get(verifyToken, user.getDownvotedPosts)
 
