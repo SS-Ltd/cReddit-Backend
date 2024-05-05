@@ -78,9 +78,17 @@ const CommunitySchema = new Schema({
     refPath: 'username'
   }],
   bannedUsers: [{
-    type: String,
-    ref: 'User',
-    refPath: 'username'
+    name: {
+      type: String,
+      ref: 'User',
+      refPath: 'username'
+    },
+    reasonToBan: {
+      type: String
+    },
+    modNote: {
+      type: String
+    }
   }],
   mutedUsers: [{
     type: String,

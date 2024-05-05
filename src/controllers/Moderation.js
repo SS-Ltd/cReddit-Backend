@@ -154,6 +154,44 @@ const removeModerator = async (req, res) => {
   }
 }
 
+const banUser = async (req, res) => {
+  try {
+    const { username, rule, modNote } = req.body
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    const userToBan = await UserModel.findOne({ username, isDeleted: false })
+    if (!userToBan) {
+      return res.status(400).json({ message: 'User does not exist' })
+    }
+
+    if (community.bannedUsers.includes(userToBan.username)) {
+      return res.status(400).json({ message: 'User is already banned' })
+    }
+
+    if (community.moderators.includes(userToBan.username)) {
+      return res.status(400).json({ message: 'You cannot ban a moderator' })
+    }
+
+    if (!community.members.includes(userToBan.username)) {
+      return res.status(400).json({ message: 'User is not a member of this community' })
+    }
+
+    const note = modNote || null
+    community.bannedUsers.push({ name: userToBan.username, reasonToBan: rule, modNote: note })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
 module.exports = {
   inviteModerator,
   acceptInvitation,
