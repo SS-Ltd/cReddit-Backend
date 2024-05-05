@@ -25,7 +25,6 @@ connectDB()
 const app = express()
 app.use(express.json())
 app.use(cors({ credentials: true, origin: process.env.BASE_URL }))
-app.use(cors())
 app.use(cookies())
 
 const server = http.createServer(app)
@@ -34,7 +33,7 @@ const io = new Server(server, {
   cookie: true,
   pingTimeout: 60000,
   cors: {
-    origin: 'http://localhost:3001',
+    origin: process.env.BASE_URL,
     credentials: true
   }
 })
