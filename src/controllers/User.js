@@ -1221,9 +1221,8 @@ const getUserOverview = async (req, res) => {
   try {
     const decoded = req.decoded
     let visitor = null
-
     if (decoded) {
-      visitor = await UserModel.findOne({ username: decoded.username })
+      visitor = await UserModel.findOne({ username: decoded.username, isDeleted: false })
       if (!visitor) {
         return res.status(404).json({ message: 'Visitor not found' })
       }

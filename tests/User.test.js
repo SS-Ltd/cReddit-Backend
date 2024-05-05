@@ -1,13 +1,18 @@
 const UserModel = require('../src/models/User')
+const PostModel = require('../src/models/Post')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
 const crypto = require('crypto')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser, getPosts, getComments } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser, getPosts, getComments, getUserOverview } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 dotenv.config()
 
 jest.mock('../src/models/User', () => ({
   findOne: jest.fn()
+}))
+
+jest.mock('../src/models/Post', () => ({
+  getUserOverview: jest.fn()
 }))
 
 describe('follow', () => {
@@ -2353,6 +2358,315 @@ describe('getComments', () => {
 
     await getComments(req, res)
 
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+})
+
+describe('getUserOverview', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should return a list of posts for a given user', async () => {
+    const req = {
+      decoded: {
+        username: 'visitor'
+      },
+      params: {
+        username: 'user1'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'new',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user1 = {
+      username: 'visitor',
+      communities: ['community1'],
+      preferences: {
+        showAdultContent: false
+      },
+      mutedCommunities: [],
+      upvotedPosts: [],
+      downvotedPosts: [],
+      savedPosts: [],
+      hiddenPosts: [],
+      moderatorInCommunities: [],
+      blockedUsers: []
+    }
+
+    const posts = [
+      { title: 'Post 1' },
+      { title: 'Post 2' }
+    ]
+
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(user1).mockResolvedValueOnce({})
+    PostModel.getUserOverview = jest.fn().mockResolvedValue(posts)
+
+    await getUserOverview(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(PostModel.getUserOverview).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenNthCalledWith(1, { username: 'visitor', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenNthCalledWith(2, { username: 'user1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([
+      {
+        title: 'Post 1',
+        isUpvoted: false,
+        isDownvoted: false,
+        isSaved: false,
+        isHidden: false,
+        isJoined: false,
+        isModerator: false,
+        isBlocked: false
+      },
+      {
+        title: 'Post 2',
+        isUpvoted: false,
+        isDownvoted: false,
+        isSaved: false,
+        isHidden: false,
+        isJoined: false,
+        isModerator: false,
+        isBlocked: false
+      }
+    ])
+  })
+
+  test('should set the relevant fields for each post based on visitors interaction', async () => {
+    const req = {
+      decoded: {
+        username: 'visitor'
+      },
+      params: {
+        username: 'user1'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'new',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user1 = {
+      username: 'visitor',
+      communities: ['community1'],
+      preferences: {
+        showAdultContent: false
+      },
+      mutedCommunities: [],
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [{ postId: 'post2' }],
+      savedPosts: [{ postId: 'post3' }],
+      hiddenPosts: [{ postId: 'post4' }],
+      moderatorInCommunities: ['community1'],
+      blockedUsers: ['user2']
+    }
+
+    const posts = [
+      { title: 'Post 1', _id: 'post1' },
+      { title: 'Post 2', _id: 'post2' },
+      { title: 'Post 3', _id: 'post3', username: 'user2' },
+      { title: 'Post 4', _id: 'post4', communityName: 'community1' }
+    ]
+
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(user1).mockResolvedValueOnce({})
+    PostModel.getUserOverview = jest.fn().mockResolvedValue(posts)
+
+    await getUserOverview(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(PostModel.getUserOverview).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'visitor', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([
+      {
+        _id: 'post1',
+        title: 'Post 1',
+        isUpvoted: true,
+        isDownvoted: false,
+        isSaved: false,
+        isHidden: false,
+        isJoined: false,
+        isModerator: false,
+        isBlocked: false
+      },
+      {
+        _id: 'post2',
+        title: 'Post 2',
+        isUpvoted: false,
+        isDownvoted: true,
+        isSaved: false,
+        isHidden: false,
+        isJoined: false,
+        isModerator: false,
+        isBlocked: false
+      },
+      {
+        _id: 'post3',
+        title: 'Post 3',
+        isUpvoted: false,
+        isDownvoted: false,
+        isSaved: true,
+        isHidden: false,
+        isJoined: false,
+        isModerator: false,
+        isBlocked: true,
+        username: 'user2'
+      },
+      {
+        _id: 'post4',
+        title: 'Post 4',
+        isUpvoted: false,
+        isDownvoted: false,
+        isSaved: false,
+        isHidden: true,
+        isJoined: true,
+        isModerator: true,
+        isBlocked: false,
+        communityName: 'community1'
+      }
+    ])
+  })
+
+  test('should return an empty list if no posts are found for the given user', async () => {
+    const req = {
+      params: {
+        username: 'user1'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'new',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({})
+    PostModel.getUserOverview = jest.fn().mockResolvedValue([])
+
+    await getUserOverview(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.getUserOverview).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
+  })
+
+  test('should throw an error if username is not provided', async () => {
+    const req = {
+      decoded: {
+        username: 'visitor'
+      },
+      params: {},
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'new',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({})
+
+    await getUserOverview(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.getUserOverview).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'visitor', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting user overview: Username is required' })
+  })
+
+  test('should return an error message if visitor is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'visitor'
+      },
+      params: {
+        username: 'user1'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'new',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getUserOverview(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.getUserOverview).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'visitor', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Visitor not found' })
+  })
+
+  test('should return an error message when user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'visitor'
+      },
+      params: {
+        username: 'nonexistentUser'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'new',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'visitor' }).mockResolvedValueOnce(null)
+
+    await getUserOverview(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
+    expect(PostModel.getUserOverview).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenNthCalledWith(1, { username: 'visitor', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenNthCalledWith(2, { username: 'nonexistentUser', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
