@@ -198,6 +198,10 @@ const approveUser = async (req, res) => {
     }
 
     const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
     if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
       return res.status(400).json({ message: 'You are not a moderator of this community' })
     }
@@ -219,6 +223,7 @@ const approveUser = async (req, res) => {
 
     return res.status(200).json({ message: 'User approved' })
   } catch (error) {
+    console.log(error)
     res.status(500).json({ message: error.message || 'An error occurred' })
   }
 }
