@@ -73,7 +73,8 @@ describe('createPost', () => {
         allowImageComments: true
       },
       isNSFW: false,
-      moderators: []
+      moderators: [],
+      bannedUsers: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
@@ -220,7 +221,8 @@ describe('createPost', () => {
         allowImageComments: true
       },
       isNSFW: false,
-      moderators: []
+      moderators: [],
+      bannedUsers: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
@@ -278,7 +280,8 @@ describe('createPost', () => {
         allowImageComments: true
       },
       isNSFW: false,
-      moderators: []
+      moderators: [],
+      bannedUsers: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
