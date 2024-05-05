@@ -126,6 +126,9 @@ const PostSchema = new Schema({
   }],
   mostRecentUpvote: {
     type: Date
+  },
+  job: {
+    type: String
   }
 }, { timestamps: true })
 
@@ -903,7 +906,8 @@ PostSchema.statics.getRandomHomeFeed = async function (options, communities, mut
         ],
         isDeleted: false,
         isRemoved: false,
-        type: { $ne: 'Comment' }
+        type: { $ne: 'Comment' },
+        createdAt: { $lte: new Date(Date.now()) }
       }
     },
     {
@@ -1953,6 +1957,35 @@ PostSchema.statics.getReportedPosts = async function (communityName, options) {
         views: 0,
         isDeleted: 0,
         mostRecentUpvote: 0
+      }
+    }
+  ])
+}
+
+PostSchema.statics.getScheduledPosts = async function (communityName, options) {
+  const { page, limit } = options
+  return await this.aggregate([
+    {
+      $match: {
+        communityName: communityName,
+        isDeleted: false,
+        createdAt: { $gt: new Date() }
+      }
+    },
+    { $skip: page * limit },
+    { $limit: limit },
+    {
+      $project: {
+        title: 1,
+        communityName: 1,
+        username: 1,
+        type: 1,
+        content: 1,
+        pollOptions: 1,
+        expirationDate: 1,
+        isSpoiler: 1,
+        isNsfw: 1,
+        createdAt: 1
       }
     }
   ])

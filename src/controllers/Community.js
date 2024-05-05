@@ -187,19 +187,19 @@ const getEditedPosts = async (req, res) => {
 const filterWithTime = (time) => {
   switch (time) {
     case 'now':
-      return { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 60 * 60 * 1000) }
     case 'today':
-      return { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     case 'week':
-      return { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     case 'month':
-      return { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
     case 'year':
-      return { $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
+      return { $lte: new Date(Date.now()), $gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }
     case 'all':
-      return { $gte: new Date(0) }
+      return { $lte: new Date(Date.now()) }
     default:
-      return { $gte: new Date(0) }
+      return { $lte: new Date(Date.now()) }
   }
 }
 
@@ -453,14 +453,14 @@ const getReportedPosts = async (req, res) => {
 
     const sortMethod = getSortingMethod(sort)
 
-    const opotions = {
+    const options = {
       page: page,
       limit,
       sortMethod,
       type
     }
 
-    const posts = await PostModel.getReportedPosts(subreddit, opotions)
+    const posts = await PostModel.getReportedPosts(subreddit, options)
 
     posts.forEach(post => {
       if (post.type !== 'Poll') {
@@ -632,6 +632,51 @@ const updateCommunitySettings = async (req, res) => {
   }
 }
 
+const getScheduledPosts = async (req, res) => {
+  try {
+    const subreddit = req.params.communityName
+
+    if (!subreddit) {
+      return res.status(400).json({
+        message: 'Subreddit is required'
+      })
+    }
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User does not exist'
+      })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+
+    const options = {
+      page,
+      limit
+    }
+
+    const scheduledPosts = await PostModel.getScheduledPosts(subreddit, options)
+
+    return res.status(200).json(scheduledPosts)
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      message: 'An error occurred while getting scheduled posts'
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
@@ -646,5 +691,6 @@ module.exports = {
   getCommunityRules,
   updateCommunityRules,
   getCommunitySettings,
-  updateCommunitySettings
+  updateCommunitySettings,
+  getScheduledPosts
 }

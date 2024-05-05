@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -1582,6 +1582,235 @@ describe('updateCommunitySettings', () => {
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
+    })
+  })
+})
+
+describe('getScheduledPosts', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should return scheduled posts for a valid community and user with default pagination', async () => {
+    const req = {
+      params: {
+        communityName: 'validCommunity'
+      },
+      decoded: {
+        username: 'validUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validCommunity',
+      isDeleted: false
+    }
+
+    const user = {
+      username: 'validUser',
+      isDeleted: false
+    }
+
+    const scheduledPosts = [
+      { title: 'Post 1', content: 'Content 1' },
+      { title: 'Post 2', content: 'Content 2' }
+    ]
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getScheduledPosts = jest.fn().mockResolvedValue(scheduledPosts)
+
+    await getScheduledPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUser', isDeleted: false })
+    expect(PostModel.getScheduledPosts).toHaveBeenCalledWith('validCommunity', { page: 0, limit: 10 })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(scheduledPosts)
+  })
+
+  test('should return scheduled posts for a valid community and user with custom pagination', async () => {
+    const req = {
+      params: {
+        communityName: 'validCommunity'
+      },
+      decoded: {
+        username: 'validUser'
+      },
+      query: {
+        page: 2,
+        limit: 5
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validCommunity',
+      isDeleted: false
+    }
+
+    const user = {
+      username: 'validUser',
+      isDeleted: false
+    }
+
+    const scheduledPosts = [
+      { title: 'Post 1', content: 'Content 1' },
+      { title: 'Post 2', content: 'Content 2' }
+    ]
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getScheduledPosts = jest.fn().mockResolvedValue(scheduledPosts)
+
+    await getScheduledPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUser', isDeleted: false })
+    expect(PostModel.getScheduledPosts).toHaveBeenCalledWith('validCommunity', { page: 1, limit: 5 })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(scheduledPosts)
+  })
+
+  test('should return an empty array when there are no scheduled posts for a community', async () => {
+    const req = {
+      params: {
+        communityName: 'validCommunity'
+      },
+      decoded: {
+        username: 'validUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validCommunity',
+      isDeleted: false
+    }
+
+    const user = {
+      username: 'validUser',
+      isDeleted: false
+    }
+
+    const scheduledPosts = []
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getScheduledPosts = jest.fn().mockResolvedValue(scheduledPosts)
+
+    await getScheduledPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUser', isDeleted: false })
+    expect(PostModel.getScheduledPosts).toHaveBeenCalledWith('validCommunity', { page: 0, limit: 10 })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(scheduledPosts)
+  })
+
+  test('should return 400 when subreddit is not provided', async () => {
+    const req = {
+      params: {},
+      decoded: {
+        username: 'validUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getScheduledPosts(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.getScheduledPosts).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Subreddit is required' })
+  })
+
+  test('should return 404 when community is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'nonexistentCommunity'
+      },
+      decoded: {
+        username: 'validUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = null
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await getScheduledPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonexistentCommunity', isDeleted: false })
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.getScheduledPosts).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
+    })
+  })
+
+  test('should return 404 when user is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'validCommunity'
+      },
+      decoded: {
+        username: 'nonExistingUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validCommunity',
+      isDeleted: false
+    }
+
+    const user = null
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getScheduledPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonExistingUser', isDeleted: false })
+    expect(PostModel.getScheduledPosts).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
     })
   })
 })
