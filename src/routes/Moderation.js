@@ -13,5 +13,7 @@ router.route('/ban/:communityName').patch(verifyToken, isModerator, moderation.b
 router.route('/unban/:communityName').patch(verifyToken, isModerator, moderation.unbanUser)
 router.route('/get-banned-users/:communityName').get(verifyToken, isModerator, moderation.getBannedUsers)
 router.route('/approve/:communityName').patch(verifyToken, isModerator, moderation.approveUser)
+router.route('/unapprove/:communityName').patch(verifyToken, isModerator, moderation.unapproveUser)
+router.route('/get-approved-users/:communityName').get(verifyToken, isModerator, moderation.getApprovedUsers)
 
 module.exports = router
