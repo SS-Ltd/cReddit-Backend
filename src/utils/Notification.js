@@ -106,7 +106,8 @@ const sendNotification = async (username, type, resource, notificationFrom, post
     user: username,
     notificationFrom: notificationFrom,
     type: type,
-    message: messageStr,
+    title: messageStr.title,
+    content: messageStr.body,
     resourceId: resource._id
   })
 
