@@ -17,12 +17,15 @@ const { authenticate } = require('./middlewares/Verify')
 const http = require('http')
 const { Server } = require('socket.io')
 const { connectSocket } = require('./utils/Socket')
+const swStats = require('swagger-stats')
 
 dotenv.config()
 
 connectDB()
 
 const app = express()
+
+app.use(swStats.getMiddleware({}))
 app.use(express.json())
 app.use(cors({ credentials: true, origin: process.env.BASE_URL }))
 app.use(cookies())
