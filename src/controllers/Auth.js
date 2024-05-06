@@ -168,7 +168,7 @@ const login = async (req, res) => {
 
 const logout = async (req, res) => {
   const username = req.decoded.username
-  const fcmToken = req.body.fcmToken
+  const fcmToken = req.body ? req.body.fcmToken : null
   try {
     const user = await User.findOne({ username })
 
