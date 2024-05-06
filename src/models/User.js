@@ -1181,7 +1181,7 @@ UserSchema.statics.searchUsers = async function (options) {
     {
       $match: {
         isDeleted: false,
-        ...(safeSearch ? { isNSFW: false } : {})
+        ...(safeSearch ? { 'preferences.isNSFW': false } : {})
       }
     },
     {
