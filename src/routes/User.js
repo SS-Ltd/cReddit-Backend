@@ -9,7 +9,7 @@ const router = express.Router()
 router.route('/').post(auth.createUser).delete(verifyToken, auth.deleteUser).get(verifyToken, user.getUser)
 router.route('/login').post(auth.login)
 router.route('/auth/google').post(verifyGoogleToken, auth.loginGoogle)
-router.route('/logout').get(verifyToken, auth.logout)
+router.route('/logout').post(verifyToken, auth.logout)
 router.route('/verify/:token').get(auth.verifyUser)
 router.route('/refresh-token').get(jwt.refreshToken)
 
