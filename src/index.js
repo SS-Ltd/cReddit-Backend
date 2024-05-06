@@ -39,10 +39,20 @@ const io = new Server(server, {
 })
 
 io.use((socket, next) => {
-  const token = socket.request.headers.cookie.split(';').find((c) => c.trim().startsWith('accessToken=')).split('=')[1]
+  const cookies = socket.request?.headers?.cookie?.split(';')?.find((c) => c.trim().startsWith('accessToken='))?.split('=')
+  if (!cookies || cookies.length < 2) {
+    return next(new Error('Authentication error'))
+  }
+  const token = cookies[1]
+  if (!token) {
+    return next(new Error('Authentication error'))
+  }
   console.log('Token: ', token)
   const username = authenticate(token)
   console.log(username)
+  if (!username) {
+    return next(new Error('Authentication error'))
+  }
   socket.decoded = username
   next()
 })
