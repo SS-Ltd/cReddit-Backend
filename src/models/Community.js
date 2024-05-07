@@ -89,6 +89,12 @@ const CommunitySchema = new Schema({
     },
     modNote: {
       type: String
+    },
+    job: {
+      type: String
+    },
+    days: {
+      type: Number
     }
   }],
   mutedUsers: [{

@@ -1,6 +1,7 @@
 const UserModel = require('../models/User')
 const CommunityModel = require('../models/Community')
 const { sendMessage } = require('../utils/Message')
+const schedule = require('node-schedule')
 
 const inviteModerator = async (req, res) => {
   try {
@@ -156,8 +157,13 @@ const removeModerator = async (req, res) => {
 
 const banUser = async (req, res) => {
   try {
-    const { username, rule, modNote } = req.body
+    const { username, rule, modNote, days } = req.body
     const { communityName } = req.params
+
+    if (days && (!Number.isInteger(days) || days < 1 || days > 999)) {
+      return res.status(400).json({ message: 'That number is not in the right range (1 to 999)' })
+    }
+
     const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
     if (!community) {
       return res.status(400).json({ message: 'Community does not exist' })
@@ -177,10 +183,6 @@ const banUser = async (req, res) => {
       return res.status(400).json({ message: 'User does not exist' })
     }
 
-    if (community.bannedUsers.find(u => u.name === userToBan.username)) {
-      return res.status(400).json({ message: 'User is already banned' })
-    }
-
     if (community.moderators.includes(userToBan.username)) {
       return res.status(400).json({ message: 'You cannot ban a moderator' })
     }
@@ -189,8 +191,33 @@ const banUser = async (req, res) => {
       return res.status(400).json({ message: 'Rule does not exist' })
     }
 
+    const bannedUser = community.bannedUsers.find(bannedUser => bannedUser.name === userToBan.username)
+
+    if (bannedUser) {
+      if (bannedUser.days && bannedUser.job) {
+        const oldJob = schedule.scheduledJobs[bannedUser.job]
+        if (oldJob) {
+          oldJob.cancel()
+        }
+      }
+      community.bannedUsers = community.bannedUsers.filter(bannedUser => bannedUser.name !== userToBan.username)
+    }
+
+    let job = null
+    if (days) {
+      const unbanDate = new Date()
+      unbanDate.setTime(unbanDate.getTime() + days * 24 * 60 * 60 * 1000)
+      job = schedule.scheduleJob(unbanDate, async () => {
+        community.bannedUsers = community.bannedUsers.filter(bannedUser => bannedUser.name !== userToBan.username)
+        userToBan.bannedInCommunities = userToBan.bannedInCommunities.filter(community => communityName !== community)
+
+        await userToBan.save()
+        await community.save()
+      })
+    }
+
     const note = modNote || null
-    community.bannedUsers.push({ name: userToBan.username, reasonToBan: rule, modNote: note })
+    community.bannedUsers.push({ name: userToBan.username, reasonToBan: rule, modNote: note, job: job ? job.name : null, days: days })
     userToBan.bannedInCommunities.push(community.name)
 
     await userToBan.save()
@@ -226,6 +253,13 @@ const unbanUser = async (req, res) => {
 
     if (community.bannedUsers.find(u => u.name === userToUnban.username) === undefined) {
       return res.status(400).json({ message: 'User is not banned' })
+    }
+
+    const bannedUser = community.bannedUsers.find(bannedUser => bannedUser.name === userToUnban.username)
+    const oldJob = schedule.scheduledJobs[bannedUser.job]
+
+    if (oldJob) {
+      oldJob.cancel()
     }
 
     community.bannedUsers = community.bannedUsers.filter(bannedUser => bannedUser.name !== userToUnban.username)
