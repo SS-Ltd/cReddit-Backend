@@ -23,7 +23,7 @@ const isModerator = async (req, res, next) => {
 const isPrivate = async (req, res, next) => {
   const { postId, commentId } = req.params
   const id = postId || commentId
-  const username = req.decoded.username
+
   try {
     const post = await PostModel.findById(id)
     if (!post) {
@@ -36,7 +36,14 @@ const isPrivate = async (req, res, next) => {
         return res.status(404).json({ message: 'Community not found' })
       }
 
-      if (community.type === 'private' && !(community.moderators.includes(username) || community.approvedUsers.includes(username))) {
+      if (req.decoded) {
+        const username = req.decoded.username
+        if (community.type === 'private' && !(community.moderators.includes(username) || community.approvedUsers.includes(username))) {
+          return res.status(401).json({ message: 'Unauthorized' })
+        }
+      }
+
+      if (community.type === 'private') {
         return res.status(401).json({ message: 'Unauthorized' })
       }
     }
