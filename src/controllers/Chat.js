@@ -55,7 +55,8 @@ const createChatRoom = async (req, res) => {
     const chatMessages = new ChatMessageModel({
       user: null,
       content: `${host} joined the chat`,
-      room: chatRoom._id
+      room: chatRoom._id,
+      isRead: false
     })
 
     await chatMessages.save()
@@ -141,7 +142,8 @@ const leaveChatRoom = async (req, res) => {
     const chatMessage = new ChatMessageModel({
       user: null,
       content: `${username} left the chat`,
-      room: roomId
+      room: roomId,
+      isRead: false
     })
 
     await chatMessage.save()
