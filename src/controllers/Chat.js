@@ -153,7 +153,7 @@ const getRoomChat = async (req, res) => {
 
     const chatMessages = await ChatMessageModel.getChatMessages(page, limit, roomId, findLeaveMessage?.createdAt || new Date())
 
-    res.status(200).json(chatMessages)
+    res.status(200).json(chatMessages.reverse())
   } catch (error) {
     res.status(500).json({ message: 'Error getting chat room chat: ' + error.message })
   }
