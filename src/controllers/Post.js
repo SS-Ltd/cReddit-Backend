@@ -265,7 +265,7 @@ const markSpoiler = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' })
     }
 
-    if (!user.moderatorInCommunities.includes(post.communityName)) {
+    if (!user.moderatorInCommunities.includes(post.communityName) && post.username !== username) {
       return res.status(401).json({ message: 'You are not authorized to mark this post as spoiler' })
     }
 
@@ -294,7 +294,7 @@ const markNSFW = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' })
     }
 
-    if (!user.moderatorInCommunities.includes(post.communityName)) {
+    if (!user.moderatorInCommunities.includes(post.communityName) && post.username !== username) {
       return res.status(401).json({ message: 'You are not authorized to mark this post as NSFW' })
     }
 
