@@ -1,6 +1,7 @@
 const UserModel = require('../src/models/User')
 const NotificationModel = require('../src/models/Notification')
-const { subscribe, unsubscribe, getNotifications, markAllAsRead, markAsRead } = require('../src/controllers/Notification')
+const MessageModel = require('../src/models/Message')
+const { subscribe, unsubscribe, getNotifications, markAllAsRead, markAsRead, getUnreadCount } = require('../src/controllers/Notification')
 describe('Subscribe Notification', () => {
 // Successfully subscribe a user with a new fcmToken
   test('should successfully subscribe a user with a new fcmToken', async () => {
@@ -338,6 +339,52 @@ describe('Mark Notification as Read', () => {
     await markAllAsRead(req, res)
 
     expect(NotificationModel.updateMany).toHaveBeenCalledWith({ user: 'testUser' }, { isRead: true })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: errorMessage })
+  })
+})
+
+describe('Get Unread Count', () => {
+  test('should return the correct unread notification and message count for a valid user', async () => {
+    const req = {
+      decoded: {
+        username: 'validUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    NotificationModel.countDocuments = jest.fn().mockResolvedValue(10)
+    MessageModel.countDocuments = jest.fn().mockResolvedValue(5)
+
+    await getUnreadCount(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      unreadNotificationCount: 10,
+      unreadMessageCount: 5,
+      total: 15
+    })
+  })
+
+  test('should return a 500 status code with an error message when there is an error retrieving the unread notification count', async () => {
+    const req = {
+      decoded: {
+        username: 'validUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const errorMessage = 'Error retrieving unread notification count'
+    NotificationModel.countDocuments.mockRejectedValueOnce(new Error(errorMessage))
+
+    await getUnreadCount(req, res)
+
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: errorMessage })
   })
