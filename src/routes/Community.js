@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const community = require('../controllers/Community')
+const multer = require('../utils/Multer')
 const { isLoggedIn, verifyToken } = require('../middlewares/Verify')
 const { isModerator } = require('../middlewares/VerifyModerator')
 
@@ -17,4 +18,7 @@ router.route('/:subreddit/join').post(verifyToken, community.joinCommunity).dele
 router.route('/:subreddit').get(isLoggedIn, community.getCommunityView)
 router.route('/:communityName/rules').get(community.getCommunityRules).put(verifyToken, isModerator, community.updateCommunityRules)
 router.route('/:communityName/settings').get(verifyToken, isModerator, community.getCommunitySettings).put(verifyToken, isModerator, community.updateCommunitySettings)
+router.route('/:communityName/update-community-banner').post(verifyToken, multer.uploadImage, community.updateCommunityBanner)
+router.route('/:communityName/update-community-icon').post(verifyToken, multer.uploadImage, community.updateCommunityIcon)
+
 module.exports = router

@@ -24,7 +24,19 @@ const uploadAvatarBanner = (req, res, next) => {
   })
 }
 
+const uploadImage = (req, res, next) => {
+  upload.fields([{ name: 'image', maxCount: 1 }])(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ message: 'Error uploading file' })
+    } else if (err) {
+      return res.status(500).json({ message: 'Internal server error' })
+    }
+    next()
+  })
+}
+
 module.exports = {
   uploadMultipleImages,
-  uploadAvatarBanner
+  uploadAvatarBanner,
+  uploadImage
 }

@@ -1,6 +1,7 @@
 const CommunityModel = require('../models/Community')
 const PostModel = require('../models/Post')
 const UserModel = require('../models/User')
+const MediaUtils = require('../utils/Media')
 
 const createCommunity = async (req, res) => {
   const owner = req.decoded.username
@@ -694,6 +695,86 @@ const getScheduledPosts = async (req, res) => {
   }
 }
 
+const updateCommunityBanner = async (req, res) => {
+  try {
+    const communityName = req.params.communityName
+    if (!req.files || !req.files.image) {
+      return res.status(400).json({
+        message: 'Banner is required'
+      })
+    }
+
+    if (!communityName) {
+      return res.status(400).json({
+        message: 'Community name is required'
+      })
+    }
+
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    const banner = req.files.image
+
+    const urls = community.banner ? [community.banner] : []
+    await MediaUtils.deleteImages(urls)
+    const newBanner = await MediaUtils.uploadImages(banner)
+    community.banner = newBanner[0]
+
+    await community.save()
+    return res.status(200).json({ link: community.banner })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'Error updating banner: ' + error.message
+    })
+  }
+}
+
+const updateCommunityIcon = async (req, res) => {
+  try {
+    const communityName = req.params.communityName
+    if (!req.files || !req.files.image) {
+      return res.status(400).json({
+        message: 'Icon is required'
+      })
+    }
+
+    if (!communityName) {
+      return res.status(400).json({
+        message: 'Community name is required'
+      })
+    }
+
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    const icon = req.files.image
+
+    const urls = community.banner ? [community.icon] : []
+    await MediaUtils.deleteImages(urls)
+    const newIcon = await MediaUtils.uploadImages(icon)
+    community.icon = newIcon[0]
+
+    await community.save()
+    return res.status(200).json({ link: community.icon })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      message: 'Error updating icon: ' + error.message
+    })
+  }
+}
+
 module.exports = {
   createCommunity,
   getCommunityView,
@@ -709,5 +790,7 @@ module.exports = {
   updateCommunityRules,
   getCommunitySettings,
   updateCommunitySettings,
-  getScheduledPosts
+  getScheduledPosts,
+  updateCommunityBanner,
+  updateCommunityIcon
 }
