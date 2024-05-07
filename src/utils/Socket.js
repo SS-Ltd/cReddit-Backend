@@ -40,6 +40,18 @@ const connectSocket = (io) => {
         return socket.emit('error', { message: 'User is not a member of this chat room' })
       }
 
+      if (chatRoom.members.length === 2) {
+        const membersArray = chatRoom.members
+        const users = await UserModel.find({
+          username: { $in: membersArray },
+          blockedUsers: { $not: { $elemMatch: { $in: membersArray } } },
+          isDeleted: false
+        })
+        if (users.length !== 2) {
+          return socket.emit('error', { message: 'some members have blocked each other' })
+        }
+      }
+
       const chatMessage = new ChatMessageModel({
         user: username,
         content: message,

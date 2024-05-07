@@ -18,12 +18,29 @@ const createChatRoom = async (req, res) => {
     }
 
     const membersSet = new Set(members)
+    const validUsers = await UserModel.find({
+      username: { $in: Array.from(membersSet) }
+    })
+
+    if (validUsers.length !== membersSet.size) {
+      return res.status(400).json({ message: 'Some members are not valid users' })
+    }
 
     if (membersSet.size < 2) {
       return res.status(400).json({ message: 'Chat room must have at least 2 members' })
     } else if (membersSet.size === 2) {
       if (name) return res.status(400).json({ message: 'Name is not required for private chat' })
       const membersArray = Array.from(membersSet)
+      const users = await UserModel.find({
+        username: { $in: membersArray },
+        blockedUsers: { $not: { $elemMatch: { $in: membersArray } } },
+        isDeleted: false
+      })
+
+      if (users.length !== 2) {
+        return res.status(400).json({ message: 'some members have blocked each other' })
+      }
+
       const chatRoom = await ChatRoomModel.findOne({
         members: { $all: membersArray, $size: membersArray.length }
       })
@@ -35,14 +52,6 @@ const createChatRoom = async (req, res) => {
       }
     } else if (membersSet.size > 2 && !name) {
       return res.status(400).json({ message: 'Name is required for group chat' })
-    }
-
-    const validUsers = await UserModel.find({
-      username: { $in: Array.from(membersSet) }
-    })
-
-    if (validUsers.length !== membersSet.size) {
-      return res.status(400).json({ message: 'Some members are not valid users' })
     }
 
     const chatRoom = new ChatRoomModel({
