@@ -79,6 +79,7 @@ const notificationTemplate = {
     const message = {}
     message.title = 'New activity on a post you follow'
     message.body = 'Tap to view the post'
+    return message
   },
   cakeDay: (username, age) => {
     const message = {}
@@ -98,6 +99,8 @@ const sendNotification = async (username, type, resource, notificationFrom, post
     messageStr = notificationTemplate[type](notificationFrom, resource.communityName, postTitle)
   } else if (type === 'mention') {
     messageStr = notificationTemplate[type](notificationFrom, resource, postTitle)
+  } else if (type === 'followedPost') {
+    messageStr = notificationTemplate[type]()
   } else {
     messageStr = notificationTemplate[type](notificationFrom, (resource.username || resource.communityName || resource.age))
   }
