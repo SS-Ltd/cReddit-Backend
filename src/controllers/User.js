@@ -345,7 +345,7 @@ const forgotPassword = async (req, res) => {
   const resetToken = await user.createResetPasswordToken()
   await user.save()
 
-  const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
+  const resetURL = `${req.protocol}://${req.get('host')}/passwordrecovery/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
 
   try {
@@ -494,7 +494,7 @@ const changeEmail = async (req, res) => {
     user.email = newEmail
     await user.save()
 
-    await sendVerificationEmail(newEmail, user.username)
+    await sendVerificationEmail(req, newEmail, user.username)
 
     return res.status(200).json({ message: 'Email has been changed successfully' })
   }
