@@ -14,7 +14,12 @@ async function createRandomCommunities () {
     const ownerName = usernames[ownerIndex]
     const usernamesWithoutOwner = shuffledUsernames.filter((_, index) => index !== ownerIndex)
     const moderators = [ownerName, usernamesWithoutOwner[0]]
-    const bannedUsers = usernamesWithoutOwner.slice(usernamesWithoutOwner.length / 2, usernamesWithoutOwner.length + 1)
+    const rules = Array.from({ length: Math.floor(Math.random() * 5) + 1 }, () => faker.lorem.sentences(1))
+    const bannedUsers = usernamesWithoutOwner.slice(usernamesWithoutOwner.length / 2, usernamesWithoutOwner.length + 1).map((user) => ({
+      name: user,
+      reasonToBan: faker.helpers.arrayElement(rules),
+      modNote: faker.lorem.sentence()
+    }))
     const mutedUsers = usernamesWithoutOwner.slice(usernamesWithoutOwner.length / 2, 2)
     const approvedUsers = usernamesWithoutOwner.slice(usernamesWithoutOwner.length / 2, 2)
 
@@ -22,8 +27,6 @@ async function createRandomCommunities () {
       _id: communityIDs[i],
       owner: ownerName,
       name: communityNames[i],
-      banner: faker.image.url(),
-      icon: faker.image.url(),
       topic: faker.lorem.sentence(),
       description: faker.lorem.paragraph(),
       settings: {
@@ -35,7 +38,7 @@ async function createRandomCommunities () {
         suggestedSort: faker.helpers.arrayElement(['best', 'old', 'top', 'new']),
         allowImageComments: faker.datatype.boolean(0.9)
       },
-      type: faker.helpers.arrayElement(['public', 'private', 'restricted']),
+      type: faker.helpers.arrayElement(['public', 'public', 'public', 'public', 'private', 'restricted']),
       isNSFW: faker.datatype.boolean(0.2),
       members: faker.number.int({ min: 1, max: numOfUsernames }),
       moderators,
@@ -43,10 +46,10 @@ async function createRandomCommunities () {
       mutedUsers,
       approvedUsers,
       isDeleted: faker.datatype.boolean(0.05),
-      rules: {
-        text: faker.lorem.sentence(),
+      rules: rules.map(rule => ({
+        text: rule,
         appliesTo: faker.helpers.arrayElement(['Posts & comments', 'Posts only', 'Comments only'])
-      }
+      }))
     })
 
     const user = await UserModel.findOne({ username: ownerName })
@@ -64,8 +67,8 @@ async function createRandomCommunities () {
       await user.save()
     })
 
-    bannedUsers.forEach(async username => {
-      const user = await UserModel.findOne({ username: username })
+    bannedUsers.forEach(async ban => {
+      const user = await UserModel.findOne({ username: ban.name })
       user.bannedInCommunities.push(communityNames[i])
       user.communities.push(communityNames[i])
       await user.save()

@@ -14,8 +14,6 @@ async function createRandomUsers () {
       displayName: faker.person.firstName(),
       email: faker.internet.email(),
       password: hash,
-      profilePicture: faker.image.url(),
-      banner: faker.image.url(),
       about: faker.lorem.sentence(),
       gender: faker.helpers.arrayElement(['Man', 'Woman', 'I Prefer Not To Say', 'None']),
       country: faker.location.country(),
