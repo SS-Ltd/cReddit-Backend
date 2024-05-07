@@ -892,11 +892,6 @@ UserSchema.methods.getUserPosts = async function (options) {
       }
     },
     {
-      $match: {
-        'community.isDeleted': false
-      }
-    },
-    {
       $lookup: {
         from: 'users',
         localField: 'posts.username',
