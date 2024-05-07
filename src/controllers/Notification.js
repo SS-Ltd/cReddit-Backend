@@ -1,5 +1,6 @@
 const NotificationModel = require('../models/Notification')
 const UserModel = require('../models/User')
+const MessageModel = require('../models/Message')
 
 const subscribe = async (req, res) => {
   try {
@@ -67,7 +68,7 @@ const markAllAsRead = async (req, res) => {
   try {
     const username = req.decoded.username
 
-    await NotificationModel.updateMany({ user: username }, { read: true })
+    await NotificationModel.updateMany({ user: username }, { isRead: true })
 
     res.status(200).json({ message: 'All notifications marked as read' })
   } catch (error) {
@@ -80,9 +81,26 @@ const markAsRead = async (req, res) => {
     const username = req.decoded.username
     const notificationId = req.params.notificationId
 
-    await NotificationModel.findOneAndUpdate({ _id: notificationId, user: username }, { read: true })
+    await NotificationModel.findOneAndUpdate({ _id: notificationId, user: username }, { isRead: true })
 
     res.status(200).json({ message: 'Notification marked as read' })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
+const getUnreadCount = async (req, res) => {
+  try {
+    const username = req.decoded.username
+
+    const notificationCount = await NotificationModel.countDocuments({ user: username, isRead: false })
+    const messageCount = await MessageModel.countDocuments({ to: username, isRead: false })
+
+    res.status(200).json({
+      unreadNotificationCount: notificationCount,
+      unreadMessageCount: messageCount,
+      total: notificationCount + messageCount
+    })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
@@ -93,5 +111,6 @@ module.exports = {
   unsubscribe,
   getNotifications,
   markAllAsRead,
-  markAsRead
+  markAsRead,
+  getUnreadCount
 }

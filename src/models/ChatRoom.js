@@ -70,7 +70,7 @@ ChatRoomSchema.statics.getRooms = async function (page, limit, username) {
                   $filter: {
                     input: '$members',
                     as: 'member',
-                    cond: { $ne: ['$$member', 'Peyton26'] }
+                    cond: { $ne: ['$$member', username] }
                   }
                 },
                 0

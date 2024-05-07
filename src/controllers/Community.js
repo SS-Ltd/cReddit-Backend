@@ -4,7 +4,7 @@ const UserModel = require('../models/User')
 
 const createCommunity = async (req, res) => {
   const owner = req.decoded.username
-  const { name, isNSFW } = req.body
+  const { name, isNSFW, type } = req.body
 
   try {
     if (!name || isNSFW == null) {
@@ -22,10 +22,15 @@ const createCommunity = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
+    if (!['public', 'private', 'restricted'].includes(type)) {
+      return res.status(400).json({ message: 'Invalid community type' })
+    }
+
     const community = new CommunityModel({
       owner: owner,
       name: name,
-      isNSFW: isNSFW
+      isNSFW: isNSFW,
+      type: type
     })
 
     user.moderatorInCommunities.push(name)

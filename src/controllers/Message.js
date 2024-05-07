@@ -30,7 +30,7 @@ const getMessages = async (req, res) => {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 25
 
-    let messages = await MessageModel.find({ $or: [{ from: username }, { to: username }], isDeleted: false })
+    let messages = await MessageModel.find({ $or: [{ from: username }, { to: username }], isDeleted: false, isRead: false, subject: { $not: /^invitation|^post|^Mentioned/ } })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -79,7 +79,7 @@ const getUnreadMessages = async (req, res) => {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 25
 
-    const messages = await MessageModel.find({ to: username, isRead: false, isDeleted: false })
+    const messages = await MessageModel.find({ to: username, isRead: false, isDeleted: false, subject: { $not: /^invitation|^post|^Mentioned/ } })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)

@@ -22,8 +22,9 @@ const createChatRoom = async (req, res) => {
       return res.status(400).json({ message: 'Chat room must have at least 2 members' })
     } else if (membersSet.size === 2) {
       if (name) return res.status(400).json({ message: 'Name is not required for private chat' })
+      const membersArray = Array.from(membersSet)
       const chatRoom = await ChatRoomModel.findOne({
-        members: { $all: Array.from(membersSet) }
+        members: { $all: membersArray, $size: membersArray.length }
       })
       if (chatRoom) {
         return res.status(200).json({

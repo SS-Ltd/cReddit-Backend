@@ -22,10 +22,11 @@ const UserSchema = new Schema({
   },
   profilePicture: {
     type: String,
-    default: faker.image.avatar()
+    default: faker.image.avatarGitHub()
   },
   banner: {
-    type: String
+    type: String,
+    default: faker.image.url({ width: 1920, height: 384 })
   },
   about: {
     type: String
@@ -1181,7 +1182,7 @@ UserSchema.statics.searchUsers = async function (options) {
     {
       $match: {
         isDeleted: false,
-        ...(safeSearch ? { isNSFW: false } : {})
+        ...(safeSearch ? { 'preferences.isNSFW': false } : {})
       }
     },
     {

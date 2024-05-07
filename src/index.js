@@ -17,12 +17,15 @@ const { authenticate } = require('./middlewares/Verify')
 const http = require('http')
 const { Server } = require('socket.io')
 const { connectSocket } = require('./utils/Socket')
+const swStats = require('swagger-stats')
 
 dotenv.config()
 
 connectDB()
 
 const app = express()
+
+app.use(swStats.getMiddleware({}))
 app.use(express.json())
 app.use(cors({ credentials: true, origin: process.env.BASE_URL }))
 app.use(cookies())
@@ -33,16 +36,26 @@ const io = new Server(server, {
   cookie: true,
   pingTimeout: 60000,
   cors: {
-    origin: process.env.BASE_URL,
+    origin: process.env.SOCKET_URL,
     credentials: true
   }
 })
 
 io.use((socket, next) => {
-  const token = socket.request.headers.cookie.split(';').find((c) => c.trim().startsWith('accessToken=')).split('=')[1]
+  const cookies = socket.request?.headers?.cookie?.split(';')?.find((c) => c.trim().startsWith('accessToken='))?.split('=')
+  if (!cookies || cookies.length < 2) {
+    return next(new Error('Authentication error'))
+  }
+  const token = cookies[1]
+  if (!token) {
+    return next(new Error('Authentication error'))
+  }
   console.log('Token: ', token)
   const username = authenticate(token)
   console.log(username)
+  if (!username) {
+    return next(new Error('Authentication error'))
+  }
   socket.decoded = username
   next()
 })

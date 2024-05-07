@@ -6,7 +6,6 @@ const { isLoggedIn, verifyToken } = require('../middlewares/Verify')
 const { isPrivate } = require('../middlewares/VerifyModerator')
 
 router.route('/').post(verifyToken, multer.uploadMultipleImages, post.createPost)
-// router.route('/schedule').post(verifyToken, multer.uploadMultipleImages, post.schedulePost)
 router.route('/home-feed').get(isLoggedIn, post.getHomeFeed)
 router.route('/popular').get(isLoggedIn, post.getPopular)
 router.route('/:postId/save').patch(verifyToken, isPrivate, post.savePost)
@@ -19,6 +18,8 @@ router.route('/:postId/upvote').patch(verifyToken, (req, res, next) => { req.typ
 router.route('/:postId/downvote').patch(verifyToken, (req, res, next) => { req.type = 'downvote'; next() }, isPrivate, post.votePost)
 router.route('/:postId/vote-poll').patch(verifyToken, (req, res, next) => { req.type = 'votePoll'; next() }, isPrivate, post.votePost)
 router.route('/:postId/report').post(verifyToken, isPrivate, post.reportPost)
+router.route('/:postId/mark-spoiler').patch(verifyToken, post.markSpoiler)
+router.route('/:postId/mark-nsfw').patch(verifyToken, post.markNSFW)
 router.route('/:postId').get(isLoggedIn, isPrivate, post.getPost).delete(verifyToken, isPrivate, post.deletePost).patch(verifyToken, isPrivate, post.editPost)
 
 module.exports = router

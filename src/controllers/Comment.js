@@ -91,7 +91,7 @@ const createComment = async (req, res) => {
     await newComment.save()
     await user.save()
 
-    /* if (postOwner) {
+    if (postOwner) {
       if (postOwner.preferences.commentsNotifs) {
         sendNotification(post.username, 'comment', newComment, req.decoded.username)
       }
@@ -102,7 +102,7 @@ const createComment = async (req, res) => {
       if (followerUser && followerUser.preferences.postNotifs) {
         sendNotification(follower, 'followedPost', newComment, req.decoded.username)
       }
-    }) */
+    })
 
     const message = new MessageModel({
       from: comment.username,
