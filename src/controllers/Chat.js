@@ -174,6 +174,10 @@ const leaveChatRoom = async (req, res) => {
       return res.status(403).json({ message: 'User is not a member of this chat room' })
     }
 
+    if (!chatRoom.name) {
+      return res.status(403).json({ message: 'Cannot leave private chat room' })
+    }
+
     const index = chatRoom.members.indexOf(username)
     chatRoom.members = chatRoom.members.splice(index, 1)
 
