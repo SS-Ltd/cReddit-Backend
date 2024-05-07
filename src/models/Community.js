@@ -295,4 +295,68 @@ CommunitySchema.statics.searchCommunities = async function (options) {
   ])
 }
 
+CommunitySchema.statics.getBannedUsers = async function (communityName) {
+  return await this.aggregate([
+    {
+      $match: {
+        name: communityName
+      }
+    },
+    {
+      $unwind: '$bannedUsers'
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'bannedUsers.name',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        username: { $arrayElemAt: ['$user.username', 0] },
+        profilePicture: { $arrayElemAt: ['$user.profilePicture', 0] },
+        reasonToBan: '$bannedUsers.reasonToBan',
+        modNote: '$bannedUsers.modNote',
+        job: '$bannedUsers.job',
+        days: '$bannedUsers.days'
+      }
+    }
+  ])
+}
+
+CommunitySchema.statics.getApprovedUsers = async function (communityName) {
+  return await this.aggregate([
+    {
+      $match: {
+        name: communityName
+      }
+    },
+    {
+      $unwind: '$approvedUsers'
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'approvedUsers',
+        foreignField: 'username',
+        as: 'user'
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        user: {
+          $arrayElemAt: ['$user.username', 0]
+        },
+        profilePicture: {
+          $arrayElemAt: ['$user.profilePicture', 0]
+        }
+      }
+    }
+  ])
+}
+
 module.exports = mongoose.model('Community', CommunitySchema)

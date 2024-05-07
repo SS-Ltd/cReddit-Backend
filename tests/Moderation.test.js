@@ -1481,10 +1481,14 @@ describe('getBannedUser', () => {
       moderators: ['validModerator'],
       bannedUsers: [{
         name: 'user1',
-        reasonToBan: 'testReason1'
+        reasonToBan: 'testReason1',
+        modNote: 'testModNote1',
+        profilePicture: 'testProfilePicture1'
       }, {
         name: 'user2',
-        reasonToBan: 'testReason2'
+        reasonToBan: 'testReason2',
+        modNote: 'testModNote2',
+        profilePicture: 'testProfilePicture2'
       }],
       rules: [{
         text: 'testRule1'
@@ -1499,23 +1503,28 @@ describe('getBannedUser', () => {
       moderatorInCommunities: ['validCommunity']
     }
 
+    CommunityModel.getBannedUsers = jest.fn().mockResolvedValue(community.bannedUsers)
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(loggedInUser)
 
     await Moderation.getBannedUsers(req, res)
 
     expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
-    expect(UserModel.findOne).toHaveBeenCalledTimes(3)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validModerator', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({
       bannedUsers: [{
         name: 'user1',
-        reasonToBan: 'testReason1'
+        reasonToBan: 'testReason1',
+        modNote: 'testModNote1',
+        profilePicture: 'testProfilePicture1'
       }, {
         name: 'user2',
-        reasonToBan: 'testReason2'
+        reasonToBan: 'testReason2',
+        modNote: 'testModNote2',
+        profilePicture: 'testProfilePicture2'
       }]
     })
   })
@@ -2300,13 +2309,14 @@ describe('getApprovedUsers', () => {
       moderatorInCommunities: ['validCommunity']
     }
 
+    CommunityModel.getApprovedUsers = jest.fn().mockResolvedValue([{ username: 'user1', profilePicture: 'anything' }, { username: 'user2', profilePicture: 'anything' }])
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
-    UserModel.findOne = jest.fn().mockResolvedValueOnce(loggedInUser).mockResolvedValueOnce({ username: 'user1', profilePicture: 'anything' }).mockResolvedValueOnce({ username: 'user2', profilePicture: 'anything' })
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(loggedInUser)
 
     await Moderation.getApprovedUsers(req, res)
 
     expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
-    expect(UserModel.findOne).toHaveBeenCalledTimes(3)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validModerator', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(200)

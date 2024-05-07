@@ -332,18 +332,7 @@ const getBannedUsers = async (req, res) => {
       return res.status(400).json({ message: 'You are not a moderator of this community' })
     }
 
-    const users = community.bannedUsers
-    const bannedUsers = []
-    for (const user of users) {
-      const bannedUser = await UserModel.findOne({ username: user.name, isDeleted: false })
-      bannedUsers.push({
-        username: bannedUser.username,
-        profilePicture: bannedUser.profilePicture,
-        reasonToBan: user.reasonToBan,
-        modNote: user.modNote,
-        days: user.days
-      })
-    }
+    const users = await CommunityModel.getBannedUsers(communityName)
     res.status(200).json({ bannedUsers: users })
   } catch (error) {
     res.status(500).json({ message: error.message || 'An error occurred' })
@@ -411,17 +400,7 @@ const getApprovedUsers = async (req, res) => {
       return res.status(400).json({ message: 'You are not a moderator of this community' })
     }
 
-    const users = community.approvedUsers
-    const approvedUsers = []
-
-    for (const user of users) {
-      const approvedUser = await UserModel.findOne({ username: user, isDeleted: false })
-      approvedUsers.push({
-        username: approvedUser.username,
-        profilePicture: approvedUser.profilePicture
-      })
-    }
-
+    const approvedUsers = await CommunityModel.getApprovedUsers(communityName)
     res.status(200).json(approvedUsers)
   } catch (error) {
     res.status(500).json({ message: error.message || 'An error occurred' })
