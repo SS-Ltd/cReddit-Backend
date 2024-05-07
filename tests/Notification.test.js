@@ -1,5 +1,6 @@
 const UserModel = require('../src/models/User')
-const { subscribe, unsubscribe } = require('../src/controllers/Notification')
+const NotificationModel = require('../src/models/Notification')
+const { subscribe, unsubscribe, getNotifications } = require('../src/controllers/Notification')
 describe('Subscribe Notification', () => {
 // Successfully subscribe a user with a new fcmToken
   test('should successfully subscribe a user with a new fcmToken', async () => {
@@ -170,5 +171,75 @@ describe('Unsubscribe Notification', () => {
 
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: 'Database error' })
+  })
+})
+
+const notifications = [
+  {
+    user: 'testUser',
+    notificationFrom: 'anotherUser',
+    type: 'mention',
+    resourceId: '123',
+    title: 'You have been mentioned',
+    content: 'You have been mentioned in a post',
+    isRead: false
+  }
+]
+
+jest.mock('../src/models/Notification', () => {
+  return {
+    getNotifications: jest.fn().mockResolvedValue(notifications)
+  }
+})
+
+describe('Get Notifications', () => {
+  test('should retrieve notifications for a given user', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getNotifications(req, res)
+
+    expect(NotificationModel.getNotifications).toHaveBeenCalledWith({
+      username: 'testUser',
+      page: 1,
+      limit: 10
+    })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ notifications: notifications })
+  })
+
+  test('should return status code 500 if an error occurs while retrieving notifications', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    NotificationModel.getNotifications.mockRejectedValue(new Error('Error retrieving notifications'))
+
+    await getNotifications(req, res)
+
+    expect(NotificationModel.getNotifications).toHaveBeenCalledWith({
+      username: 'testUser',
+      page: 1,
+      limit: 10
+    })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error retrieving notifications' })
   })
 })
