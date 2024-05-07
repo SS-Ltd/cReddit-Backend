@@ -132,7 +132,7 @@ const getRooms = async (req, res) => {
 
 const getRoomChat = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1
+    const page = parseInt(req.query.page) - 1 || 0
     const limit = parseInt(req.query.limit) || 10
     const username = req.decoded.username
     const user = UserModel.findOne({ username, isDeleted: false })
@@ -151,7 +151,7 @@ const getRoomChat = async (req, res) => {
 
     const findLeaveMessage = await ChatMessageModel.findOne({ room: roomId, content: `${username} left the chat` })
 
-    const chatMessages = await ChatMessageModel.getChatMessages(roomId, findLeaveMessage?.createdAt || new Date())
+    const chatMessages = await ChatMessageModel.getChatMessages(page, limit, roomId, findLeaveMessage?.createdAt || new Date())
 
     res.status(200).json(chatMessages)
   } catch (error) {
