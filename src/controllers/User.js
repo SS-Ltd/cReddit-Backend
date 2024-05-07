@@ -345,7 +345,7 @@ const forgotPassword = async (req, res) => {
   const resetToken = await user.createResetPasswordToken()
   await user.save()
 
-  const resetURL = `${req.protocol}://${req.get('host')}/user/reset-password/${resetToken}`
+  const resetURL = `${req.protocol}://${req.get('host')}/passwordrecovery/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
 
   try {
@@ -494,7 +494,7 @@ const changeEmail = async (req, res) => {
     user.email = newEmail
     await user.save()
 
-    await sendVerificationEmail(newEmail, user.username)
+    await sendVerificationEmail(req, newEmail, user.username)
 
     return res.status(200).json({ message: 'Email has been changed successfully' })
   }
@@ -1286,6 +1286,29 @@ const getUserOverview = async (req, res) => {
   }
 }
 
+const getModeratorIn = async (req, res) => {
+  try {
+    const username = req.decoded.username
+
+    const user = await UserModel.findOne({ username: username, isDeleted: false })
+    const communities = user.moderatorInCommunities
+
+    const moderatorIn = []
+    for (let i = 0; i < communities.length; i++) {
+      const community = await CommunityModel.findOne({ name: communities[i] })
+      moderatorIn.push({
+        name: community.name,
+        icon: community.icon,
+        members: community.members
+      })
+    }
+
+    res.status(200).json(moderatorIn)
+  } catch (error) {
+    res.status(500).json({ message: 'Error getting communities where the user is moderator' })
+  }
+}
+
 module.exports = {
   getUser,
   follow,
@@ -1311,5 +1334,6 @@ module.exports = {
   getHistory,
   clearHistory,
   getJoinedCommunities,
-  getUserOverview
+  getUserOverview,
+  getModeratorIn
 }

@@ -13,6 +13,8 @@ async function createRandomUsers () {
       username: usernames[i],
       displayName: faker.person.firstName(),
       email: faker.internet.email(),
+      profilePicture: faker.image.avatarGitHub(),
+      banner: faker.image.url({ width: 1920, height: 384 }),
       password: hash,
       about: faker.lorem.sentence(),
       gender: faker.helpers.arrayElement(['Man', 'Woman', 'I Prefer Not To Say', 'None']),

@@ -912,35 +912,6 @@ PostSchema.statics.getRandomHomeFeed = async function (options, communities, mut
     },
     {
       $lookup: {
-        from: 'communities',
-        let: { name: '$communityName' },
-        pipeline: [
-          {
-            $match: {
-              $and: [
-                {
-                  $expr: {
-                    $eq: ['$name', '$$name']
-                  }
-                },
-                {
-                  $expr: {
-                    $cond: {
-                      if: { $ne: ['$type', 'public'] },
-                      then: { $in: ['$name', communities] },
-                      else: true
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        ],
-        as: 'community'
-      }
-    },
-    {
-      $lookup: {
         from: 'posts',
         let: { id: '$_id' },
         pipeline: [
@@ -963,6 +934,14 @@ PostSchema.statics.getRandomHomeFeed = async function (options, communities, mut
         localField: 'username',
         foreignField: 'username',
         as: 'user'
+      }
+    },
+    {
+      $lookup: {
+        from: 'communities',
+        localField: 'communityName',
+        foreignField: 'name',
+        as: 'community'
       }
     },
     {
@@ -1047,7 +1026,7 @@ PostSchema.statics.getRandomHomeFeed = async function (options, communities, mut
         as: 'child'
       }
     },
-    { $sample: { size: limit } },
+    { $sample: { size: limit * 2 } },
     {
       $match: {
         $and: [
@@ -1068,10 +1047,20 @@ PostSchema.statics.getRandomHomeFeed = async function (options, communities, mut
                 else: { $eq: [{ $arrayElemAt: ['$community.isDeleted', 0] }, false] }
               }
             }
+          },
+          {
+            $expr: {
+              $cond: {
+                if: { $eq: [{ $arrayElemAt: ['$community.type', 0] }, 'private'] },
+                then: { $in: [username, { $arrayElemAt: ['$community.approvedUsers', 0] }] },
+                else: true
+              }
+            }
           }
         ]
       }
     },
+    { $sample: { size: limit } },
     {
       $addFields: {
         profilePicture: {
