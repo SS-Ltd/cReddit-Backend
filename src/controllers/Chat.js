@@ -69,6 +69,29 @@ const createChatRoom = async (req, res) => {
   }
 }
 
+const markAllMessagesAsRead = async (req, res) => {
+  try {
+    const username = req.decoded.username
+    const { roomId } = req.params
+
+    const chatRoom = await ChatRoomModel
+      .findOne({ _id: roomId, members: username, isDeleted: false })
+
+    if (!chatRoom) {
+      return res.status(404).json({ message: 'Chat room not found' })
+    }
+
+    await ChatMessageModel.updateMany(
+      { room: roomId, isRead: false },
+      { isRead: true }
+    )
+
+    res.status(200).json({ message: 'All messages marked as read' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking all messages as read: ' + error.message })
+  }
+}
+
 const getRooms = async (req, res) => {
   try {
     const page = parseInt(req.query.page) - 1 || 0
@@ -154,6 +177,7 @@ const leaveChatRoom = async (req, res) => {
 
 module.exports = {
   createChatRoom,
+  markAllMessagesAsRead,
   getRooms,
   getRoomChat,
   leaveChatRoom
