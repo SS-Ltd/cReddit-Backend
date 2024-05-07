@@ -40,15 +40,17 @@ const createPost = async (req, res) => {
     }
 
     if (post.communityName) {
-      const community = await Community.findOne({ name: post.communityName })
+      const community = await Community.findOne({ name: post.communityName, isDeleted: false })
       if (!community) {
         throw new Error('Community does not exist')
       }
 
-      if (post.date) {
-        if (!community.moderators.includes(post.username)) {
-          throw new Error('Only moderators can schedule posts')
-        }
+      if (community.bannedUsers.find(bannedUser => bannedUser.name === post.username)) {
+        throw new Error('You are banned from this community')
+      }
+
+      if (community.type !== 'public' && !(community.moderators.includes(post.username) || community.approvedUsers.includes(post.username))) {
+        throw new Error('Only moderators and approved users can post in this community')
       }
 
       if (post.date) {

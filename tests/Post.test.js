@@ -63,6 +63,7 @@ describe('createPost', () => {
 
     const community = {
       name: 'Test Community',
+      type: 'public',
       settings: {
         allowedPostTypes: 'Posts',
         allowCrossPosting: true,
@@ -73,7 +74,8 @@ describe('createPost', () => {
         allowImageComments: true
       },
       isNSFW: false,
-      moderators: []
+      moderators: [],
+      bannedUsers: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
@@ -210,6 +212,7 @@ describe('createPost', () => {
 
     const community = {
       name: 'Test Community',
+      type: 'public',
       settings: {
         allowedPostTypes: 'Any',
         allowCrossPosting: true,
@@ -220,7 +223,8 @@ describe('createPost', () => {
         allowImageComments: true
       },
       isNSFW: false,
-      moderators: []
+      moderators: [],
+      bannedUsers: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
@@ -268,6 +272,7 @@ describe('createPost', () => {
 
     const community = {
       name: 'Test Community',
+      type: 'public',
       settings: {
         allowedPostTypes: 'Posts',
         allowCrossPosting: true,
@@ -278,7 +283,8 @@ describe('createPost', () => {
         allowImageComments: true
       },
       isNSFW: false,
-      moderators: []
+      moderators: [],
+      bannedUsers: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })

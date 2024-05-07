@@ -267,7 +267,8 @@ describe('createComment', () => {
     const community = {
       settings: {
         allowImageComments: false
-      }
+      },
+      bannedUsers: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', preferences: { commentsNotifs: false }, upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
@@ -331,7 +332,8 @@ describe('createComment', () => {
     const community = {
       settings: {
         allowImageComments: true
-      }
+      },
+      bannedUsers: []
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', preferences: { commentsNotifs: false }, upvotedPosts: [], downvotedPosts: [], save: jest.fn() })

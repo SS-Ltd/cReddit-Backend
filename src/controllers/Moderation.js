@@ -154,10 +154,233 @@ const removeModerator = async (req, res) => {
   }
 }
 
+const banUser = async (req, res) => {
+  try {
+    const { username, rule, modNote } = req.body
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    const userToBan = await UserModel.findOne({ username, isDeleted: false })
+    if (!userToBan) {
+      return res.status(400).json({ message: 'User does not exist' })
+    }
+
+    if (community.bannedUsers.find(u => u.name === userToBan.username)) {
+      return res.status(400).json({ message: 'User is already banned' })
+    }
+
+    if (community.moderators.includes(userToBan.username)) {
+      return res.status(400).json({ message: 'You cannot ban a moderator' })
+    }
+
+    if (community.rules.find(r => r.text === rule) === undefined) {
+      return res.status(400).json({ message: 'Rule does not exist' })
+    }
+
+    const note = modNote || null
+    community.bannedUsers.push({ name: userToBan.username, reasonToBan: rule, modNote: note })
+    userToBan.bannedInCommunities.push(community.name)
+
+    await userToBan.save()
+    await community.save()
+    res.status(200).json({ message: 'User banned' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
+const unbanUser = async (req, res) => {
+  try {
+    const { username } = req.body
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    const userToUnban = await UserModel.findOne({ username, isDeleted: false })
+    if (!userToUnban) {
+      return res.status(400).json({ message: 'User does not exist' })
+    }
+
+    if (community.bannedUsers.find(u => u.name === userToUnban.username) === undefined) {
+      return res.status(400).json({ message: 'User is not banned' })
+    }
+
+    community.bannedUsers = community.bannedUsers.filter(bannedUser => bannedUser.name !== userToUnban.username)
+    userToUnban.bannedInCommunities = userToUnban.bannedInCommunities.filter(community => communityName !== community)
+
+    await userToUnban.save()
+    await community.save()
+    res.status(200).json({ message: 'User unbanned' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
+const approveUser = async (req, res) => {
+  try {
+    const { username } = req.body
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    const userToApprove = await UserModel.findOne({ username, isDeleted: false })
+    if (!userToApprove) {
+      return res.status(400).json({ message: 'User does not exist' })
+    }
+
+    if (community.approvedUsers.includes(userToApprove.username) && userToApprove.approvedInCommunities.includes(communityName)) {
+      return res.status(400).json({ message: 'User is already approved' })
+    }
+
+    community.approvedUsers.push(userToApprove.username)
+    community.members++
+    userToApprove.approvedInCommunities.push(communityName)
+    userToApprove.communities.push(communityName)
+
+    await community.save()
+    await userToApprove.save()
+
+    return res.status(200).json({ message: 'User approved' })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
+const getBannedUsers = async (req, res) => {
+  try {
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    res.status(200).json({ bannedUsers: community.bannedUsers })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
+const unapproveUser = async (req, res) => {
+  try {
+    const { username } = req.body
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    const userToUnapprove = await UserModel.findOne({ username, isDeleted: false })
+    if (!userToUnapprove) {
+      return res.status(400).json({ message: 'User does not exist' })
+    }
+
+    if (!community.approvedUsers.includes(userToUnapprove.username) && !userToUnapprove.approvedInCommunities.includes(communityName)) {
+      return res.status(400).json({ message: 'User is not approved' })
+    }
+
+    community.approvedUsers = community.approvedUsers.filter(approvedUser => approvedUser !== userToUnapprove.username)
+    userToUnapprove.approvedInCommunities = userToUnapprove.approvedInCommunities.filter(community => communityName !== community)
+
+    if (community.type === 'private') {
+      community.members--
+      userToUnapprove.communities = userToUnapprove.communities.filter(community => communityName !== community)
+    }
+
+    await community.save()
+    await userToUnapprove.save()
+
+    return res.status(200).json({ message: 'User unapproved' })
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
+const getApprovedUsers = async (req, res) => {
+  try {
+    const { communityName } = req.params
+    const community = await CommunityModel.findOne({ name: communityName, isDeleted: false })
+    if (!community) {
+      return res.status(400).json({ message: 'Community does not exist' })
+    }
+
+    const loggedInUser = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+    if (!loggedInUser) {
+      return res.status(400).json({ message: 'Moderator does not exist' })
+    }
+
+    if (!loggedInUser.moderatorInCommunities.includes(communityName) || !community.moderators.includes(loggedInUser.username)) {
+      return res.status(400).json({ message: 'You are not a moderator of this community' })
+    }
+
+    res.status(200).json(community.approvedUsers)
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'An error occurred' })
+  }
+}
+
 module.exports = {
   inviteModerator,
   acceptInvitation,
   rejectInvitation,
   leaveModeration,
-  removeModerator
+  removeModerator,
+  banUser,
+  unbanUser,
+  approveUser,
+  getBannedUsers,
+  unapproveUser,
+  getApprovedUsers
 }
