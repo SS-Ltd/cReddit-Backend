@@ -183,16 +183,24 @@ const banUser = async (req, res) => {
       return res.status(400).json({ message: 'User does not exist' })
     }
 
-    if (community.bannedUsers.find(u => u.name === userToBan.username)) {
-      return res.status(400).json({ message: 'User is already banned' })
-    }
-
     if (community.moderators.includes(userToBan.username)) {
       return res.status(400).json({ message: 'You cannot ban a moderator' })
     }
 
     if (community.rules.find(r => r.text === rule) === undefined) {
       return res.status(400).json({ message: 'Rule does not exist' })
+    }
+
+    const bannedUser = community.bannedUsers.find(bannedUser => bannedUser.name === userToBan.username)
+
+    if (bannedUser && bannedUser.days && bannedUser.job) {
+      if (bannedUser.days && bannedUser.job) {
+        const oldJob = schedule.scheduledJobs[bannedUser.job]
+        if (oldJob) {
+          oldJob.cancel()
+        }
+      }
+      community.bannedUsers = community.bannedUsers.filter(bannedUser => bannedUser.name !== userToBan.username)
     }
 
     let job = null
