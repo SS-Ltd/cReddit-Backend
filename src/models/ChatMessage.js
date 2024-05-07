@@ -27,6 +27,10 @@ const ChatMessageSchema = new Schema({
     type: String,
     required: true
   },
+  isRead: {
+    type: Boolean,
+    default: false
+  },
   reactions: [ReactionSchema],
   isDeleted: {
     type: Boolean,
