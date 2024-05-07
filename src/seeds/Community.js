@@ -29,6 +29,8 @@ async function createRandomCommunities () {
       name: communityNames[i],
       topic: faker.lorem.sentence(),
       description: faker.lorem.paragraph(),
+      banner: faker.image.url({ width: 1920, height: 384 }),
+      icon: faker.image.avatar(),
       settings: {
         allowedPostTypes: faker.helpers.arrayElement(['Any', 'Links', 'Posts']),
         allowCrossPosting: faker.datatype.boolean(),
