@@ -272,7 +272,7 @@ describe('createComment', () => {
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', preferences: { commentsNotifs: false }, upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
-    PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community', username: 'Test User', title: 'Test Post' })
+    PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community', username: 'Test User', title: 'Test Post', followers: [] })
     Community.findOne = jest.fn().mockResolvedValue(community)
     PostModel.mockImplementation(() => {
       return {
@@ -337,7 +337,7 @@ describe('createComment', () => {
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', preferences: { commentsNotifs: false }, upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
-    PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community' })
+    PostModel.findOne = jest.fn().mockResolvedValue({ type: 'Post', name: 'Test Post', communityName: 'Test Community', followers: [] })
     Community.findOne = jest.fn().mockResolvedValue(community)
 
     MediaUtils.cloudinary.uploader.upload = jest.fn().mockResolvedValue({ secure_url: 'secure_url' })

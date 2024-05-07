@@ -59,13 +59,6 @@ const createComment = async (req, res) => {
       }
     }
 
-    /* post.followers.push(req.decoded.username)
-    const commenter = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
-    commenter.followedPosts.push(comment.postId)
-
-    await post.save()
-    await commenter.save() */
-
     const postOwner = await UserModel.findOne({ username: post.username, isDeleted: false })
 
     if (comment.files.length) {
