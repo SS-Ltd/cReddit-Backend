@@ -1724,7 +1724,8 @@ describe('approveUser', () => {
     const userToApprove = {
       username: 'testUser',
       approvedInCommunities: [],
-      save: jest.fn()
+      save: jest.fn(),
+      communities: []
     }
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
@@ -1778,7 +1779,8 @@ describe('approveUser', () => {
     const userToApprove = {
       username: 'testUser',
       approvedInCommunities: ['testCommunity'],
-      save: jest.fn()
+      save: jest.fn(),
+      communities: []
     }
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
