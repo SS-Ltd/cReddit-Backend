@@ -86,6 +86,18 @@ const notificationTemplate = {
     message.title = `Happy Cake Day, u/${username}!`
     message.body = `🎂 ${age} years on cReddit! 🎉`
     return message
+  },
+  chatAdd: (username) => {
+    const message = {}
+    message.title = `u/${username} added you to a char room`
+    message.body = 'Tap to view the chat room'
+    return message
+  },
+  chat: (username, chatMessage) => {
+    const message = {}
+    message.title = `u/${username}`
+    message.body = chatMessage
+    return message
   }
 }
 
@@ -101,6 +113,10 @@ const sendNotification = async (username, type, resource, notificationFrom, post
     messageStr = notificationTemplate[type](notificationFrom, resource, postTitle)
   } else if (type === 'followedPost') {
     messageStr = notificationTemplate[type]()
+  } else if (type === 'chatAdd') {
+    messageStr = notificationTemplate[type](notificationFrom)
+  } else if (type === 'chatMessage') {
+    messageStr = notificationTemplate[type](notificationFrom, resource.content)
   } else {
     messageStr = notificationTemplate[type](notificationFrom, (resource.username || resource.communityName || resource.age))
   }

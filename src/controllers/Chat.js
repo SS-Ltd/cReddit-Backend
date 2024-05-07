@@ -1,6 +1,7 @@
 const ChatMessageModel = require('../models/ChatMessage')
 const ChatRoomModel = require('../models/ChatRoom')
 const UserModel = require('../models/User')
+const { sendNotification } = require('../utils/Notification')
 
 const createChatRoom = async (req, res) => {
   try {
@@ -59,6 +60,13 @@ const createChatRoom = async (req, res) => {
     })
 
     await chatMessages.save()
+
+    for (const member of Array.from(membersSet)) {
+      const user = await UserModel.findOne({ username: member, isDeleted: false })
+      if (user && user !== host) {
+        sendNotification(user.username, 'chatAdd', chatRoom, host.username)
+      }
+    }
 
     res.status(201).json({
       message: 'Chat room created successfully',
