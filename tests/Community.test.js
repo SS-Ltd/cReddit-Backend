@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts } = require('../src/controllers/Community')
+const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -1808,6 +1808,211 @@ describe('getScheduledPosts', () => {
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonExistingUser', isDeleted: false })
     expect(PostModel.getScheduledPosts).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
+    })
+  })
+})
+
+describe('getUnmoderatedPosts', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should return unmoderated posts for a valid community and user', async () => {
+    const req = {
+      params: {
+        communityName: 'validCommunity'
+      },
+      decoded: {
+        username: 'validUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validCommunity',
+      isDeleted: false
+    }
+
+    const user = {
+      username: 'validUser',
+      isDeleted: false,
+      upvotedPosts: [],
+      downvotedPosts: [],
+      savedPosts: [],
+      hiddenPosts: []
+    }
+
+    const post = {
+      type: 'Text',
+      pollOptions: [],
+      isNsfw: false,
+      _id: 'postId'
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getUnmoderatedPosts = jest.fn().mockResolvedValue([post])
+
+    await getUnmoderatedPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.getUnmoderatedPosts).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUser', isDeleted: false })
+    expect(PostModel.getUnmoderatedPosts).toHaveBeenCalledWith('validCommunity', { page: 0, limit: 10, sortMethod: { createdAt: -1, _id: -1 } })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([{
+      type: 'Text',
+      isNSFW: false,
+      _id: 'postId',
+      isUpvoted: false,
+      isDownvoted: false,
+      isSaved: false,
+      isHidden: false
+    }])
+  })
+
+  test('should return an empty array if there are no unmoderated posts', async () => {
+    const req = {
+      params: {
+        communityName: 'validCommunity'
+      },
+      decoded: {
+        username: 'validUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validCommunity',
+      isDeleted: false
+    }
+
+    const user = {
+      username: 'validUser',
+      isDeleted: false,
+      upvotedPosts: [],
+      downvotedPosts: [],
+      savedPosts: [],
+      hiddenPosts: []
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getUnmoderatedPosts = jest.fn().mockResolvedValue([])
+
+    await getUnmoderatedPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.getUnmoderatedPosts).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validUser', isDeleted: false })
+    expect(PostModel.getUnmoderatedPosts).toHaveBeenCalledWith('validCommunity', { page: 0, limit: 10, sortMethod: { createdAt: -1, _id: -1 } })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([])
+  })
+
+  test('should return 400 if subreddit is not provided', async () => {
+    const req = {
+      params: {},
+      decoded: {
+        username: 'validUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getUnmoderatedPosts(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.getUnmoderatedPosts).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Subreddit is required'
+    })
+  })
+
+  test('should return 404 if community is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'nonExistentCommunity'
+      },
+      decoded: {
+        username: 'validUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getUnmoderatedPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentCommunity', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(PostModel.getUnmoderatedPosts).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
+    })
+  })
+
+  test('should return 404 if user is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'validCommunity'
+      },
+      decoded: {
+        username: 'nonexistentUser'
+      },
+      query: {}
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'validCommunity',
+      isDeleted: false
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getUnmoderatedPosts(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.getUnmoderatedPosts).not.toHaveBeenCalled()
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentUser', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'User does not exist'
