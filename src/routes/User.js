@@ -17,6 +17,7 @@ router.route('/follow/:username').post(verifyToken, user.follow).delete(verifyTo
 router.route('/block/:username').post(verifyToken, user.block).delete(verifyToken, user.unblock)
 router.route('/is-username-available/:username').get(user.isUsernameAvailable)
 router.route('/generate-username').get(user.generateUsername)
+router.route('/moderator-in').get(verifyToken, user.getModeratorIn)
 
 router.route('/forgot-password').post(user.forgotPassword)
 router.route('/reset-password/:token').patch(user.resetPassword)

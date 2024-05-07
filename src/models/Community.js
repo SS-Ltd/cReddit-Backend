@@ -15,7 +15,8 @@ const CommunitySchema = new Schema({
     unique: true
   },
   banner: {
-    type: String
+    type: String,
+    default: faker.image.url({ width: 1920, height: 384 })
   },
   icon: {
     type: String,

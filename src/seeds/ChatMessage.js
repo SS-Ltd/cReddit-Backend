@@ -19,6 +19,7 @@ function createRandomChatMessages () {
       user: faker.helpers.arrayElement(chatRooms[i].members),
       room: faker.helpers.arrayElement(chatRooms),
       content: faker.lorem.sentence(),
+      isRead: faker.datatype.boolean(),
       reactions: [{
         type: faker.helpers.arrayElement(reactionTypes),
         users: reactors

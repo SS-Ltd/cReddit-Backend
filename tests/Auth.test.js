@@ -20,7 +20,8 @@ describe('createUser', () => {
         password: 'TestPassword123',
         email: 'nejocov739@fryshare.com',
         gender: 'None'
-      }
+      },
+      get: jest.fn().mockReturnValue('localhost:3000')
     }
 
     const res = {

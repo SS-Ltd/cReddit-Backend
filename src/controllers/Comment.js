@@ -59,13 +59,6 @@ const createComment = async (req, res) => {
       }
     }
 
-    /* post.followers.push(req.decoded.username)
-    const commenter = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
-    commenter.followedPosts.push(comment.postId)
-
-    await post.save()
-    await commenter.save() */
-
     const postOwner = await UserModel.findOne({ username: post.username, isDeleted: false })
     const user = await UserModel.findOne({ username: comment.username, isDeleted: false })
 
@@ -96,14 +89,14 @@ const createComment = async (req, res) => {
     await user.save()
 
     if (postOwner) {
-      if (postOwner.preferences.commentsNotifs) {
+      if (postOwner.preferences.commentsNotifs && postOwner.username !== comment.username) {
         sendNotification(post.username, 'comment', newComment, req.decoded.username)
       }
     }
 
     post.followers.forEach(async follower => {
       const followerUser = await UserModel.findOne({ username: follower, isDeleted: false })
-      if (followerUser && followerUser.preferences.postNotifs) {
+      if (followerUser && followerUser.preferences.postNotifs && followerUser.username !== comment.username) {
         sendNotification(follower, 'followedPost', newComment, req.decoded.username)
       }
     })

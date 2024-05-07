@@ -1,6 +1,7 @@
 const ChatMessageModel = require('../models/ChatMessage')
 const ChatRoomModel = require('../models/ChatRoom')
 const UserModel = require('../models/User')
+const { sendNotification } = require('./Notification')
 
 const connectSocket = (io) => {
   console.log('Connecting to the server: ', io)
@@ -39,6 +40,18 @@ const connectSocket = (io) => {
         return socket.emit('error', { message: 'User is not a member of this chat room' })
       }
 
+      if (chatRoom.members.length === 2) {
+        const membersArray = chatRoom.members
+        const users = await UserModel.find({
+          username: { $in: membersArray },
+          blockedUsers: { $not: { $elemMatch: { $in: membersArray } } },
+          isDeleted: false
+        })
+        if (users.length !== 2) {
+          return socket.emit('error', { message: 'some members have blocked each other' })
+        }
+      }
+
       const chatMessage = new ChatMessageModel({
         user: username,
         content: message,
@@ -47,6 +60,11 @@ const connectSocket = (io) => {
       })
       await chatMessage.save()
       const profilePicture = user.profilePicture
+
+      const members = chatRoom.members.filter(member => member !== username)
+      members.forEach(member => {
+        sendNotification(member, 'chatMessage', chatMessage, username)
+      })
 
       socket.to(roomId).emit('newMessage', { username, message, roomId, profilePicture })
       socket.emit('newMessage', { username, message, roomId, profilePicture })
