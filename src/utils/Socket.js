@@ -55,7 +55,8 @@ const connectSocket = (io) => {
       const chatMessage = new ChatMessageModel({
         user: username,
         content: message,
-        room: roomId
+        room: roomId,
+        isRead: false
       })
       await chatMessage.save()
       const profilePicture = user.profilePicture

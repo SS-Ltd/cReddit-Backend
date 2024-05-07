@@ -707,6 +707,76 @@ const getScheduledPosts = async (req, res) => {
   }
 }
 
+const getUnmoderatedPosts = async (req, res) => {
+  try {
+    const subreddit = req.params.communityName
+
+    if (!subreddit) {
+      return res.status(400).json({
+        message: 'Subreddit is required'
+      })
+    }
+
+    const community = await CommunityModel.findOne({ name: subreddit, isDeleted: false })
+
+    if (!community) {
+      return res.status(404).json({
+        message: 'Community not found'
+      })
+    }
+
+    const user = await UserModel.findOne({ username: req.decoded.username, isDeleted: false })
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User does not exist'
+      })
+    }
+
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+    const sort = req.query.sort ? req.query.sort : 'new'
+    const sortMethod = getSortingMethod(sort)
+
+    const options = {
+      page,
+      limit,
+      sortMethod
+    }
+
+    const unmoderatedPosts = await PostModel.getUnmoderatedPosts(subreddit, options)
+
+    unmoderatedPosts.forEach(post => {
+      if (post.type !== 'Poll') {
+        delete post.pollOptions
+        delete post.expirationDate
+      } else {
+        post.pollOptions.forEach(option => {
+          option.votes = option.voters.length
+          option.isVoted = user ? option.voters.includes(user.username) : false
+          delete option.voters
+          delete option._id
+        })
+      }
+
+      post.isNSFW = post.isNsfw
+      delete post.isNsfw
+
+      post.isUpvoted = user ? user.upvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isDownvoted = user ? user.downvotedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isSaved = user ? user.savedPosts.some(item => item.postId.toString() === post._id.toString()) : false
+      post.isHidden = user ? user.hiddenPosts.some(item => item.postId.toString() === post._id.toString()) : false
+    })
+
+    return res.status(200).json(unmoderatedPosts)
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      message: 'An error occurred while getting unmoderated posts'
+    })
+  }
+}
+
 const updateCommunityBanner = async (req, res) => {
   try {
     const communityName = req.params.communityName
@@ -803,6 +873,7 @@ module.exports = {
   getCommunitySettings,
   updateCommunitySettings,
   getScheduledPosts,
+  getUnmoderatedPosts,
   updateCommunityBanner,
   updateCommunityIcon
 }

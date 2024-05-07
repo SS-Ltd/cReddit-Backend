@@ -1,5 +1,6 @@
 const CommunityModel = require('../models/Community')
 const PostModel = require('../models/Post')
+const UserModel = require('../models/User')
 
 const isModerator = async (req, res, next) => {
   const { communityName } = req.params
@@ -54,7 +55,47 @@ const isPrivate = async (req, res, next) => {
   }
 }
 
+const isBlocked = async (req, res, next) => {
+  const { postId } = req.params
+
+  try {
+    const post = await PostModel.findById(postId)
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' })
+    }
+
+    if (req.decoded) {
+      const username = req.decoded.username
+      const user = await UserModel.findOne({ username, isDeleted: false })
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' })
+      }
+
+      const postUsername = post.username
+      const postUser = await UserModel.findOne({ username: postUsername, isDeleted: false })
+      if (!postUser) {
+        return res.status(404).json({ message: 'Post/Comment user not found' })
+      }
+
+      if (!post.communityName) {
+        if (postUser.blockedUsers.includes(username) || user.blockedUsers.includes(postUsername)) {
+          return res.status(401).json({ message: 'User is blocked' })
+        }
+      } else {
+        if (((postUser.blockedUsers.includes(username) || user.blockedUsers.includes(postUser)) && !user.moderatorInCommunities.includes(post.communityName))) {
+          return res.status(401).json({ message: 'User is blocked' })
+        }
+      }
+    }
+
+    next()
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error verifying moderator' })
+  }
+}
+
 module.exports = {
   isModerator,
-  isPrivate
+  isPrivate,
+  isBlocked
 }
