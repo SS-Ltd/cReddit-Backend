@@ -67,6 +67,11 @@ const createComment = async (req, res) => {
     await commenter.save() */
 
     const postOwner = await UserModel.findOne({ username: post.username, isDeleted: false })
+    const user = await UserModel.findOne({ username: comment.username, isDeleted: false })
+
+    if (postOwner && user && ((postOwner.blockedUsers.includes(comment.username) || user.blockedUsers.includes(postOwner)) && !user.moderatorInCommunities.includes(post.communityName))) {
+      throw new Error('User is blocked from commenting on this post')
+    }
 
     if (comment.files.length) {
       const urls = await MediaUtils.uploadImages(comment.files)
@@ -85,7 +90,6 @@ const createComment = async (req, res) => {
       downvotedPosts: []
     })
 
-    const user = await UserModel.findOne({ username: comment.username, isDeleted: false })
     PostUtils.upvotePost(newComment, user)
 
     await newComment.save()
