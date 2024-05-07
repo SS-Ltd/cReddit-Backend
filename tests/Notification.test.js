@@ -1,6 +1,6 @@
 const UserModel = require('../src/models/User')
 const NotificationModel = require('../src/models/Notification')
-const { subscribe, unsubscribe, getNotifications, markAllAsRead } = require('../src/controllers/Notification')
+const { subscribe, unsubscribe, getNotifications, markAllAsRead, markAsRead } = require('../src/controllers/Notification')
 describe('Subscribe Notification', () => {
 // Successfully subscribe a user with a new fcmToken
   test('should successfully subscribe a user with a new fcmToken', async () => {
@@ -267,6 +267,58 @@ describe('Mark all Notifications as Read', () => {
     expect(NotificationModel.updateMany).toHaveBeenCalledWith({ user: 'testUser' }, { isRead: true })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'All notifications marked as read' })
+  })
+
+  test('should return a 500 status code with an error message when there is an error updating the notifications', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const errorMessage = 'Error updating notifications'
+    NotificationModel.updateMany.mockRejectedValueOnce(new Error(errorMessage))
+
+    await markAllAsRead(req, res)
+
+    expect(NotificationModel.updateMany).toHaveBeenCalledWith({ user: 'testUser' }, { isRead: true })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: errorMessage })
+  })
+})
+
+jest.mock('../src/models/Notification', () => {
+  return {
+    getNotifications: jest.fn().mockResolvedValue(notifications),
+    updateMany: jest.fn().mockResolvedValue({ nModified: 1 }),
+    findOneAndUpdate: jest.fn().mockResolvedValue({})
+  }
+})
+describe('Mark Notification as Read', () => {
+  test('should successfully mark a notification as read for a given user', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        notificationId: 'notificationId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await markAsRead(req, res)
+
+    expect(NotificationModel.findOneAndUpdate).toHaveBeenCalledWith({ _id: 'notificationId', user: 'testUser' }, { isRead: true })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Notification marked as read' })
   })
 
   test('should return a 500 status code with an error message when there is an error updating the notifications', async () => {
