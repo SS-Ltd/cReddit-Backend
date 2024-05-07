@@ -1710,6 +1710,7 @@ describe('approveUser', () => {
     const community = {
       name: 'testCommunity',
       isDeleted: false,
+      type: 'public',
       moderators: ['testModerator'],
       approvedUsers: [],
       save: jest.fn()
@@ -1762,6 +1763,7 @@ describe('approveUser', () => {
 
     const community = {
       name: 'testCommunity2',
+      type: 'public',
       isDeleted: false,
       moderators: ['testModerator'],
       approvedUsers: [],

@@ -329,8 +329,12 @@ const joinCommunity = async (req, res) => {
       })
     }
 
-    if (community && community.blockedUsers && community.blockedUsers.includes(username)) {
+    if (community.blockedUsers && community.blockedUsers.includes(username)) {
       return res.status(400).json({ message: 'User is blocked from the community' })
+    }
+
+    if (community.type === 'private' && !community.approvedUsers.includes(username)) {
+      return res.status(400).json({ message: 'User is not approved to join the community' })
     }
 
     user.communities.push(subreddit)
@@ -367,6 +371,13 @@ const leaveCommunity = async (req, res) => {
 
     user.communities = user.communities.filter(item => item !== subreddit)
     community.members--
+
+    if (community.type === 'private') {
+      if (user.approvedInCommunities.includes(community.name)) {
+        user.approvedInCommunities = user.approvedInCommunities.filter(item => item !== community.name)
+        community.approvedUsers = community.approvedUsers.filter(item => item !== user.username)
+      }
+    }
 
     await user.save()
     await community.save()

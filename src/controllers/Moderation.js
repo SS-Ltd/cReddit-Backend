@@ -267,7 +267,9 @@ const approveUser = async (req, res) => {
     }
 
     community.approvedUsers.push(userToApprove.username)
+    community.members++
     userToApprove.approvedInCommunities.push(communityName)
+    userToApprove.communities.push(communityName)
 
     await community.save()
     await userToApprove.save()
@@ -331,6 +333,11 @@ const unapproveUser = async (req, res) => {
 
     community.approvedUsers = community.approvedUsers.filter(approvedUser => approvedUser !== userToUnapprove.username)
     userToUnapprove.approvedInCommunities = userToUnapprove.approvedInCommunities.filter(community => communityName !== community)
+
+    if (community.type === 'private') {
+      community.members--
+      userToUnapprove.communities = userToUnapprove.communities.filter(community => communityName !== community)
+    }
 
     await community.save()
     await userToUnapprove.save()
