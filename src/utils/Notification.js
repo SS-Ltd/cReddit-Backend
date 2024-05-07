@@ -63,10 +63,10 @@ const notificationTemplate = {
     message.body = 'Tap to view the message'
     return message
   },
-  chatMessage: (username) => {
+  chatMessage: (username, chatMessage) => {
     const message = {}
-    message.title = `New chat message from u/${username}`
-    message.body = 'Tap to view the chat message'
+    message.title = `u/${username}`
+    message.body = chatMessage
     return message
   },
   chatRequest: (username) => {
