@@ -1505,7 +1505,7 @@ describe('getBannedUser', () => {
     await Moderation.getBannedUsers(req, res)
 
     expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
-    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(3)
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validModerator', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(200)
@@ -2301,16 +2301,23 @@ describe('getApprovedUsers', () => {
     }
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
-    UserModel.findOne = jest.fn().mockResolvedValue(loggedInUser)
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(loggedInUser).mockResolvedValueOnce({ username: 'user1', profilePicture: 'anything' }).mockResolvedValueOnce({ username: 'user2', profilePicture: 'anything' })
 
     await Moderation.getApprovedUsers(req, res)
 
     expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
-    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(3)
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validModerator', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(['user1', 'user2'])
+    expect(res.json).toHaveBeenCalledWith([{
+      username: 'user1',
+      profilePicture: 'anything'
+    },
+    {
+      username: 'user2',
+      profilePicture: 'anything'
+    }])
   })
 
   test('should return error when community name is invalid', async () => {
