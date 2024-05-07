@@ -92,6 +92,18 @@ const getCommunityView = async (req, res) => {
     if (!community || community.isDeleted) {
       return res.status(404).json({ message: 'Subreddit not found' })
     }
+
+    const moderators = []
+
+    for (let i = 0; i < community.moderators.length; i++) {
+      const moderator = await UserModel.findOne({ username: community.moderators[i] })
+      if (!moderator || moderator.isDeleted) continue
+      moderators.push({
+        username: moderator.username,
+        profilePicture: moderator.profilePicture
+      })
+    }
+
     const communityData = {
       name: community.name,
       icon: community.icon,
@@ -100,7 +112,7 @@ const getCommunityView = async (req, res) => {
       rules: community.rules,
       description: community.description,
       topic: community.topic,
-      moderators: community.moderators,
+      moderators: moderators,
       isNSFW: community.isNSFW,
       type: community.type
     }
