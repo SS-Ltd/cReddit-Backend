@@ -193,7 +193,7 @@ const banUser = async (req, res) => {
 
     const bannedUser = community.bannedUsers.find(bannedUser => bannedUser.name === userToBan.username)
 
-    if (bannedUser && bannedUser.days && bannedUser.job) {
+    if (bannedUser) {
       if (bannedUser.days && bannedUser.job) {
         const oldJob = schedule.scheduledJobs[bannedUser.job]
         if (oldJob) {
@@ -217,7 +217,7 @@ const banUser = async (req, res) => {
     }
 
     const note = modNote || null
-    community.bannedUsers.push({ name: userToBan.username, reasonToBan: rule, modNote: note, job: job ? job.name : null })
+    community.bannedUsers.push({ name: userToBan.username, reasonToBan: rule, modNote: note, job: job ? job.name : null, days: days })
     userToBan.bannedInCommunities.push(community.name)
 
     await userToBan.save()
