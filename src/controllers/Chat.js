@@ -64,7 +64,7 @@ const createChatRoom = async (req, res) => {
     for (const member of Array.from(membersSet)) {
       const user = await UserModel.findOne({ username: member, isDeleted: false })
       if (user && user !== host) {
-        sendNotification(user.username, 'chatAdd', chatRoom, host.username)
+        sendNotification(user.username, 'chatRequest', chatRoom, host.username)
       }
     }
 
