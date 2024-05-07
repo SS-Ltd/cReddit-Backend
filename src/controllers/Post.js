@@ -811,7 +811,7 @@ const votePost = async (req, res) => {
     if (req.type === 'upvote') {
       PostUtils.upvotePost(postToVote, user)
       const postOwner = await User.findOne({ username: postToVote.username })
-      if (postOwner && postOwner.preferences.postsUpvotesNotifs) {
+      if (postOwner && postOwner.preferences.postsUpvotesNotifs && postToVote.username !== user.username) {
         if (postToVote.type !== 'Comment') {
           sendNotification(postToVote.username, 'upvotedPost', postToVote, user.username)
         } else {

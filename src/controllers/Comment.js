@@ -85,14 +85,14 @@ const createComment = async (req, res) => {
     await user.save()
 
     if (postOwner) {
-      if (postOwner.preferences.commentsNotifs) {
+      if (postOwner.preferences.commentsNotifs && postOwner.username !== comment.username) {
         sendNotification(post.username, 'comment', newComment, req.decoded.username)
       }
     }
 
     post.followers.forEach(async follower => {
       const followerUser = await UserModel.findOne({ username: follower, isDeleted: false })
-      if (followerUser && followerUser.preferences.postNotifs) {
+      if (followerUser && followerUser.preferences.postNotifs && followerUser.username !== comment.username) {
         sendNotification(follower, 'followedPost', newComment, req.decoded.username)
       }
     })
