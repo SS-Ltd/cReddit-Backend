@@ -18,7 +18,7 @@ router.route('/:subreddit/join').post(verifyToken, community.joinCommunity).dele
 router.route('/:subreddit').get(isLoggedIn, community.getCommunityView)
 router.route('/:communityName/rules').get(community.getCommunityRules).put(verifyToken, isModerator, community.updateCommunityRules)
 router.route('/:communityName/settings').get(verifyToken, isModerator, community.getCommunitySettings).put(verifyToken, isModerator, community.updateCommunitySettings)
-router.route('/:communityName/update-community-banner').post(verifyToken, multer.uploadImage, community.updateCommunityBanner)
-router.route('/:communityName/update-community-icon').post(verifyToken, multer.uploadImage, community.updateCommunityIcon)
+router.route('/:communityName/update-community-banner').post(verifyToken, isModerator, multer.uploadImage, community.updateCommunityBanner)
+router.route('/:communityName/update-community-icon').post(verifyToken, isModerator, multer.uploadImage, community.updateCommunityIcon)
 
 module.exports = router
