@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const { createUser, deleteUser, login, logout, verifyUser } = require('../src/controllers/Auth')
+const { createUser, deleteUser, login, logout, verifyUser, validatePassword, loginGoogle } = require('../src/controllers/Auth')
 const { refreshToken } = require('../src/controllers/JWT')
 const User = require('../src/models/User')
 
@@ -9,6 +9,20 @@ jest.mock('../src/models/User', () => {
     return {
       save: jest.fn()
     }
+  })
+})
+
+describe('validatePassword', () => {
+  test('should return true when password meets the requirements', () => {
+    const password = 'Abcdefg1'
+    const result = validatePassword(password)
+    expect(result).toBe(true)
+  })
+
+  test('should return false when password does not meet the requirements', () => {
+    const password = 'abcdefgh'
+    const result = validatePassword(password)
+    expect(result).toBe(false)
   })
 })
 
@@ -161,6 +175,68 @@ describe('createUser', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Password must contain at least one lower and upper case letters and at least one digit and must be at least 8 characters' })
   })
+
+  test('should restore a deleted user and add new fcmToken', async () => {
+    const req = {
+      body: {
+        username: 'testuser',
+        password: 'TestPassword123',
+        email: 'test1@example.com',
+        gender: 'None',
+        fcmToken: 'newFCMToken'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const existingUser = {
+      username: 'testuser',
+      email: 'test1@example.com',
+      isDeleted: true,
+      fcmToken: ['oldFCMToken']
+    }
+
+    User.findOne = jest.fn().mockResolvedValueOnce(existingUser)
+    User.updateOne = jest.fn()
+
+    await createUser(req, res)
+
+    expect(User.updateOne).toHaveBeenCalled()
+  })
+
+  test('should add fcmToken to existing user when restored', async () => {
+    const req = {
+      body: {
+        username: 'testuser',
+        password: 'TestPassword123',
+        email: 'test1@example.com',
+        gender: 'None',
+        fcmToken: 'newFCMToken'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const existingUser = {
+      username: 'testuser',
+      email: 'test1@example.com',
+      isDeleted: true,
+      fcmToken: ['oldFCMToken']
+    }
+
+    User.findOne = jest.fn().mockResolvedValueOnce(existingUser)
+    User.updateOne = jest.fn()
+
+    await createUser(req, res)
+
+    expect(User.updateOne).toHaveBeenCalled()
+  })
 })
 
 describe('deleteUser', () => {
@@ -293,6 +369,121 @@ describe('login', () => {
     expect(bcrypt.compare).toHaveBeenCalledWith('invalidPassword', 'hashedPassword')
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid password' })
+  })
+
+  test('should add fcmToken to user document if provided during login', async () => {
+    const req = {
+      body: {
+        username: 'validUsername',
+        password: 'validPassword',
+        fcmToken: 'testFCMToken'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    const user = {
+      username: 'validUsername',
+      password: 'hashedPassword',
+      fcmToken: ['existingFCMToken']
+    }
+    User.findOne = jest.fn().mockResolvedValue(user)
+    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    jwt.sign = jest.fn().mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken')
+    User.updateOne = jest.fn()
+
+    await login(req, res)
+
+    expect(User.updateOne).toHaveBeenCalled()
+  })
+
+  test('should not add fcmToken to user document if not provided during login', async () => {
+    const req = {
+      body: {
+        username: 'validUsername',
+        password: 'validPassword'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    const user = {
+      username: 'validUsername',
+      password: 'hashedPassword',
+      fcmToken: ['existingFCMToken']
+    }
+    User.findOne = jest.fn().mockResolvedValue(user)
+    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    jwt.sign = jest.fn().mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken')
+    User.updateOne = jest.fn()
+
+    await login(req, res)
+
+    expect(User.updateOne).toHaveBeenCalled()
+  })
+
+  test('should update fcmToken if user already has fcmTokens', async () => {
+    const req = {
+      body: {
+        username: 'validUsername',
+        password: 'validPassword',
+        fcmToken: 'testFCMToken'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    const user = {
+      username: 'validUsername',
+      password: 'hashedPassword',
+      fcmToken: ['existingFCMToken']
+    }
+    User.findOne = jest.fn().mockResolvedValue(user)
+    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    jwt.sign = jest.fn().mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken')
+    User.updateOne = jest.fn()
+
+    await login(req, res)
+
+    expect(User.updateOne).toHaveBeenCalled()
+  })
+
+  test('should work correctly when user does not have fcmTokens', async () => {
+    const req = {
+      body: {
+        username: 'validUsername',
+        password: 'validPassword',
+        fcmToken: 'testFCMToken'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    const user = {
+      username: 'validUsername',
+      password: 'hashedPassword',
+      fcmToken: {
+        includes: jest.fn().mockReturnValue(false),
+        push: jest.fn()
+      }
+    }
+
+    User.findOne = jest.fn().mockResolvedValue(user)
+    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    jwt.sign = jest.fn().mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken')
+    User.updateOne = jest.fn()
+
+    await login(req, res)
+
+    expect(User.updateOne).toHaveBeenCalled()
   })
 })
 
