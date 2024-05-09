@@ -1246,6 +1246,146 @@ describe('joinCommunity', () => {
   })
 })
 
+describe('leaveCommunity', () => {
+  test('should remove community from user\'s list of communities, decrease community\'s member count, and return success message with status code 200', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: false,
+      type: 'public',
+      members: 5,
+      save: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      communities: ['testSubreddit'],
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await leaveCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(user.communities).not.toContain('testSubreddit')
+    expect(community.members).toBe(4)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User left the community successfully'
+    })
+  })
+
+  test('should remove community from user\'s list of communities, decrease community\'s member count, and return success message with status code 200', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: false,
+      type: 'private',
+      members: 5,
+      approvedUsers: ['testUser'],
+      save: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      communities: ['testSubreddit'],
+      approvedInCommunities: ['testSubreddit'],
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await leaveCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(user.communities).not.toContain('testSubreddit')
+    expect(user.approvedInCommunities).not.toContain('testSubreddit')
+    expect(community.members).toBe(4)
+    expect(community.approvedUsers).not.toContain('testUser')
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User left the community successfully'
+    })
+  })
+
+  test('should return error message with status code 400 when user is not a member of the community', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: false,
+      type: 'public',
+      members: 5
+    }
+
+    const user = {
+      username: 'testUser',
+      communities: []
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await leaveCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User is not a member of the community'
+    })
+  })
+})
+
 describe('getReportedPosts', () => {
   beforeEach(() => {
     jest.clearAllMocks()
