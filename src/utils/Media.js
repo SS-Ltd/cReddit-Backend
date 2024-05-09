@@ -16,7 +16,7 @@ const uploadImages = async (files) => {
     const { secure_url } = await cloudinary.uploader.upload(dataURI, {
       resource_type: 'auto',
       folder: 'cReddit',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'svg']
+      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'svg', 'mov']
     })
     urls.push(secure_url)
   }

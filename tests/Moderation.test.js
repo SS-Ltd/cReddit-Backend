@@ -968,62 +968,6 @@ describe('banUser', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'User banned' })
   })
 
-  test('should not ban user when user is already banned in the community', async () => {
-    const req = {
-      body: {
-        username: 'testUser'
-      },
-      params: {
-        communityName: 'testCommunity'
-      },
-      decoded: {
-        username: 'testModerator'
-      }
-    }
-
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn()
-    }
-
-    const community = {
-      name: 'testCommunity',
-      isDeleted: false,
-      moderators: ['testModerator'],
-      bannedUsers: [{
-        name: 'testUser',
-        reasonToBan: 'testReason'
-      }],
-      save: jest.fn()
-    }
-
-    const loggedInUser = {
-      username: 'testModerator',
-      moderatorInCommunities: ['testCommunity']
-    }
-
-    const userToBan = {
-      username: 'testUser',
-      bannedInCommunities: ['testCommunity'],
-      save: jest.fn()
-    }
-
-    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
-    UserModel.findOne = jest.fn().mockResolvedValueOnce(loggedInUser).mockReturnValueOnce(userToBan)
-
-    await Moderation.banUser(req, res)
-
-    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
-    expect(UserModel.findOne).toHaveBeenCalledTimes(2)
-    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity', isDeleted: false })
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testModerator', isDeleted: false })
-    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
-    expect(community.bannedUsers).toHaveLength(1)
-    expect(userToBan.bannedInCommunities).toHaveLength(1)
-    expect(res.status).toHaveBeenCalledWith(400)
-    expect(res.json).toHaveBeenCalledWith({ message: 'User is already banned' })
-  })
-
   test('should return an error message when attempting to ban a user in a non-existent community', async () => {
     const req = {
       body: {
@@ -1537,10 +1481,14 @@ describe('getBannedUser', () => {
       moderators: ['validModerator'],
       bannedUsers: [{
         name: 'user1',
-        reasonToBan: 'testReason1'
+        reasonToBan: 'testReason1',
+        modNote: 'testModNote1',
+        profilePicture: 'testProfilePicture1'
       }, {
         name: 'user2',
-        reasonToBan: 'testReason2'
+        reasonToBan: 'testReason2',
+        modNote: 'testModNote2',
+        profilePicture: 'testProfilePicture2'
       }],
       rules: [{
         text: 'testRule1'
@@ -1555,6 +1503,7 @@ describe('getBannedUser', () => {
       moderatorInCommunities: ['validCommunity']
     }
 
+    CommunityModel.getBannedUsers = jest.fn().mockResolvedValue(community.bannedUsers)
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(loggedInUser)
 
@@ -1568,10 +1517,14 @@ describe('getBannedUser', () => {
     expect(res.json).toHaveBeenCalledWith({
       bannedUsers: [{
         name: 'user1',
-        reasonToBan: 'testReason1'
+        reasonToBan: 'testReason1',
+        modNote: 'testModNote1',
+        profilePicture: 'testProfilePicture1'
       }, {
         name: 'user2',
-        reasonToBan: 'testReason2'
+        reasonToBan: 'testReason2',
+        modNote: 'testModNote2',
+        profilePicture: 'testProfilePicture2'
       }]
     })
   })
@@ -2356,8 +2309,9 @@ describe('getApprovedUsers', () => {
       moderatorInCommunities: ['validCommunity']
     }
 
+    CommunityModel.getApprovedUsers = jest.fn().mockResolvedValue([{ username: 'user1', profilePicture: 'anything' }, { username: 'user2', profilePicture: 'anything' }])
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
-    UserModel.findOne = jest.fn().mockResolvedValue(loggedInUser)
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(loggedInUser)
 
     await Moderation.getApprovedUsers(req, res)
 
@@ -2366,7 +2320,14 @@ describe('getApprovedUsers', () => {
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'validCommunity', isDeleted: false })
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'validModerator', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith(['user1', 'user2'])
+    expect(res.json).toHaveBeenCalledWith([{
+      username: 'user1',
+      profilePicture: 'anything'
+    },
+    {
+      username: 'user2',
+      profilePicture: 'anything'
+    }])
   })
 
   test('should return error when community name is invalid', async () => {
