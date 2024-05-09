@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
+const { createCommunity, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -23,6 +23,213 @@ jest.mock('../src/models/User', () => {
     findOne: jest.fn(),
     save: jest.fn()
   }
+})
+
+describe('createCommunity', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should create a community with valid name, isNSFW and type', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      body: {
+        name: 'testCommunity',
+        isNSFW: false,
+        type: 'public'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      communities: [],
+      moderatorInCommunities: [],
+      save: jest.fn()
+    }
+
+    const community = {
+      name: 'testCommunity',
+      owner: 'testUser',
+      isNSFW: false,
+      type: 'public',
+      moderators: [],
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    CommunityModel.mockImplementation(() => community)
+
+    await createCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity' })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(201)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community created successfully',
+      owner: 'testUser',
+      name: 'testCommunity',
+      isNSFW: false
+    })
+  })
+
+  test('should return an error when creating a community without a name', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      body: {
+        isNSFW: false,
+        type: 'public'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await createCommunity(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(CommunityModel).not.toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Name and isNSFW are required' })
+  })
+
+  test('should return a 400 status and an error message when isNSFW is missing', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      body: {
+        name: 'testCommunity',
+        type: 'public'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await createCommunity(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(CommunityModel).not.toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Name and isNSFW are required' })
+  })
+
+  test('should return an error message when trying to create a community with an already existing name', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      body: {
+        name: 'existingCommunity',
+        isNSFW: false,
+        type: 'public'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const repeatedCommunity = {
+      name: 'existingCommunity'
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(repeatedCommunity)
+
+    await createCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'existingCommunity' })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel).not.toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community already exists' })
+  })
+
+  test('should return a 404 error when trying to create a community with a non-existent owner', async () => {
+    const req = {
+      decoded: {
+        username: 'nonExistentUser'
+      },
+      body: {
+        name: 'testCommunity',
+        isNSFW: false,
+        type: 'public'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await createCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity' })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonExistentUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  test('should return an error when creating a community with an invalid type', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      body: {
+        name: 'testCommunity',
+        isNSFW: false,
+        type: 'invalidType'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      communities: [],
+      moderatorInCommunities: [],
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await createCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity' })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid community type' })
+  })
 })
 
 describe('getSortedCommunityPosts', () => {
