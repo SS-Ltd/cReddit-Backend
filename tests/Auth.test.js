@@ -237,6 +237,29 @@ describe('createUser', () => {
 
     expect(User.updateOne).toHaveBeenCalled()
   })
+
+  test('should throw an error when an invalid email is used', async () => {
+    const req = {
+      body: {
+        username: 'testuser',
+        password: 'TestPassword123',
+        email: 'test1example.com',
+        gender: 'None',
+        fcmToken: 'newFCMToken'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    User.findOne = jest.fn().mockResolvedValueOnce(null)
+
+    await createUser(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+  })
 })
 
 describe('deleteUser', () => {
@@ -484,6 +507,25 @@ describe('login', () => {
     await login(req, res)
 
     expect(User.updateOne).toHaveBeenCalled()
+  })
+
+  test('should throw an error when invalid username is provided', async () => {
+    const req = {
+      body: {
+        username: 'invalidUsername',
+        password: 'validPassword'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    User.findOne = jest.fn().mockResolvedValue(null)
+
+    await login(req, res)
+
+    expect(User.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
   })
 })
 
