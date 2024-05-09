@@ -12,7 +12,7 @@ jest.mock('firebase-admin', () => ({
 const ChatRoomModel = require('../src/models/ChatRoom')
 const UserModel = require('../src/models/User')
 const ChatMessageModel = require('../src/models/ChatMessage')
-const { createChatRoom, markAllMessagesAsRead } = require('../src/controllers/Chat')
+const { createChatRoom, markAllMessagesAsRead, getRooms } = require('../src/controllers/Chat')
 
 // Mock dependencies
 jest.mock('../src/models/ChatRoom')
@@ -250,5 +250,95 @@ describe('mark all messages as read', () => {
 
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: "Error marking all messages as read: Cannot read properties of undefined (reading 'username')" })
+  })
+})
+
+describe('getRooms', () => {
+  test('should return a list of chat rooms for a valid user with default pagination', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'testUser', isDeleted: false })
+    ChatRoomModel.getRooms = jest.fn().mockResolvedValue(['room1', 'room2'])
+
+    await getRooms(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(ChatRoomModel.getRooms).toHaveBeenCalledWith(0, 10, 'testUser')
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(['room1', 'room2'])
+  })
+
+  test('should return a list of chat rooms for a valid user with custom pagination', async () => {
+    const req = {
+      query: {
+        page: 2,
+        limit: 5
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'testUser', isDeleted: false })
+    ChatRoomModel.getRooms = jest.fn().mockResolvedValue(['room1', 'room2', 'room3', 'room4', 'room5'])
+
+    await getRooms(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(ChatRoomModel.getRooms).toHaveBeenCalledWith(1, 5, 'testUser')
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(['room1', 'room2', 'room3', 'room4', 'room5'])
+  })
+
+  test('should return a 404 error for an invalid user', async () => {
+    const req = {
+      query: {},
+      decoded: {
+        username: 'invalidUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getRooms(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'invalidUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  test('should return a 500 error when an unexpected error occurs', async () => {
+    const req = {
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    ChatRoomModel.getRooms = jest.fn().mockRejectedValue(new Error('Unexpected error'))
+
+    await getRooms(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: "Error getting chat rooms: Cannot read properties of undefined (reading 'username')" })
   })
 })
