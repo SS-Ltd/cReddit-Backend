@@ -12,7 +12,7 @@ jest.mock('firebase-admin', () => ({
 const ChatRoomModel = require('../src/models/ChatRoom')
 const UserModel = require('../src/models/User')
 const ChatMessageModel = require('../src/models/ChatMessage')
-const { createChatRoom } = require('../src/controllers/Chat')
+const { createChatRoom, markAllMessagesAsRead } = require('../src/controllers/Chat')
 
 // Mock dependencies
 jest.mock('../src/models/ChatRoom')
@@ -85,7 +85,7 @@ describe('createChatRoom', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Members are required' })
   })
 
-  it('should create a chat room with valid name, at least 2 valid members, and host is included in members', async () => {
+  test('should create a chat room with valid name, at least 2 valid members, and host is included in members', async () => {
     const req = {
       body: {
         name: 'Chat Room',
@@ -120,5 +120,135 @@ describe('createChatRoom', () => {
 
     expect(res.status).toHaveBeenCalledWith(201)
     expect(res.json).toHaveBeenCalled()
+  })
+
+  test('should return 400 if some members have blocked each other', async () => {
+    const mockedValidUsers = [{ username: 'user1' }, { username: 'user2' }]
+    UserModel.find.mockResolvedValueOnce(mockedValidUsers)
+
+    UserModel.find.mockImplementationOnce(() => [
+      { username: 'user2', blockedUsers: [] }
+    ])
+
+    const req = {
+      body: {
+        members: ['user1', 'user2']
+      },
+      decoded: { username: 'user1' }
+    }
+
+    const res = {
+      status: jest.fn(() => res),
+      json: jest.fn()
+    }
+
+    await createChatRoom(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'some members have blocked each other' })
+    expect(UserModel.find).toHaveBeenCalled()
+    expect(ChatRoomModel.findOne).not.toHaveBeenCalled()
+  })
+})
+
+describe('mark all messages as read', () => {
+  // Successfully mark all unread messages as read for a given chat room
+  test('should mark all unread messages as read when chat room is found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        roomId: 'testRoomId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const chatRoom = {
+      _id: 'testRoomId',
+      members: ['testUser'],
+      isDeleted: false
+    }
+
+    const updateManyMock = jest.spyOn(ChatMessageModel, 'updateMany').mockResolvedValueOnce()
+
+    jest.spyOn(ChatRoomModel, 'findOne').mockResolvedValueOnce(chatRoom)
+
+    await markAllMessagesAsRead(req, res)
+
+    expect(ChatRoomModel.findOne).toHaveBeenCalledWith({ _id: 'testRoomId', members: 'testUser', isDeleted: false })
+    expect(updateManyMock).toHaveBeenCalledWith({ room: 'testRoomId', isRead: false }, { isRead: true })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'All messages marked as read' })
+  })
+
+  test('should return an error message with status code 404 when chat room is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        roomId: 'testRoomId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    jest.spyOn(ChatRoomModel, 'findOne').mockResolvedValueOnce(null)
+
+    await markAllMessagesAsRead(req, res)
+
+    expect(ChatRoomModel.findOne).toHaveBeenCalledWith({ _id: 'testRoomId', members: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Chat room not found' })
+  })
+
+  test('should return a 404 status code and an error message when user is not a member of the chat room', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        roomId: 'testRoomId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    jest.spyOn(ChatRoomModel, 'findOne').mockResolvedValueOnce(null)
+
+    await markAllMessagesAsRead(req, res)
+
+    expect(ChatRoomModel.findOne).toHaveBeenCalledWith({ _id: 'testRoomId', members: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Chat room not found' })
+  })
+
+  test('should return a 500 status code and an error message when username is not provided', async () => {
+    const req = {
+      params: {
+        roomId: 'testRoomId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await markAllMessagesAsRead(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: "Error marking all messages as read: Cannot read properties of undefined (reading 'username')" })
   })
 })
