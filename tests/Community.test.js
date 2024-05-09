@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { createCommunity, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
+const { createCommunity, isNameAvailable, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -229,6 +229,78 @@ describe('createCommunity', () => {
     expect(CommunityModel).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid community type' })
+  })
+})
+
+describe('isNameAvailable', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('should return 200 status code and message \'Name is available\' when name is not found in CommunityModel', async () => {
+    const req = {
+      params: {
+        name: 'ApexLegends'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await isNameAvailable(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'ApexLegends' })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Name is available',
+      available: true
+    })
+  })
+
+  test('should return 409 status code and message \'Name is not available\' when name is found in CommunityModel', async () => {
+    const req = {
+      params: {
+        name: 'ApexLegends'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue({})
+
+    await isNameAvailable(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'ApexLegends' })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(409)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Name is not available',
+      available: false
+    })
+  })
+
+  test('should return 400 status code and message \'Name is required\' when name is not provided', () => {
+    const req = {
+      params: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    isNameAvailable(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Name is required'
+    })
   })
 })
 
