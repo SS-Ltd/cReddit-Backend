@@ -1,11 +1,12 @@
 const UserModel = require('../src/models/User')
 const PostModel = require('../src/models/Post')
 const HistoryModel = require('../src/models/History')
+const CommunityModel = require('../src/models/Community')
 const dotenv = require('dotenv')
 const bcrypt = require('bcrypt')
 const crypto = require('crypto')
 const { faker } = require('@faker-js/faker')
-const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser, getPosts, getUpvotedPosts, getComments, getUserOverview, getHistory, clearHistory, getJoinedCommunities, getDownvotedPosts } = require('../src/controllers/User')
+const { follow, unfollow, block, unblock, isUsernameAvailable, getSettings, updateSettings, getUserView, forgotPassword, resetPassword, forgotUsername, changeEmail, changePassword, getSaved, getHiddenPosts, generateUsername, getUser, getPosts, getUpvotedPosts, getComments, getUserOverview, getHistory, clearHistory, getJoinedCommunities, getDownvotedPosts, getModeratorIn } = require('../src/controllers/User')
 const { sendEmail } = require('../src/utils/Email')
 const { query } = require('express')
 dotenv.config()
@@ -2521,10 +2522,10 @@ describe('getUpvotedPosts', () => {
     }
 
     const user = {
-      upvotedPosts: [{ postId: 'post1' }, { postId: 'post2' }],
-      downvotedPosts: [],
-      savedPosts: [],
-      hiddenPosts: [],
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [{ postId: 'post2' }],
+      savedPosts: [{ postId: 'post1' }],
+      hiddenPosts: [{ postId: 'post2' }],
       communities: ['community1'],
       moderatorInCommunities: [],
       getPosts: jest.fn().mockResolvedValue([{
@@ -2675,10 +2676,10 @@ describe('getDownvotedPosts', () => {
     }
 
     const user = {
-      upvotedPosts: [{ postId: 'post1' }, { postId: 'post2' }],
-      downvotedPosts: [],
-      savedPosts: [],
-      hiddenPosts: [],
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [{ postId: 'post2' }],
+      savedPosts: [{ postId: 'post1' }],
+      hiddenPosts: [{ postId: 'post2' }],
       communities: ['community1'],
       moderatorInCommunities: [],
       getPosts: jest.fn().mockResolvedValue([{
@@ -2818,6 +2819,9 @@ describe('getDownvotedPosts', () => {
 describe('getComments', () => {
   test('should retrieve user comments with valid username and default pagination and sorting parameters', async () => {
     const req = {
+      decoded: {
+        username: 'testuser'
+      },
       params: {
         username: 'john_doe'
       },
@@ -2825,7 +2829,20 @@ describe('getComments', () => {
     }
 
     const user = {
-      getUserComments: jest.fn().mockResolvedValue(['comment1', 'comment2'])
+      upvotedPosts: [{ postId: 'comment1' }],
+      downvotedPosts: [{ postId: 'comment2' }],
+      savedPosts: [{ postId: 'comment1' }],
+      communities: ['community1'],
+      moderatorInCommunities: [],
+      getUserComments: jest.fn().mockResolvedValue([{
+        _id: 'comment1'
+      },
+      {
+        _id: 'comment2'
+      }]),
+      preferences: {
+        showAdultContent: false
+      }
     }
 
     UserModel.findOne = jest.fn().mockResolvedValue(user)
@@ -3293,7 +3310,7 @@ describe('getHistory', () => {
       upvotedPosts: [{ postId: 'post1' }],
       downvotedPosts: [{ postId: 'post2' }],
       savedPosts: [{ postId: 'post1' }],
-      hiddenPosts: [],
+      hiddenPosts: [{ postId: 'post2' }],
       communities: [],
       moderatorInCommunities: []
     }
@@ -3303,7 +3320,7 @@ describe('getHistory', () => {
     await getHistory(req, res)
 
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith([{ _id: 'post1', isDownvoted: false, isHidden: false, isJoined: false, isModerator: false, isSaved: true, isUpvoted: true, type: 'Post' }, { _id: 'post2', isDownvoted: true, isHidden: false, isJoined: false, isModerator: false, isSaved: false, isUpvoted: false, type: 'Poll', pollOptions: [{ isVoted: true, votes: 1 }] }])
+    expect(res.json).toHaveBeenCalledWith([{ _id: 'post1', isDownvoted: false, isHidden: false, isJoined: false, isModerator: false, isSaved: true, isUpvoted: true, type: 'Post' }, { _id: 'post2', isDownvoted: true, isHidden: true, isJoined: false, isModerator: false, isSaved: false, isUpvoted: false, type: 'Poll', pollOptions: [{ isVoted: true, votes: 1 }] }])
   })
 })
 
@@ -3436,5 +3453,48 @@ describe('getJoinedCommunities', () => {
 
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([])
+  })
+})
+
+describe('getModeratorIn', () => {
+  test('should return a list of communities where the user is a moderator', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+    const community1 = {
+      name: 'community1',
+      icon: 'icon1',
+      members: ['member1', 'member2']
+    }
+    const community2 = {
+      name: 'community2',
+      icon: 'icon2',
+      members: ['member3', 'member4']
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    CommunityModel.findOne = jest.fn()
+      .mockResolvedValueOnce(community1)
+      .mockResolvedValueOnce(community2)
+
+    await getModeratorIn(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(1, { name: 'community1' })
+    expect(CommunityModel.findOne).toHaveBeenNthCalledWith(2, { name: 'community2' })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([
+      { name: 'community1', icon: 'icon1', members: ['member1', 'member2'] },
+      { name: 'community2', icon: 'icon2', members: ['member3', 'member4'] }
+    ])
   })
 })
