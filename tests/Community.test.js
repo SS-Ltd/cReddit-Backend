@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { createCommunity, isNameAvailable, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
+const { createCommunity, isNameAvailable, getCommunityView, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -301,6 +301,172 @@ describe('isNameAvailable', () => {
     expect(res.json).toHaveBeenCalledWith({
       message: 'Name is required'
     })
+  })
+})
+
+describe('getCommunityView', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should retrieve community data successfully when subreddit name is provided and community exists', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      icon: 'testIcon',
+      banner: 'testBanner',
+      members: 100,
+      rules: ['rule1', 'rule2'],
+      description: 'testDescription',
+      topic: 'testTopic',
+      moderators: ['moderator1', 'moderator2'],
+      isNSFW: false,
+      type: 'public'
+    }
+
+    const moderator1 = {
+      username: 'moderator1',
+      profilePicture: 'profilePicture1'
+    }
+
+    const moderator2 = {
+      username: 'moderator2',
+      profilePicture: 'profilePicture2'
+    }
+
+    const user = {
+      username: 'testUser',
+      moderatorInCommunities: ['testSubreddit'],
+      communities: ['testSubreddit'],
+      mutedCommunities: []
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn()
+      .mockResolvedValueOnce(moderator1)
+      .mockResolvedValueOnce(moderator2)
+    UserModel.findOne.mockResolvedValue(user)
+
+    await getCommunityView(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit' })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'moderator1' })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'moderator2' })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser' })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(3)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      name: 'testSubreddit',
+      icon: 'testIcon',
+      banner: 'testBanner',
+      members: 100,
+      rules: ['rule1', 'rule2'],
+      description: 'testDescription',
+      topic: 'testTopic',
+      moderators: [
+        {
+          username: 'moderator1',
+          profilePicture: 'profilePicture1'
+        },
+        {
+          username: 'moderator2',
+          profilePicture: 'profilePicture2'
+        }
+      ],
+      isNSFW: false,
+      type: 'public',
+      isModerator: true,
+      isMember: true,
+      isMuted: false
+    })
+  })
+
+  test('should return error message when subreddit name is not provided', async () => {
+    const req = {
+      params: {},
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await getCommunityView(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting subreddit view: Subreddit name is required' })
+  })
+
+  test('should return error message when subreddit name is provided but community does not exist', async () => {
+    const req = {
+      params: {
+        subreddit: 'nonExistentSubreddit'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = null
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await getCommunityView(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentSubreddit' })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Subreddit not found' })
+  })
+
+  test('should return error message when subreddit name is provided but community is deleted', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: true
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await getCommunityView(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit' })
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Subreddit not found' })
   })
 })
 
