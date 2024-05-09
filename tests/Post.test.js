@@ -2143,6 +2143,163 @@ describe('getHomeFeed', () => {
   })
 })
 
+describe('getPopular', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should return a list of popular posts with expected properties', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      query: {
+        page: '1',
+        limit: '10'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testuser',
+      blockedUsers: [],
+      moderatorInCommunities: ['community1'],
+      mutedCommunities: [],
+      preferences: {
+        showAdultContent: false
+      },
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [{ postId: 'post2' }],
+      savedPosts: [{ postId: 'post1' }],
+      hiddenPosts: [{ postId: 'post2' }],
+      communities: ['community1']
+    }
+
+    const post = [{
+      _id: 'post1',
+      communityName: 'community1',
+      isNsfw: false,
+      pollOptions: [],
+      expirationDate: null
+    },
+    {
+      _id: 'post2',
+      communityName: 'community2',
+      isNsfw: true,
+      pollOptions: [],
+      expirationDate: null
+    }
+    ]
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getPopular = jest.fn().mockResolvedValue(post)
+
+    await PostController.getPopular(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.getPopular).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 0,
+        limit: 10,
+        username: 'testuser',
+        blockedUsers: [],
+        moderatedCommunities: ['community1'],
+        random: false
+      }),
+      null,
+      false
+    )
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.getPopular).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([{
+      _id: 'post1',
+      communityName: 'community1',
+      isNSFW: false,
+      isUpvoted: true,
+      isDownvoted: false,
+      isSaved: true,
+      isHidden: false,
+      isJoined: true,
+      isModerator: true
+    },
+    {
+      _id: 'post2',
+      communityName: 'community2',
+      isNSFW: true,
+      isUpvoted: false,
+      isDownvoted: true,
+      isSaved: false,
+      isHidden: true,
+      isJoined: false,
+      isModerator: false
+    }
+    ])
+  })
+
+  test('should return an error when there is a server error', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      query: {
+        page: '1',
+        limit: '10'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await PostController.getPopular(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.getPopular).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'An error occurred while getting home feed'
+    })
+  })
+
+  test('should return an error when user does not exist', async () => {
+    const req = {
+      decoded: {
+        username: 'nonexistentuser'
+      },
+      query: {
+        page: '1',
+        limit: '10'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.getPopular(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentuser', isDeleted: false })
+    expect(PostModel.getPopular).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
+    })
+  })
+})
+
 describe('getComments', () => {
   test('should return 200 status code and an array of comments when valid post ID is provided', async () => {
     const req = {
