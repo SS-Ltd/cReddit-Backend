@@ -1010,6 +1010,166 @@ describe('markSpoiler', () => {
   })
 })
 
+describe('markNSFW', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should allow marking post as nsfw for moderator or post owner', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isNSFW: true
+      }
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      moderatorInCommunities: ['testCommunity']
+    }
+
+    const post = {
+      _id: 'testPostId',
+      isDeleted: false,
+      communityName: 'testCommunity',
+      username: 'testUser',
+      save: jest.fn()
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.markNSFW(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(post.save).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post marked as nsfw successfully' })
+  })
+
+  test('should return 404 error when post is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isNSFW: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser'
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.markNSFW(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post not found' })
+  })
+
+  test('should return 401 error when user is not authorized to mark the post as nsfw', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isNSFW: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      moderatorInCommunities: []
+    }
+
+    const post = {
+      _id: 'testPostId',
+      isDeleted: false,
+      communityName: 'testCommunity',
+      username: 'otherUser'
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.markNSFW(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to mark this post as NSFW' })
+  })
+
+  test('should return a 500 error when user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isSpoiler: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.markNSFW(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Cannot read properties of null (reading \'moderatorInCommunities\')' })
+  })
+})
+
 describe('savePost', () => {
   test('should save a post successfully for a valid post ID and existing user', async () => {
     const req = {
