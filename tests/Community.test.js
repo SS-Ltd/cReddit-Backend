@@ -2,7 +2,7 @@ const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
 const MediaUtils = require('../src/utils/Media')
-const { createCommunity, isNameAvailable, getCommunityView, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, muteCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts, updateCommunityBanner } = require('../src/controllers/Community')
+const { createCommunity, isNameAvailable, getCommunityView, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, muteCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts, updateCommunityBanner, updateCommunityIcon } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -2890,6 +2890,178 @@ describe('updateCommunityBanner', () => {
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
 
     await updateCommunityBanner(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentCommunity', isDeleted: false })
+    expect(MediaUtils.deleteImages).not.toHaveBeenCalled()
+    expect(MediaUtils.uploadImages).not.toHaveBeenCalled()
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
+  })
+})
+
+describe('updateCommunityIcon', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should successfully update community icon when valid community name and image file are provided', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      files: {
+        image: 'testImage'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testCommunity',
+      isDeleted: false,
+      icon: 'oldIcon',
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    MediaUtils.deleteImages = jest.fn().mockResolvedValue()
+    MediaUtils.uploadImages = jest.fn().mockResolvedValue(['newIcon'])
+
+    await updateCommunityIcon(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity', isDeleted: false })
+    expect(MediaUtils.deleteImages).toHaveBeenCalledWith(['oldIcon'])
+    expect(MediaUtils.uploadImages).toHaveBeenCalledWith('testImage')
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(MediaUtils.deleteImages).toHaveBeenCalledTimes(1)
+    expect(MediaUtils.uploadImages).toHaveBeenCalledTimes(1)
+    expect(community.save).toHaveBeenCalledTimes(1)
+    expect(community.icon).toBe('newIcon')
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ link: 'newIcon' })
+  })
+
+  test('should successfully update community icon when valid community name and image file are provided', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      files: {
+        image: 'testImage'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testCommunity',
+      isDeleted: false,
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    MediaUtils.deleteImages = jest.fn().mockResolvedValue()
+    MediaUtils.uploadImages = jest.fn().mockResolvedValue(['newIcon'])
+
+    await updateCommunityIcon(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity', isDeleted: false })
+    expect(MediaUtils.deleteImages).toHaveBeenCalledWith([])
+    expect(MediaUtils.uploadImages).toHaveBeenCalledWith('testImage')
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(MediaUtils.deleteImages).toHaveBeenCalledTimes(1)
+    expect(MediaUtils.uploadImages).toHaveBeenCalledTimes(1)
+    expect(community.icon).toBe('newIcon')
+    expect(community.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ link: 'newIcon' })
+  })
+
+  test('should return error response with message when icon is not provided', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      files: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await updateCommunityIcon(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(MediaUtils.deleteImages).not.toHaveBeenCalled()
+    expect(MediaUtils.uploadImages).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Icon is required' })
+  })
+
+  test('should return error response with message when files are not provided', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await updateCommunityIcon(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(MediaUtils.deleteImages).not.toHaveBeenCalled()
+    expect(MediaUtils.uploadImages).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Icon is required' })
+  })
+
+  test('should return error response with message when community name is not provided', async () => {
+    const req = {
+      params: {},
+      files: {
+        image: 'testImage'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await updateCommunityIcon(req, res)
+
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(MediaUtils.deleteImages).not.toHaveBeenCalled()
+    expect(MediaUtils.uploadImages).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community name is required' })
+  })
+
+  it('should return error response with message when community is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'nonExistentCommunity'
+      },
+      files: {
+        image: 'testImage'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = null
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await updateCommunityIcon(req, res)
 
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentCommunity', isDeleted: false })
     expect(MediaUtils.deleteImages).not.toHaveBeenCalled()
