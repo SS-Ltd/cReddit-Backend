@@ -237,6 +237,29 @@ describe('createUser', () => {
 
     expect(User.updateOne).toHaveBeenCalled()
   })
+
+  test('should throw an error when an invalid email is used', async () => {
+    const req = {
+      body: {
+        username: 'testuser',
+        password: 'TestPassword123',
+        email: 'test1example.com',
+        gender: 'None',
+        fcmToken: 'newFCMToken'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    User.findOne = jest.fn().mockResolvedValueOnce(null)
+
+    await createUser(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+  })
 })
 
 describe('deleteUser', () => {
@@ -485,6 +508,25 @@ describe('login', () => {
 
     expect(User.updateOne).toHaveBeenCalled()
   })
+
+  test('should throw an error when invalid username is provided', async () => {
+    const req = {
+      body: {
+        username: 'invalidUsername',
+        password: 'validPassword'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    User.findOne = jest.fn().mockResolvedValue(null)
+
+    await login(req, res)
+
+    expect(User.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+  })
 })
 
 describe('logout', () => {
@@ -655,5 +697,168 @@ describe('refreshToken', () => {
     expect(jwt.verify).toHaveBeenCalledWith('refreshToken', process.env.REFRESH_TOKEN_SECRET, expect.any(Function))
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Token refreshed successfully' })
+  })
+})
+
+describe('loginGoogle', () => {
+  test('should create a new user with a nonexisting Google ID', async () => {
+    const req = {
+      body: {
+        fcmToken: 'testFCMToken'
+      },
+      decoded: {
+        email: 'testemail@mail.com',
+        id: 'testid'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+
+    const faker = {
+      internet: {
+        userName: jest.fn().mockReturnValue('testuser')
+      }
+    }
+
+    const existingUser = null
+    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    jwt.sign = jest.fn().mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken')
+
+    User.findOne = jest.fn().mockResolvedValueOnce(existingUser)
+    User.save = jest.fn()
+
+    await loginGoogle(req, res)
+
+    expect(User.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(201)
+  })
+
+  test('should log the user in if Google ID exists', async () => {
+    const req = {
+      body: {
+        fcmToken: 'testFCMToken'
+      },
+      decoded: {
+        email: 'testemail@mail.com',
+        id: 'testid'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+
+    const faker = {
+      internet: {
+        userName: jest.fn().mockReturnValue('testuser')
+      }
+    }
+
+    const existingUser = {
+      username: 'testuser',
+      isDeleted: false,
+      fcmToken: ['existingFCMToken'],
+      displayName: 'testuser',
+      about: 'testuser',
+      email: 'testemail@mail.com',
+      profilePicture: 'testuser',
+      banner: 'testuser',
+      followers: ['testuser'],
+      createdAt: new Date()
+    }
+
+    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    jwt.sign = jest.fn().mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken')
+
+    User.findOne = jest.fn().mockResolvedValueOnce(existingUser)
+    User.updateOne = jest.fn()
+
+    await loginGoogle(req, res)
+
+    expect(User.findOne).toHaveBeenCalled()
+    expect(User.updateOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+  })
+
+  test('should restore a deleted user and log them in when Google ID exists', async () => {
+    const req = {
+      body: {
+        fcmToken: 'testFCMToken'
+      },
+      decoded: {
+        email: 'testemail@mail.com',
+        id: 'testid'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+
+    const faker = {
+      internet: {
+        userName: jest.fn().mockReturnValue('testuser')
+      }
+    }
+
+    const existingUser = {
+      username: 'testuser',
+      isDeleted: true,
+      fcmToken: ['existingFCMToken'],
+      displayName: 'testuser',
+      about: 'testuser',
+      email: 'testemail@mail.com',
+      profilePicture: 'testuser',
+      banner: 'testuser',
+      followers: ['testuser'],
+      createdAt: new Date()
+    }
+
+    bcrypt.compare = jest.fn().mockResolvedValue(true)
+    jwt.sign = jest.fn().mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken')
+
+    User.findOne = jest.fn().mockResolvedValueOnce(existingUser)
+    User.updateOne = jest.fn()
+
+    await loginGoogle(req, res)
+
+    expect(User.findOne).toHaveBeenCalled()
+    expect(User.updateOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(201)
+  })
+
+  test('should throw an error when email is missing', async () => {
+    const req = {
+      body: {
+        fcmToken: 'testFCMToken'
+      },
+      decoded: {
+        id: 'testid'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+
+    const faker = {
+      internet: {
+        userName: jest.fn().mockReturnValue('testuser')
+      }
+    }
+
+    await loginGoogle(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
   })
 })
