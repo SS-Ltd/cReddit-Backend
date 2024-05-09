@@ -674,6 +674,26 @@ describe('refreshToken', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 
+  test('should throw an error if token is not provided', async () => {
+    const req = {
+      cookies: {
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      cookie: jest.fn()
+    }
+    jwt.verify = jest.fn().mockReturnValue({ username: 'testuser' })
+    jwt.sign = jest.fn().mockReturnValue('newAccessToken')
+
+    await refreshToken(req, res)
+
+    expect(jwt.verify).not.toHaveBeenCalledWith('refreshToken', process.env.REFRESH_TOKEN_SECRET, expect.any(Function))
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Unauthorized' })
+  })
+
   test('should return access token to user if refresh token is valid', async () => {
     const req = {
       cookies: {
