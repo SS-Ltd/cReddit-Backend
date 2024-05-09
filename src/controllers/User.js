@@ -1238,7 +1238,7 @@ const getUserOverview = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    const page = req.query.page ? parseInt(req.query.page) : 1
+    const page = req.query.page ? parseInt(req.query.page) - 1 : 0
     const limit = req.query.limit ? parseInt(req.query.limit) : 10
     const sort = req.query.sort || 'new'
     let time = (req.query.time === 'top' && req.query.time) || 'all'
