@@ -12,7 +12,7 @@ jest.mock('firebase-admin', () => ({
 const ChatRoomModel = require('../src/models/ChatRoom')
 const UserModel = require('../src/models/User')
 const ChatMessageModel = require('../src/models/ChatMessage')
-const { createChatRoom, markAllMessagesAsRead, getRooms } = require('../src/controllers/Chat')
+const { createChatRoom, markAllMessagesAsRead, getRooms, getRoomChat } = require('../src/controllers/Chat')
 
 // Mock dependencies
 jest.mock('../src/models/ChatRoom')
@@ -340,5 +340,140 @@ describe('getRooms', () => {
 
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: "Error getting chat rooms: Cannot read properties of undefined (reading 'username')" })
+  })
+})
+
+describe('getRoomChat', () => {
+  test('should return chat messages for a valid room ID and user', async () => {
+    const req = {
+      query: {
+        page: 1,
+        limit: 10
+      },
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        roomId: 'validRoomId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'testUser', isDeleted: false })
+    ChatRoomModel.find = jest.fn().mockResolvedValue([{ _id: 'validRoomId', isDeleted: false }])
+    ChatMessageModel.findOne = jest.fn().mockResolvedValue(null)
+    ChatMessageModel.getChatMessages = jest.fn().mockResolvedValue(['message1', 'message2'])
+
+    await getRoomChat(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(ChatRoomModel.find).toHaveBeenCalledWith({ _id: 'validRoomId', isDeleted: false })
+    expect(ChatMessageModel.findOne).toHaveBeenCalledWith({ room: 'validRoomId', content: 'testUser left the chat' })
+    expect(ChatMessageModel.getChatMessages).toHaveBeenCalledWith(0, 10, 'validRoomId', expect.any(Date))
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(['message2', 'message1'])
+  })
+
+  test('should return 404 for invalid room ID', async () => {
+    const req = {
+      query: {
+        page: 1,
+        limit: 10
+      },
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        roomId: 'invalidRoomId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'testUser', isDeleted: false })
+    ChatRoomModel.find = jest.fn().mockResolvedValue(null)
+    ChatMessageModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await getRoomChat(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(ChatRoomModel.find).toHaveBeenCalledWith({ _id: 'invalidRoomId', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Chat room not found' })
+  })
+
+  test('should return 404 for user not found', async () => {
+    const req = {
+      query: {
+        page: 1,
+        limit: 10
+      },
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        roomId: 'validRoomId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    ChatRoomModel.find = jest.fn().mockResolvedValue([{ _id: 'validRoomId', isDeleted: false }])
+    ChatMessageModel.findOne = jest.fn().mockResolvedValue(null)
+    ChatMessageModel.getChatMessages = jest.fn().mockResolvedValue(['message1', 'message2'])
+
+    await getRoomChat(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(ChatRoomModel.find).not.toHaveBeenCalled()
+    expect(ChatMessageModel.findOne).not.toHaveBeenCalled()
+    expect(ChatMessageModel.getChatMessages).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  it('should return 500 for server error', async () => {
+    const req = {
+      query: {
+        page: 1,
+        limit: 10
+      },
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        roomId: 'validRoomId'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('Database error'))
+    ChatRoomModel.find = jest.fn().mockResolvedValue([{ _id: 'validRoomId', isDeleted: false }])
+    ChatMessageModel.findOne = jest.fn().mockResolvedValue(null)
+    ChatMessageModel.getChatMessages = jest.fn().mockResolvedValue(['message1', 'message2'])
+
+    await getRoomChat(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(ChatRoomModel.find).not.toHaveBeenCalled()
+    expect(ChatMessageModel.findOne).not.toHaveBeenCalled()
+    expect(ChatMessageModel.getChatMessages).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting chat room chat: Database error' })
   })
 })

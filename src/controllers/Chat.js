@@ -135,7 +135,7 @@ const getRoomChat = async (req, res) => {
     const page = parseInt(req.query.page) - 1 || 0
     const limit = parseInt(req.query.limit) || 10
     const username = req.decoded.username
-    const user = UserModel.findOne({ username, isDeleted: false })
+    const user = await UserModel.findOne({ username, isDeleted: false })
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' })
