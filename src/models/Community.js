@@ -94,7 +94,8 @@ const CommunitySchema = new Schema({
       type: String
     },
     days: {
-      type: Number
+      type: Number,
+      default: 0
     }
   }],
   mutedUsers: [{

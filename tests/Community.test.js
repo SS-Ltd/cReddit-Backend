@@ -231,6 +231,28 @@ describe('createCommunity', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid community type' })
   })
+
+  test('should return an error if there is an issue with the database connection', async () => {
+    const req = {
+      query: {},
+      decoded: {
+        username: 'testUser'
+      },
+      body: {
+        name: 'testCommunity',
+        isNSFW: false,
+        type: 'public'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    UserModel.findOne.mockImplementationOnce(() => { throw new Error('Database connection error') })
+    await createCommunity(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Database connection error' })
+  })
 })
 
 describe('isNameAvailable', () => {
@@ -302,6 +324,18 @@ describe('isNameAvailable', () => {
     expect(res.json).toHaveBeenCalledWith({
       message: 'Name is required'
     })
+  })
+
+  test('should return status code 500 with error message when name is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    CommunityModel.find.mockImplementationOnce(() => { throw new Error('Database connection error') })
+    await isNameAvailable(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'An error occurred while checking if the name is available' })
   })
 })
 
@@ -468,6 +502,17 @@ describe('getCommunityView', () => {
     expect(UserModel.findOne).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'Subreddit not found' })
+  })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await getCommunityView(req, res)
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting subreddit view: Cannot read properties of undefined (reading \'subreddit\')' })
   })
 })
 
@@ -942,6 +987,27 @@ describe('getSortedCommunityPosts', () => {
         isRemoved: false,
         commentCount: 0,
         profilePicture: 'profilePicture'
+      },
+      {
+        title: 'Poll 1',
+        communityName: 'subreddit',
+        isDeleted: false,
+        isRemoved: false,
+        type: 'Poll',
+        pollOptions: [
+          {
+            _id: 'option1',
+            option: 'Option 1',
+            voters: ['testUser']
+          },
+          {
+            _id: 'option2',
+            option: 'Option 2',
+            voters: []
+          }
+        ],
+        expirationDate: new Date('2021-01-01T00:00:00Z'),
+        isNsfw: false
       }
     ]
 
@@ -981,6 +1047,31 @@ describe('getSortedCommunityPosts', () => {
         commentCount: 0,
         profilePicture: 'profilePicture',
         communityName: 'testSubreddit'
+      },
+      {
+        title: 'Poll 1',
+        communityName: 'subreddit',
+        isDeleted: false,
+        isRemoved: false,
+        isUpvoted: false,
+        isDownvoted: false,
+        isSaved: false,
+        isHidden: false,
+        type: 'Poll',
+        pollOptions: [
+          {
+            option: 'Option 1',
+            votes: 1,
+            isVoted: true
+          },
+          {
+            option: 'Option 2',
+            votes: 0,
+            isVoted: false
+          }
+        ],
+        expirationDate: new Date('2021-01-01T00:00:00Z'),
+        isNSFW: false
       }
     ])
   })
@@ -1102,6 +1193,18 @@ describe('getSortedCommunityPosts', () => {
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([])
   })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    CommunityModel.find.mockImplementationOnce(() => { throw new Error('Database connection error') })
+    await getSortedCommunityPosts(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'An error occurred while getting posts for the community' })
+  })
 })
 
 // Mock the entire CommunityModel module
@@ -1131,14 +1234,92 @@ describe('getTopCommunities', () => {
       json: jest.fn()
     }
 
-    CommunityModel.select = jest.fn().mockResolvedValue([{ communityName: 'community1' }, { communityName: 'community2' }])
+    const mockFind = jest.fn()
+    const mockSort = jest.fn()
+    const mockSkip = jest.fn()
+    const mockLimit = jest.fn()
+    const mockSelect = jest.fn()
+
+    mockFind.mockReturnValue({ sort: mockSort })
+    mockSort.mockReturnValue({ skip: mockSkip })
+    mockSkip.mockReturnValue({ limit: mockLimit })
+    mockLimit.mockReturnValue({ select: mockSelect })
+    mockSelect.mockImplementation(() => Promise.resolve([
+      { toObject: jest.fn().mockReturnValue({ name: 'community1' }) },
+      { toObject: jest.fn().mockReturnValue({ name: 'community2' }) }
+    ]))
+
+    CommunityModel.find = mockFind
+
     CommunityModel.countDocuments = jest.fn().mockResolvedValue(2)
 
     await getTopCommunities(req, res)
+
+    expect(mockFind).toHaveBeenCalled()
+    expect(mockSort).toHaveBeenCalled()
+    expect(mockSkip).toHaveBeenCalled()
+    expect(mockLimit).toHaveBeenCalled()
+    expect(mockSelect).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(
       {
-        topCommunities: ['community1', 'community2'],
+        topCommunities: [{ name: 'community1', isJoined: false }, { name: 'community2', isJoined: false }],
+        count: 2
+      }
+    )
+  })
+
+  test('should return a list of top communities sorted by members in descending order and show if user is joined to each community or not', async () => {
+    const req = {
+      query: {},
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      preferences: {
+        showAdultContent: false
+      },
+      communities: ['community1']
+    }
+
+    const mockFind = jest.fn()
+    const mockSort = jest.fn()
+    const mockSkip = jest.fn()
+    const mockLimit = jest.fn()
+    const mockSelect = jest.fn()
+
+    mockFind.mockReturnValue({ sort: mockSort })
+    mockSort.mockReturnValue({ skip: mockSkip })
+    mockSkip.mockReturnValue({ limit: mockLimit })
+    mockLimit.mockReturnValue({ select: mockSelect })
+    mockSelect.mockImplementation(() => Promise.resolve([
+      { toObject: jest.fn().mockReturnValue({ name: 'community1' }) },
+      { toObject: jest.fn().mockReturnValue({ name: 'community2' }) }
+    ]))
+
+    CommunityModel.find = mockFind
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    CommunityModel.countDocuments = jest.fn().mockResolvedValue(2)
+
+    await getTopCommunities(req, res)
+
+    expect(mockFind).toHaveBeenCalled()
+    expect(mockSort).toHaveBeenCalled()
+    expect(mockSkip).toHaveBeenCalled()
+    expect(mockLimit).toHaveBeenCalled()
+    expect(mockSelect).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(
+      {
+        topCommunities: [{ name: 'community1', isJoined: true }, { name: 'community2', isJoined: false }],
         count: 2
       }
     )
@@ -1184,6 +1365,22 @@ describe('getEditedPosts', () => {
     expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'invalidCommunity', isDeleted: false })
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
+  })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = {
+      query: {},
+      params: {
+        communityName: 'testCommunity'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await getEditedPosts(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Cannot read properties of null (reading \'getEditedPosts\')' })
   })
 })
 
@@ -1244,6 +1441,156 @@ describe('joinCommunity', () => {
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
     })
+  })
+
+  test('should return a 400 status code and an error message when the user is already a member of the community', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      communities: ['testSubreddit'],
+      save: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: false,
+      members: 5,
+      blockedUsers: [],
+      save: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await joinCommunity(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User is already a member of the community'
+    })
+  })
+
+  test('should return a 400 status code and an error message when user is blocked from the community', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      communities: [],
+      save: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: false,
+      type: 'private',
+      members: 5,
+      approvedUsers: ['approvedUser'],
+      blockedUsers: ['testUser'],
+      save: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await joinCommunity(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User is blocked from the community'
+    })
+  })
+
+  test('should return a 400 status code and an error message when the community is private and the user is not approved', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      communities: [],
+      save: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: false,
+      type: 'private',
+      members: 5,
+      approvedUsers: ['approvedUser'],
+      blockedUsers: [],
+      save: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await joinCommunity(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User is not approved to join the community'
+    })
+  })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await joinCommunity(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error joining community: TypeError: Cannot read properties of undefined (reading \'subreddit\')' })
   })
 })
 
@@ -1385,6 +1732,18 @@ describe('leaveCommunity', () => {
       message: 'User is not a member of the community'
     })
   })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    CommunityModel.find.mockImplementationOnce(() => { throw new Error('Database connection error') })
+    await leaveCommunity(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error leaving community: TypeError: Cannot read properties of undefined (reading \'subreddit\')' })
+  })
 })
 
 describe('muteCommunity', () => {
@@ -1507,6 +1866,17 @@ describe('muteCommunity', () => {
       message: 'Community not found'
     })
   })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await muteCommunity(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error muting community: TypeError: Cannot read properties of undefined (reading \'subreddit\')' })
+  })
 })
 
 describe('getReportedPosts', () => {
@@ -1555,6 +1925,27 @@ describe('getReportedPosts', () => {
         expirationDate: null,
         type: 'Comment',
         isNsfw: false
+      },
+      {
+        title: 'Poll 1',
+        communityName: 'subreddit',
+        isDeleted: false,
+        isRemoved: false,
+        type: 'Poll',
+        pollOptions: [
+          {
+            _id: 'option1',
+            option: 'Option 1',
+            voters: ['testUser']
+          },
+          {
+            _id: 'option2',
+            option: 'Option 2',
+            voters: []
+          }
+        ],
+        expirationDate: new Date('2021-01-01T00:00:00Z'),
+        isNsfw: false
       }
     ]
 
@@ -1601,6 +1992,31 @@ describe('getReportedPosts', () => {
           isSaved: false,
           isHidden: false,
           type: 'Comment',
+          isNSFW: false
+        },
+        {
+          title: 'Poll 1',
+          communityName: 'subreddit',
+          isDeleted: false,
+          isRemoved: false,
+          isUpvoted: false,
+          isDownvoted: false,
+          isSaved: false,
+          isHidden: false,
+          type: 'Poll',
+          pollOptions: [
+            {
+              option: 'Option 1',
+              votes: 1,
+              isVoted: true
+            },
+            {
+              option: 'Option 2',
+              votes: 0,
+              isVoted: false
+            }
+          ],
+          expirationDate: new Date('2021-01-01T00:00:00Z'),
           isNSFW: false
         }
       ]
@@ -1732,6 +2148,17 @@ describe('getReportedPosts', () => {
       message: 'User does not exist'
     })
   })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await getReportedPosts(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'An error occurred while getting reported posts for the community' })
+  })
 })
 
 describe('getCommunityRules', () => {
@@ -1811,6 +2238,17 @@ describe('getCommunityRules', () => {
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
     })
+  })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await getCommunityRules(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting rules: TypeError: Cannot read properties of undefined (reading \'communityName\')' })
   })
 })
 
@@ -1966,6 +2404,17 @@ describe('updateCommunityRules', () => {
       message: 'Community not found'
     })
   })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await updateCommunityRules(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error updating rules: TypeError: Cannot read properties of undefined (reading \'communityName\')' })
+  })
 })
 
 describe('getCommunitySettings', () => {
@@ -2040,6 +2489,17 @@ describe('getCommunitySettings', () => {
     expect(res.json).toHaveBeenCalledWith({
       message: 'Community not found'
     })
+  })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await getCommunitySettings(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error getting settings: TypeError: Cannot read properties of undefined (reading \'communityName\')' })
   })
 })
 
@@ -2292,6 +2752,17 @@ describe('updateCommunitySettings', () => {
       message: 'Community not found'
     })
   })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await updateCommunitySettings(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error updating settings: TypeError: Cannot read properties of undefined (reading \'communityName\')' })
+  })
 })
 
 describe('getScheduledPosts', () => {
@@ -2521,6 +2992,17 @@ describe('getScheduledPosts', () => {
       message: 'User does not exist'
     })
   })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await getScheduledPosts(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'An error occurred while getting scheduled posts' })
+  })
 })
 
 describe('getUnmoderatedPosts', () => {
@@ -2558,16 +3040,37 @@ describe('getUnmoderatedPosts', () => {
       hiddenPosts: []
     }
 
-    const post = {
-      type: 'Text',
+    const post = [{
+      type: 'Post',
       pollOptions: [],
       isNsfw: false,
       _id: 'postId'
-    }
+    },
+    {
+      title: 'Poll 1',
+      communityName: 'subreddit',
+      isDeleted: false,
+      isRemoved: false,
+      type: 'Poll',
+      pollOptions: [
+        {
+          _id: 'option1',
+          option: 'Option 1',
+          voters: ['validUser']
+        },
+        {
+          _id: 'option2',
+          option: 'Option 2',
+          voters: []
+        }
+      ],
+      expirationDate: new Date('2021-01-01T00:00:00Z'),
+      isNsfw: false
+    }]
 
     CommunityModel.findOne = jest.fn().mockResolvedValue(community)
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.getUnmoderatedPosts = jest.fn().mockResolvedValue([post])
+    PostModel.getUnmoderatedPosts = jest.fn().mockResolvedValue(post)
 
     await getUnmoderatedPosts(req, res)
 
@@ -2579,13 +3082,38 @@ describe('getUnmoderatedPosts', () => {
     expect(PostModel.getUnmoderatedPosts).toHaveBeenCalledWith('validCommunity', { page: 0, limit: 10, sortMethod: { createdAt: -1, _id: -1 } })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith([{
-      type: 'Text',
+      type: 'Post',
       isNSFW: false,
       _id: 'postId',
       isUpvoted: false,
       isDownvoted: false,
       isSaved: false,
       isHidden: false
+    },
+    {
+      title: 'Poll 1',
+      communityName: 'subreddit',
+      isDeleted: false,
+      isRemoved: false,
+      isUpvoted: false,
+      isDownvoted: false,
+      isSaved: false,
+      isHidden: false,
+      type: 'Poll',
+      pollOptions: [
+        {
+          option: 'Option 1',
+          votes: 1,
+          isVoted: true
+        },
+        {
+          option: 'Option 2',
+          votes: 0,
+          isVoted: false
+        }
+      ],
+      expirationDate: new Date('2021-01-01T00:00:00Z'),
+      isNSFW: false
     }])
   })
 
@@ -2725,6 +3253,17 @@ describe('getUnmoderatedPosts', () => {
     expect(res.json).toHaveBeenCalledWith({
       message: 'User does not exist'
     })
+  })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await getUnmoderatedPosts(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'An error occurred while getting unmoderated posts' })
   })
 })
 
@@ -2898,6 +3437,17 @@ describe('updateCommunityBanner', () => {
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
   })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await updateCommunityBanner(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error updating banner: Cannot read properties of undefined (reading \'communityName\')' })
+  })
 })
 
 describe('updateCommunityIcon', () => {
@@ -3069,5 +3619,16 @@ describe('updateCommunityIcon', () => {
     expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
+  })
+
+  test('should return status code 500 with error message when subreddit is not provided', async () => {
+    const req = { query: {} }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    await updateCommunityIcon(req, res)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error updating icon: Cannot read properties of undefined (reading \'communityName\')' })
   })
 })
