@@ -38,7 +38,7 @@ const ChatMessageSchema = new Schema({
   }
 }, { timestamps: true })
 
-ChatMessageSchema.statics.getChatMessages = async function (roomId, date) {
+ChatMessageSchema.statics.getChatMessages = async function (page, limit, roomId, date) {
   return await this.aggregate([
     {
       $match: {
@@ -47,6 +47,9 @@ ChatMessageSchema.statics.getChatMessages = async function (roomId, date) {
         createdAt: { $lte: date }
       }
     },
+    { $sort: { createdAt: -1 } },
+    { $skip: page * limit },
+    { $limit: limit },
     {
       $lookup: {
         from: 'users',

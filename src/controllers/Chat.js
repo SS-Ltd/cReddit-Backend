@@ -132,7 +132,7 @@ const getRooms = async (req, res) => {
 
 const getRoomChat = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1
+    const page = parseInt(req.query.page) - 1 || 0
     const limit = parseInt(req.query.limit) || 10
     const username = req.decoded.username
     const user = UserModel.findOne({ username, isDeleted: false })
@@ -151,9 +151,9 @@ const getRoomChat = async (req, res) => {
 
     const findLeaveMessage = await ChatMessageModel.findOne({ room: roomId, content: `${username} left the chat` })
 
-    const chatMessages = await ChatMessageModel.getChatMessages(roomId, findLeaveMessage?.createdAt || new Date())
+    const chatMessages = await ChatMessageModel.getChatMessages(page, limit, roomId, findLeaveMessage?.createdAt || new Date())
 
-    res.status(200).json(chatMessages)
+    res.status(200).json(chatMessages.reverse())
   } catch (error) {
     res.status(500).json({ message: 'Error getting chat room chat: ' + error.message })
   }
@@ -172,6 +172,10 @@ const leaveChatRoom = async (req, res) => {
 
     if (!chatRoom.members.includes(username)) {
       return res.status(403).json({ message: 'User is not a member of this chat room' })
+    }
+
+    if (!chatRoom.name) {
+      return res.status(403).json({ message: 'Cannot leave private chat room' })
     }
 
     const index = chatRoom.members.indexOf(username)
