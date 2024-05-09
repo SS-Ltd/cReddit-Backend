@@ -1,4 +1,3 @@
-
 jest.mock('firebase-admin', () => ({
   initializeApp: jest.fn(),
   credential: {
@@ -12,7 +11,7 @@ jest.mock('firebase-admin', () => ({
 const ChatRoomModel = require('../src/models/ChatRoom')
 const UserModel = require('../src/models/User')
 const ChatMessageModel = require('../src/models/ChatMessage')
-const { createChatRoom, markAllMessagesAsRead, getRooms, getRoomChat } = require('../src/controllers/Chat')
+const { createChatRoom, markAllMessagesAsRead, getRooms, getRoomChat, leaveChatRoom } = require('../src/controllers/Chat')
 
 // Mock dependencies
 jest.mock('../src/models/ChatRoom')
@@ -443,7 +442,7 @@ describe('getRoomChat', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 
-  it('should return 500 for server error', async () => {
+  test('should return 500 for server error', async () => {
     const req = {
       query: {
         page: 1,
@@ -475,5 +474,194 @@ describe('getRoomChat', () => {
     expect(ChatMessageModel.getChatMessages).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ message: 'Error getting chat room chat: Database error' })
+  })
+})
+
+describe('leaveChatRoom', () => {
+  test('should leave chat room successfully when user is a member', async () => {
+    const req = {
+      decoded: {
+        username: 'user1'
+      },
+      params: {
+        roomId: 'room1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const chatRoom = {
+      _id: 'room1',
+      isDeleted: false,
+      members: ['user1', 'user2', 'user3'],
+      name: 'Chat Room 1',
+      save: jest.fn()
+    }
+
+    const chatMessage = {
+      user: null,
+      content: 'user1 left the chat',
+      room: 'room1',
+      isRead: false,
+      save: jest.fn()
+    }
+
+    ChatRoomModel.findOne = jest.fn().mockResolvedValue(chatRoom)
+    ChatMessageModel.mockImplementation(() => chatMessage)
+
+    await leaveChatRoom(req, res)
+
+    expect(ChatRoomModel.findOne).toHaveBeenCalledWith({ _id: 'room1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Left chat room successfully' })
+    expect(chatRoom.members).toEqual(['user2', 'user3'])
+    expect(chatRoom.save).toHaveBeenCalled()
+    expect(ChatMessageModel).toHaveBeenCalledWith({
+      user: null,
+      content: 'user1 left the chat',
+      room: 'room1',
+      isRead: false
+    })
+    expect(chatMessage.save).toHaveBeenCalled()
+  })
+
+  test('should return 403 error when user is not a member', async () => {
+    const req = {
+      decoded: {
+        username: 'user1'
+      },
+      params: {
+        roomId: 'room1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const chatRoom = {
+      _id: 'room1',
+      isDeleted: false,
+      members: ['user2'],
+      name: 'Chat Room 1'
+    }
+
+    ChatRoomModel.findOne = jest.fn().mockResolvedValue(chatRoom)
+
+    await leaveChatRoom(req, res)
+
+    expect(ChatRoomModel.findOne).toHaveBeenCalledWith({ _id: 'room1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User is not a member of this chat room' })
+  })
+
+  test('should return 404 error when chat room is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'user1'
+      },
+      params: {
+        roomId: 'room1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    ChatRoomModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await leaveChatRoom(req, res)
+
+    expect(ChatRoomModel.findOne).toHaveBeenCalledWith({ _id: 'room1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Chat room not found' })
+  })
+
+  test('should return 403 error when chat room is private', async () => {
+    const req = {
+      decoded: {
+        username: 'user1'
+      },
+      params: {
+        roomId: 'room1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const chatRoom = {
+      _id: 'room1',
+      isDeleted: false,
+      members: ['user1', 'user2'],
+      name: null
+    }
+
+    ChatRoomModel.findOne = jest.fn().mockResolvedValue(chatRoom)
+
+    await leaveChatRoom(req, res)
+
+    expect(ChatRoomModel.findOne).toHaveBeenCalledWith({ _id: 'room1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Cannot leave private chat room' })
+  })
+
+  test('should return a 500 error when chat message creation fails', async () => {
+    const req = {
+      decoded: {
+        username: 'user1'
+      },
+      params: {
+        roomId: 'room1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const chatRoom = {
+      _id: 'room1',
+      isDeleted: false,
+      members: ['user1', 'user2'],
+      name: 'Chat Room 1',
+      save: jest.fn()
+    }
+
+    ChatRoomModel.findOne = jest.fn().mockResolvedValue(chatRoom)
+
+    const chatMessage = {
+      user: null,
+      content: 'user1 left the chat',
+      room: 'room1',
+      isRead: false,
+      save: jest.fn().mockRejectedValue(new Error('Failed to create chat message'))
+    }
+
+    ChatMessageModel.mockImplementation(() => chatMessage)
+
+    await leaveChatRoom(req, res)
+
+    expect(ChatRoomModel.findOne).toHaveBeenCalledWith({ _id: 'room1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error leaving chat room: Failed to create chat message' })
+    expect(chatRoom.members).toEqual(['user2'])
+    expect(chatRoom.save).toHaveBeenCalled()
+    expect(ChatMessageModel).toHaveBeenCalledWith({
+      user: null,
+      content: 'user1 left the chat',
+      room: 'room1',
+      isRead: false
+    })
+    expect(chatMessage.save).toHaveBeenCalled()
   })
 })

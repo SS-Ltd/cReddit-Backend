@@ -179,10 +179,9 @@ const leaveChatRoom = async (req, res) => {
     }
 
     const index = chatRoom.members.indexOf(username)
-    chatRoom.members = chatRoom.members.splice(index, 1)
+    chatRoom.members.splice(index, 1)
 
     await chatRoom.save()
-
     const chatMessage = new ChatMessageModel({
       user: null,
       content: `${username} left the chat`,
