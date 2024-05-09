@@ -1,7 +1,7 @@
 const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
-const { createCommunity, isNameAvailable, getCommunityView, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
+const { createCommunity, isNameAvailable, getCommunityView, getSortedCommunityPosts, getTopCommunities, getEditedPosts, joinCommunity, leaveCommunity, muteCommunity, getReportedPosts, getCommunityRules, updateCommunityRules, getCommunitySettings, updateCommunitySettings, getScheduledPosts, getUnmoderatedPosts } = require('../src/controllers/Community')
 
 // Mock the entire CommunityModel module
 jest.mock('../src/models/Community')
@@ -1382,6 +1382,128 @@ describe('leaveCommunity', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({
       message: 'User is not a member of the community'
+    })
+  })
+})
+
+describe('muteCommunity', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('should successfully mute a community for a user who has not muted it before', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: false
+    }
+
+    const user = {
+      username: 'testUser',
+      mutedCommunities: [],
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await muteCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(user.mutedCommunities).toContain('testSubreddit')
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(user.save).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community muted successfully'
+    })
+  })
+
+  test('should successfully unmute a community for a user who has muted it before', async () => {
+    const req = {
+      params: {
+        subreddit: 'testSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'testSubreddit',
+      isDeleted: false
+    }
+
+    const user = {
+      username: 'testUser',
+      mutedCommunities: ['testSubreddit'],
+      save: jest.fn()
+    }
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await muteCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testSubreddit', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(user.mutedCommunities).not.toContain('testSubreddit')
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(user.save).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community unmuted successfully'
+    })
+  })
+
+  test('should return a 404 error when the community does not exist', async () => {
+    const req = {
+      params: {
+        subreddit: 'nonExistentSubreddit'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = null
+
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await muteCommunity(req, res)
+
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'nonExistentSubreddit', isDeleted: false })
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Community not found'
     })
   })
 })
