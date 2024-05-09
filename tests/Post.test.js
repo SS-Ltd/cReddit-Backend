@@ -3126,3 +3126,191 @@ describe('acceptPost', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Error approving post: Database error' })
   })
 })
+
+describe('removePost', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should successfully remove a post when all conditions are met', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isRemoved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    const post = {
+      communityName: 'community1',
+      isDeleted: false,
+      save: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(post.isRemoved).toBe(true)
+    expect(post.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post removed successfully' })
+  })
+
+  test('should return a 404 error when post is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post not found' })
+  })
+
+  test('should return a 404 error if user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isRemoved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = null
+
+    const post = {
+      communityName: 'community1',
+      isDeleted: false
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  test('should return a 401 error when user is not authorized to remove the post', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isRemoved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    const post = {
+      communityName: 'community3',
+      isDeleted: false
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to remove this post' })
+  })
+
+  test('should return a 500 error if an error occurs while approving the post', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isRemoved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('Database error'))
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error removing post: Database error' })
+  })
+})
