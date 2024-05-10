@@ -1,6 +1,8 @@
 const MessageModel = require('../src/models/Message')
 const UserModel = require('../src/models/User')
+const CommunityModel = require('../src/models/Community')
 const { createMessage, getMessages, markAsRead, markAllAsRead, getSentMessages, getPostReplies, getUsernameMentions, deleteMessage, getUnreadMessages, getInbox } = require('../src/controllers/Message')
+const { sendMessage } = require('../src/utils/Message')
 
 jest.mock('../src/models/Message')
 jest.mock('../src/models/User')
@@ -497,8 +499,6 @@ describe('getPostReplies', () => {
         username: 'testUser'
       },
       query: {
-        page: 1,
-        limit: 10
       }
     }
 
@@ -550,8 +550,6 @@ describe('getUsernameMentions', () => {
         username: 'testUser'
       },
       query: {
-        page: 1,
-        limit: 10
       }
     }
 
@@ -824,5 +822,93 @@ describe('deleteMessage', () => {
     await deleteMessage(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
+  })
+})
+
+describe('sendMessage', () => {
+  const { sendMessage } = jest.requireActual('../src/utils/Message')
+
+  test('should successfully send a message from sender (community) to receiver', async () => {
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'sender' }).mockResolvedValueOnce({ username: '/r/receiver' }).mockResolvedValueOnce({ username: 'mod1', blockedUsers: [], preferences: { inboxMessages: true } })
+
+    CommunityModel.findOne = jest.fn().mockReturnValueOnce({ name: 'communityName', bannedUsers: [], mutedUsers: [], moderators: ['mod1'] })
+
+    const mockMessage = { _id: 'messageId', save: jest.fn().mockResolvedValue(true) }
+    MessageModel.mockReturnValue(mockMessage)
+
+    const result = await sendMessage('sender', '/r/receiver', 'subject', 'text', true)
+
+    expect(result).toBe(undefined)
+  })
+
+  test('should successfully send a message from sender (user) to receiver', async () => {
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'sender' }).mockResolvedValueOnce({ username: 'receiver', blockedUsers: [], preferences: { inboxMessages: true } })
+
+    const mockMessage = { _id: 'messageId', save: jest.fn().mockResolvedValue(true) }
+    MessageModel.mockReturnValue(mockMessage)
+
+    const result = await sendMessage('sender', 'receiver', 'subject', 'text', true)
+
+    expect(result).toBe('messageId')
+  })
+
+  test('should throw an error if community does not exist', async () => {
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'sender' })
+
+    CommunityModel.findOne = jest.fn().mockReturnValueOnce(null)
+
+    const mockMessage = { _id: 'messageId', save: jest.fn().mockResolvedValue(true) }
+    MessageModel.mockReturnValue(mockMessage)
+
+    expect(sendMessage('sender', '/r/receiver', 'subject', 'text', true)).rejects.toThrow('Community not found')
+  })
+
+  test('should throw an error if user is banned from community', async () => {
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'sender' })
+
+    CommunityModel.findOne = jest.fn().mockReturnValueOnce({ name: 'communityName', bannedUsers: ['sender'], mutedUsers: [], moderators: [] })
+
+    const mockMessage = { _id: 'messageId', save: jest.fn().mockResolvedValue(true) }
+    MessageModel.mockReturnValue(mockMessage)
+
+    expect(sendMessage('sender', '/r/receiver', 'subject', 'text', true)).rejects.toThrow('User is banned from community')
+  })
+
+  test('should throw an error if user is muted in community', async () => {
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'sender' })
+
+    CommunityModel.findOne = jest.fn().mockReturnValueOnce({ name: 'communityName', bannedUsers: [], mutedUsers: ['sender'], moderators: [] })
+
+    const mockMessage = { _id: 'messageId', save: jest.fn().mockResolvedValue(true) }
+    MessageModel.mockReturnValue(mockMessage)
+
+    expect(sendMessage('sender', '/r/receiver', 'subject', 'text', true)).rejects.toThrow('User is muted in community')
+  })
+
+  test('should throw an error if user does not exist', async () => {
+    UserModel.findOne = jest.fn().mockResolvedValueOnce(null)
+
+    const mockMessage = { _id: 'messageId', save: jest.fn().mockResolvedValue(true) }
+    MessageModel.mockReturnValue(mockMessage)
+
+    expect(sendMessage('sender', 'receiver', 'subject', 'text', true)).rejects.toThrow('User not found')
+  })
+
+  test('should throw an error if user is blocked', async () => {
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'sender' }).mockResolvedValueOnce({ username: 'receiver', blockedUsers: ['sender'], preferences: { inboxMessages: true } })
+
+    const mockMessage = { _id: 'messageId', save: jest.fn().mockResolvedValue(true) }
+    MessageModel.mockReturnValue(mockMessage)
+
+    expect(sendMessage('sender', 'receiver', 'subject', 'text', true)).rejects.toThrow('Unable to send message to blocked user')
+  })
+
+  test('should throw an error if user does not accept messages', async () => {
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'sender' }).mockResolvedValueOnce({ username: 'receiver', blockedUsers: [], preferences: { inboxMessages: false } })
+
+    const mockMessage = { _id: 'messageId', save: jest.fn().mockResolvedValue(true) }
+    MessageModel.mockReturnValue(mockMessage)
+
+    expect(sendMessage('sender', 'receiver', 'subject', 'text', true)).rejects.toThrow('User does not accept messages')
   })
 })

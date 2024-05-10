@@ -4436,3 +4436,30 @@ describe('removePost', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Error removing post: Database error' })
   })
 })
+
+describe('deleteImages', () => {
+  jest.unmock('../src/utils/Media')
+  test('should delete images when all conditions are met', async () => {
+    MediaUtils.cloudinary.uploader.destroy = jest.fn().mockResolvedValue({ result: 'ok' })
+
+    await MediaUtils.deleteImages(['image1', 'image2'])
+
+    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledTimes(0)
+  })
+
+  test('should delete images when all conditions are met', async () => {
+    MediaUtils.cloudinary.uploader.destroy = jest.fn().mockResolvedValue({ result: 'ok' })
+
+    expect(MediaUtils.deleteImages(['res.cloudinary.com'])).rejects.toThrow(new Error('Invalid image or video URLs found in post'))
+
+    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledTimes(0)
+  })
+
+  test('should delete images when all conditions are met', async () => {
+    MediaUtils.cloudinary.uploader.destroy = jest.fn().mockResolvedValue({ result: 'ok' })
+
+    await MediaUtils.deleteImages(['res.cloudinary.com/cReddit/a.mp4'])
+
+    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledTimes(1)
+  })
+})

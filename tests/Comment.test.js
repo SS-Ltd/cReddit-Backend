@@ -6,6 +6,7 @@ const { getComment } = require('../src/controllers/Comment')
 const comment = require('../src/controllers/Comment')
 const MediaUtils = require('../src/utils/Media')
 const Community = require('../src/models/Community')
+const { sendNotification } = require('../src/utils/Notification')
 
 jest.mock('../src/models/Post', () => {
   return jest.fn().mockImplementation(() => {
@@ -37,6 +38,8 @@ jest.mock('../src/models/Message', () => {
     }
   })
 })
+
+jest.mock('../src/utils/Notification')
 
 describe('getComment', () => {
   test('should retrieve a comment with a valid commentId', async () => {
@@ -474,6 +477,156 @@ describe('createComment', () => {
     expect(PostModel).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Cannot comment on a non-existing post' })
+  })
+
+  test('should not create a comment if post is locked', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        postId: '660d7e17baa5c72965311c7f'
+      },
+      files: [{ buffer: Buffer.from('file1') }]
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValueOnce({ type: 'Post', name: 'Test Post', communityName: 'Test Community', isLocked: true })
+
+    await comment.createComment(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Cannot comment on a locked post' })
+  })
+
+  test('should not create a comment if community does not exist', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        postId: '660d7e17baa5c72965311c7f'
+      },
+      files: [{ buffer: Buffer.from('file1') }]
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValueOnce({ type: 'Post', name: 'Test Post', communityName: 'Test Community', isLocked: false })
+
+    Community.findOne = jest.fn().mockResolvedValue(null)
+
+    await comment.createComment(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community does not exist' })
+  })
+
+  test('should not create a comment if user is banned from community', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        postId: '660d7e17baa5c72965311c7f'
+      },
+      files: [{ buffer: Buffer.from('file1') }]
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValueOnce({ type: 'Post', name: 'Test Post', communityName: 'Test Community', isLocked: false })
+
+    Community.findOne = jest.fn().mockResolvedValue({ settings: { allowImageComments: true }, bannedUsers: [{ name: 'Test User' }], moderators: [], approvedUsers: [] })
+
+    await comment.createComment(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are banned from this community' })
+  })
+
+  test('should not create a comment if community is private and user is not a moderator', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        postId: '660d7e17baa5c72965311c7f'
+      },
+      files: [{ buffer: Buffer.from('file1') }]
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValueOnce({ type: 'Post', name: 'Test Post', communityName: 'Test Community', isLocked: false })
+
+    Community.findOne = jest.fn().mockResolvedValue({ settings: { allowImageComments: true }, bannedUsers: [], type: 'private', moderators: [], approvedUsers: [] })
+
+    await comment.createComment(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Only moderators and approved users can comment in this community' })
+  })
+
+  test('should not create a comment images if community does not allow image content', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        postId: '660d7e17baa5c72965311c7f'
+      },
+      files: [{ buffer: Buffer.from('file1') }]
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValueOnce({ type: 'Post', name: 'Test Post', communityName: 'Test Community', isLocked: false })
+
+    Community.findOne = jest.fn().mockResolvedValue({ settings: { allowImageComments: false }, bannedUsers: [], type: 'public', moderators: [], approvedUsers: [] })
+
+    await comment.createComment(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community only allows text comments' })
+  })
+
+  test('should send notification to followers', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        postId: '660d7e17baa5c72965311c7f'
+      },
+      files: [{ buffer: Buffer.from('file1') }]
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValueOnce({ type: 'Post', name: 'Test Post', communityName: 'Test Community', followers: ['follower1'], isLocked: false })
+
+    Community.findOne = jest.fn().mockResolvedValue({ settings: { allowImageComments: false }, bannedUsers: [], type: 'public', moderators: [], approvedUsers: [] })
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'follower1', preferences: { commentsNotifs: true } })
+
+    await comment.createComment(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community only allows text comments' })
   })
 })
 
