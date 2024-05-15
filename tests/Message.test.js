@@ -54,7 +54,7 @@ describe('createMessage', () => {
 
     await createMessage(req, res)
 
-    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.status).toHaveBeenCalledWith(404)
   })
 })
 
