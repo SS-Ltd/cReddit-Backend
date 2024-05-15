@@ -83,7 +83,7 @@ const notificationTemplate = {
   },
   chatRequest: (username) => {
     const message = {}
-    message.title = `u/${username} added you to a char room`
+    message.title = `u/${username} added you to a chat room`
     message.body = 'Tap to view the chat room'
     return message
   },

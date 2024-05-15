@@ -303,7 +303,7 @@ const markNSFW = async (req, res) => {
     post.isNsfw = req.body.isNSFW
     await post.save()
 
-    res.status(200).json({ message: 'Post marked as spoiler successfully' })
+    res.status(200).json({ message: 'Post marked as nsfw successfully' })
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error marking post as spoiler' })
   }

@@ -3,6 +3,7 @@ const CommunityModel = require('../src/models/Community')
 const PostModel = require('../src/models/Post')
 const UserModel = require('../src/models/User')
 const HistoryModel = require('../src/models/History')
+const schedule = require('node-schedule')
 const MediaUtils = require('../src/utils/Media')
 const PostUtils = require('../src/utils/Post')
 const { getPost, getHomeFeed, getComments, reportPost } = require('../src/controllers/Post')
@@ -282,7 +283,7 @@ describe('createPost', () => {
         suggestedSort: 'new',
         allowImageComments: true
       },
-      isNSFW: false,
+      isNSFW: true,
       moderators: [],
       bannedUsers: []
     }
@@ -494,6 +495,269 @@ describe('createPost', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Community does not exist' })
   })
+
+  test('should not create a post of type Cross Post when child post is not provided', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        type: 'Cross Post',
+        communityName: 'Test Community',
+        title: 'Test Title',
+        content: 'https://www.example.com',
+        expirationDate: '2022-12-31T23:59:59.999Z',
+        isNSFW: true,
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      files: []
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.createPost(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Child post does not exist' })
+  })
+
+  test('should not create post if user is banned from the community', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        type: 'Post',
+        communityName: 'Test Community',
+        title: 'Test Title',
+        content: 'https://www.example.com',
+        expirationDate: '2022-12-31T23:59:59.999Z',
+        isNSFW: true,
+        username: 'Test User'
+      },
+      files: []
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'Test Community',
+      type: 'public',
+      settings: {
+        allowedPostTypes: 'Posts',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: false,
+        suggestedSort: 'new',
+        allowImageComments: true
+      },
+      isNSFW: false,
+      moderators: [],
+      bannedUsers: [{ name: 'Test User' }]
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await PostController.createPost(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are banned from this community' })
+  })
+
+  test('should not create post if community type is not public and user is not a moderator or approved', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        type: 'Post',
+        communityName: 'Test Community',
+        title: 'Test Title',
+        content: 'https://www.example.com',
+        expirationDate: '2022-12-31T23:59:59.999Z',
+        isNSFW: true,
+        username: 'Test User'
+      },
+      files: []
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'Test Community',
+      type: 'private',
+      settings: {
+        allowedPostTypes: 'Posts',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: false,
+        suggestedSort: 'new',
+        allowImageComments: true
+      },
+      isNSFW: false,
+      moderators: [],
+      approvedUsers: [],
+      bannedUsers: []
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await PostController.createPost(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Only moderators and approved users can post in this community' })
+  })
+
+  test('should not schedule post if user is not a moderator', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        type: 'Post',
+        communityName: 'Test Community',
+        title: 'Test Title',
+        content: 'https://www.example.com',
+        expirationDate: '2022-12-31T23:59:59.999Z',
+        isNSFW: true,
+        username: 'Test User',
+        date: '2024-12-31T23:59:59.999Z'
+      },
+      files: []
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'Test Community',
+      type: 'public',
+      settings: {
+        allowedPostTypes: 'Posts',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: false,
+        suggestedSort: 'new',
+        allowImageComments: true
+      },
+      isNSFW: false,
+      moderators: [],
+      bannedUsers: []
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await PostController.createPost(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Only moderators can schedule posts' })
+  })
+
+  test('shoud throw error is user is not found', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        type: 'Post',
+        communityName: 'Test Community',
+        title: 'Test Title',
+        content: 'https://www.example.com',
+        expirationDate: '2022-12-31T23:59:59.999Z',
+        isNSFW: true,
+        username: 'Test User'
+      },
+      files: []
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.createPost(req, res)
+
+    expect(PostModel).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User does not exist' })
+  })
+
+  test('should schedule post successfully', async () => {
+    const req = {
+      decoded: { username: 'Test User' },
+      body: {
+        type: 'Post',
+        communityName: 'Test Community',
+        title: 'Test Title',
+        content: 'https://www.example.com',
+        isNSFW: true,
+        username: 'Test User',
+        date: '2024-12-31T23:59:59.999Z'
+      },
+      files: []
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const community = {
+      name: 'Test Community',
+      type: 'public',
+      settings: {
+        allowedPostTypes: 'Posts',
+        allowCrossPosting: true,
+        allowSpoiler: false,
+        allowImages: true,
+        allowPolls: false,
+        suggestedSort: 'new',
+        allowImageComments: true
+      },
+      isNSFW: false,
+      moderators: ['Test User'],
+      bannedUsers: []
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue({ username: 'Test User', upvotedPosts: [], downvotedPosts: [], save: jest.fn() })
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    schedule.scheduleJob = jest.fn().mockResolvedValue({ name: 'job' })
+
+    await PostController.createPost(req, res)
+
+    expect(PostModel).toHaveBeenCalledWith({
+      type: 'Post',
+      username: 'Test User',
+      communityName: 'Test Community',
+      title: 'Test Title',
+      content: 'https://www.example.com',
+      pollOptions: [],
+      expirationDate: null,
+      isSpoiler: false,
+      isNsfw: true,
+      upvotedPosts: [],
+      downvotedPosts: [],
+      child: null,
+      createdAt: '2024-12-31T23:59:59.999Z'
+    })
+    expect(res.status).toHaveBeenCalledWith(201)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post created successfully' })
+  })
 })
 
 describe('deletePost', () => {
@@ -618,6 +882,30 @@ describe('deletePost', () => {
     expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0', isDeleted: false })
     expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/image1')
     expect(MediaUtils.cloudinary.uploader.destroy).not.toHaveBeenCalledWith('cReddit/video1', { resource_type: 'video' })
+  })
+
+  test('should throw server error when deleting post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    MediaUtils.cloudinary.uploader.destroy = jest.fn()
+    PostModel.findOne = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await PostController.deletePost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Server error' })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '65fcc9307932c5551dfd88e0', isDeleted: false })
   })
 })
 
@@ -783,6 +1071,440 @@ describe('editPost', () => {
     expect(post.content).toBe('old content')
     expect(post.isEdited).toBe(false)
     expect(post.save).not.toHaveBeenCalled()
+  })
+
+  test('should return 400 when the post id is invalid', async () => {
+    const req = {
+      params: {
+        postId: 'invalidPostId'
+      },
+      body: {
+        newContent: 'new content'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    PostModel.findOne = jest.fn()
+
+    await PostController.editPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid post id' })
+    expect(PostModel.findOne).not.toHaveBeenCalled()
+  })
+
+  test('should throw server error when editing post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      body: {
+        newContent: 'new content'
+      },
+      decoded: {
+        username: 'authorizedUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.findOne = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await PostController.editPost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Server error' })
+    expect(res.status).toHaveBeenCalledWith(500)
+  })
+})
+
+describe('markSpoiler', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should allow marking post as spoiler for moderator or post owner', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isSpoiler: true
+      }
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      moderatorInCommunities: ['testCommunity']
+    }
+
+    const post = {
+      _id: 'testPostId',
+      isDeleted: false,
+      communityName: 'testCommunity',
+      username: 'testUser',
+      save: jest.fn()
+    }
+
+    const community = {
+      name: 'testCommunity',
+      settings: {
+        allowSpoilers: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await PostController.markSpoiler(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity' })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(post.save).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post marked as spoiler successfully' })
+  })
+
+  test('should return 404 error when post is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isSpoiler: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser'
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.markSpoiler(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post not found' })
+  })
+
+  test('should return 401 error when user is not authorized to mark the post as spoiler', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isSpoiler: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      moderatorInCommunities: []
+    }
+
+    const post = {
+      _id: 'testPostId',
+      isDeleted: false,
+      communityName: 'testCommunity',
+      username: 'otherUser'
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.markSpoiler(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to mark this post as spoiler' })
+  })
+
+  test('should return 400 error when community does not allow spoilers and user tries to mark the post as spoiler', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isSpoiler: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      moderatorInCommunities: []
+    }
+
+    const post = {
+      _id: 'testPostId',
+      isDeleted: false,
+      communityName: 'testCommunity',
+      username: 'testUser'
+    }
+
+    const community = {
+      name: 'testCommunity',
+      settings: {
+        allowSpoilers: false
+      }
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+
+    await PostController.markSpoiler(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'testCommunity' })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(CommunityModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community does not allow spoilers' })
+  })
+
+  test('should return a 500 error when user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isSpoiler: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.markSpoiler(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Cannot read properties of null (reading \'moderatorInCommunities\')' })
+  })
+})
+
+describe('markNSFW', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should allow marking post as nsfw for moderator or post owner', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isNSFW: true
+      }
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      moderatorInCommunities: ['testCommunity']
+    }
+
+    const post = {
+      _id: 'testPostId',
+      isDeleted: false,
+      communityName: 'testCommunity',
+      username: 'testUser',
+      save: jest.fn()
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.markNSFW(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(post.save).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post marked as nsfw successfully' })
+  })
+
+  test('should return 404 error when post is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isNSFW: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser'
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.markNSFW(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post not found' })
+  })
+
+  test('should return 401 error when user is not authorized to mark the post as nsfw', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isNSFW: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testUser',
+      isDeleted: false,
+      moderatorInCommunities: []
+    }
+
+    const post = {
+      _id: 'testPostId',
+      isDeleted: false,
+      communityName: 'testCommunity',
+      username: 'otherUser'
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.markNSFW(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: 'testPostId', isDeleted: false })
+    expect(CommunityModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to mark this post as NSFW' })
+  })
+
+  test('should return a 500 error when user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      params: {
+        postId: 'testPostId'
+      },
+      body: {
+        isSpoiler: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.markNSFW(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Cannot read properties of null (reading \'moderatorInCommunities\')' })
   })
 })
 
@@ -979,6 +1701,79 @@ describe('savePost', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment is not saved' })
   })
+
+  test('should return 400 when post is is invalid', async () => {
+    const req = {
+      params: {
+        postId: 'invalidPostId'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isSaved: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    UserModel.findOne = jest.fn()
+
+    await PostController.savePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid post id' })
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+  })
+
+  test('should return 400 when post is not found', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isSaved: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.savePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post/comment is not found' })
+  })
+
+  test('should throw server error when saving post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isSaved: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await PostController.savePost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Server error' })
+    expect(res.status).toHaveBeenCalledWith(500)
+  })
 })
 
 describe('hidePost', () => {
@@ -1165,6 +1960,79 @@ describe('hidePost', () => {
 
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is not hidden' })
+  })
+
+  test('should return 400 when post is is invalid', async () => {
+    const req = {
+      params: {
+        postId: 'invalidPostId'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isHidden: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    UserModel.findOne = jest.fn()
+
+    await PostController.hidePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid post id' })
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+  })
+
+  test('should return 400 when post is not found', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isHidden: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.hidePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is not found' })
+  })
+
+  test('should throw server error when hiding post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isHidden: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await PostController.hidePost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Server error' })
+    expect(res.status).toHaveBeenCalledWith(500)
   })
 })
 
@@ -1407,6 +2275,79 @@ describe('lockPost', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({ message: 'Post is already unlocked' })
   })
+
+  test('should return 400 when post is is invalid', async () => {
+    const req = {
+      params: {
+        postId: 'invalidPostId'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isLocked: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    UserModel.findOne = jest.fn()
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid post id' })
+    expect(UserModel.findOne).not.toHaveBeenCalled()
+  })
+
+  test('should return 400 when post is not found', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isLocked: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.lockPost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post is not found' })
+  })
+
+  test('should throw server error when saving post', async () => {
+    const req = {
+      params: {
+        postId: '65fcc9307932c5551dfd88e0'
+      },
+      decoded: {
+        username: 'invalidUser'
+      },
+      body: {
+        isLocked: false
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+    PostModel.findOne = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await PostController.lockPost(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({ message: 'Server error' })
+    expect(res.status).toHaveBeenCalledWith(500)
+  })
 })
 
 describe('getPost', () => {
@@ -1538,6 +2479,86 @@ describe('getPost', () => {
     })
   })
 
+  test('should retrieve a downvoted and hidden post by ID for a logged in user', async () => {
+    const req = {
+      params: {
+        postId: '55bb126babb335677998fbca'
+      },
+      query: {},
+      decoded: {
+        username: 'user1'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = [{
+      _id: '55bb126babb335677998fbca',
+      type: 'Poll',
+      pollOptions: [{ option: 'option1', voters: [] }, { option: 'option2', voters: [] }],
+      expirationDate: '2024-12-12T00:00:00.000Z',
+      isDeleted: false,
+      communityName: 'community1',
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isNsfw: false,
+      creatorBlockedUsers: [],
+      username: 'user2'
+    }]
+
+    const user = {
+      username: 'user1',
+      isDeleted: false,
+      upvotedPosts: [],
+      downvotedPosts: [{ postId: '55bb126babb335677998fbca' }],
+      savedPosts: [],
+      hiddenPosts: [{ postId: '55bb126babb335677998fbca' }],
+      communities: [],
+      moderatorInCommunities: [],
+      isNsfw: false,
+      type: 'Post',
+      blockedUsers: []
+    }
+
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    PostModel.findOneAndUpdate = jest.fn().mockResolvedValue(post)
+    UserModel.findOne.mockResolvedValue(user)
+    HistoryModel.findOne = jest.fn().mockResolvedValue(null)
+    HistoryModel.create = jest.fn()
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(HistoryModel.findOne).toHaveBeenCalledWith({ post: '55bb126babb335677998fbca', owner: 'user1' })
+    expect(HistoryModel.create).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({
+      _id: '55bb126babb335677998fbca',
+      type: 'Poll',
+      pollOptions: [{ option: 'option1', votes: 0, isVoted: false }, { option: 'option2', votes: 0, isVoted: false }],
+      expirationDate: '2024-12-12T00:00:00.000Z',
+      isDeleted: false,
+      communityName: 'community1',
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isDownvoted: true,
+      isHidden: true,
+      isSaved: false,
+      isUpvoted: false,
+      isNSFW: false,
+      isJoined: false,
+      isModerator: false,
+      isBlocked: false,
+      username: 'user2'
+    })
+  })
+
   test('should return 400 if post ID is not provided', async () => {
     const req = {
       params: {},
@@ -1625,9 +2646,114 @@ describe('getPost', () => {
       message: 'User does not exist'
     })
   })
+
+  test('should return 404 when use is blocked by post owner', async () => {
+    const req = {
+      params: {
+        postId: '55bb126babb335677998fbca'
+      },
+      query: {},
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = [{
+      _id: '55bb126babb335677998fbca',
+      isDeleted: false,
+      communityName: 'community1',
+      views: 1,
+      commentCount: 0,
+      profilePicture: 'icon.jpg',
+      isNsfw: false,
+      creatorBlockedUsers: ['user1'],
+      username: 'user2'
+    }]
+
+    const user = {
+      username: 'user1',
+      isDeleted: false,
+      upvotedPosts: [],
+      downvotedPosts: [],
+      savedPosts: [],
+      hiddenPosts: [],
+      communities: [],
+      moderatorInCommunities: [],
+      isNsfw: false,
+      type: 'Post',
+      blockedUsers: []
+    }
+
+    PostModel.getPost = jest.fn().mockResolvedValue(post)
+    UserModel.findOne.mockResolvedValue(user)
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Post does not exist'
+    })
+  })
+
+  test('should return 500 when server error occurs', async () => {
+    const req = {
+      params: {
+        postId: '55bb126babb335677998fbca'
+      },
+      query: {},
+      decoded: {
+        username: 'user1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'user1',
+      isDeleted: false,
+      upvotedPosts: [],
+      downvotedPosts: [],
+      savedPosts: [],
+      hiddenPosts: [],
+      communities: [],
+      moderatorInCommunities: [],
+      isNsfw: false,
+      type: 'Post',
+      blockedUsers: []
+    }
+
+    PostModel.getPost = jest.fn().mockRejectedValue(new Error('Server error'))
+    UserModel.findOne.mockResolvedValue(user)
+
+    await getPost(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(PostModel.findOneAndUpdate).not.toHaveBeenCalled()
+    expect(HistoryModel.findOne).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'An error occurred while getting post'
+    })
+  })
 })
 
 describe('getHomeFeed', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   test('should return an error message when user does not exist', async () => {
     const req = {
       decoded: { username: 'nonexistentuser' },
@@ -1643,6 +2769,8 @@ describe('getHomeFeed', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
     }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
 
     await getHomeFeed(req, res)
 
@@ -1732,18 +2860,44 @@ describe('getHomeFeed', () => {
 
     const user = {
       username: 'testUser',
-      communities: [],
       mutedCommunities: [],
       preferences: {
         showAdultContent: false
       },
       follows: [],
       blockedUsers: [],
-      moderatorInCommunities: []
+      moderatorInCommunities: ['community1'],
+      upvotedPosts: [{ postId: '1' }],
+      downvotedPosts: [{ postId: '2' }],
+      savedPosts: [{ postId: '1' }],
+      hiddenPosts: [{ postId: '2' }],
+      communities: ['community1']
     }
 
+    const posts = [
+      {
+        _id: '1',
+        communityName: 'community1',
+        isNsfw: false,
+        pollOptions: [
+          { option: 'option1', voters: [] },
+          { option: 'option2', voters: [] }
+        ],
+        expirationDate: '2024-12-12T00:00:00.000Z',
+        type: 'Poll'
+      },
+      {
+        _id: '2',
+        communityName: 'community2',
+        isNsfw: true,
+        pollOptions: [],
+        expirationDate: null,
+        type: 'Post'
+      }
+    ]
+
     UserModel.findOne = jest.fn().mockResolvedValue(user)
-    PostModel.getSortedHomeFeed = jest.fn().mockResolvedValue([])
+    PostModel.getSortedHomeFeed = jest.fn().mockResolvedValue(posts)
 
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -1755,7 +2909,226 @@ describe('getHomeFeed', () => {
     expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
     expect(PostModel.getSortedHomeFeed).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
-    expect(res.json).toHaveBeenCalledWith([])
+    expect(res.json).toHaveBeenCalledWith(
+      [
+        {
+          _id: '1',
+          communityName: 'community1',
+          isNSFW: false,
+          pollOptions: [
+            { option: 'option1', votes: 0, isVoted: false },
+            { option: 'option2', votes: 0, isVoted: false }
+          ],
+          expirationDate: '2024-12-12T00:00:00.000Z',
+          type: 'Poll',
+          isUpvoted: true,
+          isDownvoted: false,
+          isSaved: true,
+          isHidden: false,
+          isJoined: true,
+          isModerator: true
+        },
+        {
+          _id: '2',
+          communityName: 'community2',
+          isNSFW: true,
+          type: 'Post',
+          isUpvoted: false,
+          isDownvoted: true,
+          isSaved: false,
+          isHidden: true,
+          isJoined: false,
+          isModerator: false
+        }
+      ]
+    )
+  })
+
+  test('should return 500 when server error occurs', async () => {
+    const req = {
+      decoded: {
+        username: 'testUser'
+      },
+      query: {
+        page: 1,
+        limit: 10,
+        sort: 'best',
+        time: 'all'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await getHomeFeed(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(PostModel.getRandomHomeFeed).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'An error occurred while getting home feed'
+    })
+  })
+})
+
+describe('getPopular', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should return a list of popular posts with expected properties', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      query: {
+        page: '1',
+        limit: '10'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      username: 'testuser',
+      blockedUsers: [],
+      moderatorInCommunities: ['community1'],
+      mutedCommunities: [],
+      preferences: {
+        showAdultContent: false
+      },
+      upvotedPosts: [{ postId: 'post1' }],
+      downvotedPosts: [{ postId: 'post2' }],
+      savedPosts: [{ postId: 'post1' }],
+      hiddenPosts: [{ postId: 'post2' }],
+      communities: ['community1']
+    }
+
+    const post = [{
+      _id: 'post1',
+      communityName: 'community1',
+      isNsfw: false,
+      pollOptions: [],
+      expirationDate: null
+    },
+    {
+      _id: 'post2',
+      communityName: 'community2',
+      isNsfw: true,
+      pollOptions: [],
+      expirationDate: null
+    }
+    ]
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.getPopular = jest.fn().mockResolvedValue(post)
+
+    await PostController.getPopular(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.getPopular).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 0,
+        limit: 10,
+        username: 'testuser',
+        blockedUsers: [],
+        moderatedCommunities: ['community1'],
+        random: false
+      }),
+      null,
+      false
+    )
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.getPopular).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith([{
+      _id: 'post1',
+      communityName: 'community1',
+      isNSFW: false,
+      isUpvoted: true,
+      isDownvoted: false,
+      isSaved: true,
+      isHidden: false,
+      isJoined: true,
+      isModerator: true
+    },
+    {
+      _id: 'post2',
+      communityName: 'community2',
+      isNSFW: true,
+      isUpvoted: false,
+      isDownvoted: true,
+      isSaved: false,
+      isHidden: true,
+      isJoined: false,
+      isModerator: false
+    }
+    ])
+  })
+
+  test('should return an error when there is a server error', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      query: {
+        page: '1',
+        limit: '10'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await PostController.getPopular(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.getPopular).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'An error occurred while getting home feed'
+    })
+  })
+
+  test('should return an error when user does not exist', async () => {
+    const req = {
+      decoded: {
+        username: 'nonexistentuser'
+      },
+      query: {
+        page: '1',
+        limit: '10'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.getPopular(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'nonexistentuser', isDeleted: false })
+    expect(PostModel.getPopular).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'User does not exist'
+    })
   })
 })
 
@@ -1799,6 +3172,67 @@ describe('getComments', () => {
     expect(PostModel.getPost).toHaveBeenCalled()
     expect(CommunityModel.findOne).toHaveBeenCalled()
     expect(PostModel.getComments).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith(comments)
+  })
+
+  test('should return 200 status code and an array of comments when valid post ID is provided and user is authenticated', async () => {
+    const req = {
+      params: {
+        postId: '2972dbbf638edddc2eea00ab'
+      },
+      query: {
+        sort: 'best'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: '2972dbbf638edddc2eea00ab',
+      communityName: 'validCommunityName',
+      isNsfw: false
+    }
+
+    const community = {
+      communityName: 'validCommunityName',
+      settings: {
+        suggestedSort: 'top'
+      }
+    }
+
+    const comments = [
+      { _id: 'comment1', content: 'comment1 content' },
+      { _id: 'comment2', content: 'comment2 content' }
+    ]
+
+    const user = {
+      username: 'validUsername',
+      isDeleted: false,
+      upvotedPosts: [{ postId: 'comment1' }],
+      downvotedPosts: [{ postId: 'comment2' }],
+      savedPosts: [{ postId: 'comment1' }],
+      hiddenPosts: [{ postId: 'comment2' }],
+      blockedUsers: [],
+      moderatorInCommunities: []
+    }
+
+    PostModel.getPost = jest.fn().mockResolvedValue([post])
+    CommunityModel.findOne = jest.fn().mockResolvedValue(community)
+    PostModel.getComments = jest.fn().mockResolvedValue(comments)
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+
+    await getComments(req, res)
+
+    expect(PostModel.getPost).toHaveBeenCalled()
+    expect(CommunityModel.findOne).toHaveBeenCalled()
+    expect(PostModel.getComments).toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(comments)
   })
@@ -1906,6 +3340,28 @@ describe('getComments', () => {
     expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
       message: 'User does not exist'
+    })
+  })
+
+  test('should return 500 status code and an error message when there is a server error', async () => {
+    const req = {
+      params: {
+        postId: '2972dbbf638edddc2eea00ab'
+      },
+      query: {}
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    PostModel.getPost = jest.fn().mockRejectedValue(new Error('Server error'))
+
+    await getComments(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'An error occurred while getting comments of post'
     })
   })
 })
@@ -2156,6 +3612,27 @@ describe('votePost', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Invalid poll option' }))
   })
+
+  test('should return an error message when post id is not valid', async () => {
+    const postId = 'invalidPostId'
+    const username = 'username'
+
+    const req = {
+      params: { postId },
+      decoded: { username },
+      type: 'upvote'
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    await PostController.votePost(req, res)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Invalid post id' }))
+  })
 })
 
 describe('reportPost', () => {
@@ -2395,5 +3872,594 @@ describe('reportPost', () => {
     expect(Report.prototype.save).toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Report Submitted\nThanks for your report and for looking out for yourself and your fellow redditors. Your reporting helps make Reddit a better, safer, and more welcoming place for everyone; and it means a lot to us. ' })
+  })
+
+  test('should return a 404 error when reporting a non-existent community', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: 'validPostId',
+      isDeleted: false,
+      isRemoved: false,
+      communityName: 'validCommunityName',
+      type: 'Post',
+      username: 'otherUser'
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(post)
+    Community.findOne = jest.fn().mockResolvedValue(null)
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(Community.findOne).toHaveBeenCalledWith({ name: 'validCommunityName', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
+  })
+
+  test('should return a 400 error when post does not belong to a community', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: 'validPostId',
+      isDeleted: false,
+      isRemoved: false,
+      communityName: null,
+      type: 'Post',
+      username: 'otherUser'
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(post)
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post does not belong to a community' })
+  })
+
+  test('should return a 400 error when community rule does not apply to post type', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: 'validPostId',
+      isDeleted: false,
+      isRemoved: false,
+      communityName: 'validCommunityName',
+      type: 'Comment',
+      username: 'otherUser'
+    }
+
+    const community = {
+      name: 'validCommunityName',
+      isDeleted: false,
+      rules: [
+        {
+          text: 'validCommunityRule',
+          appliesTo: 'Posts only'
+        }
+      ]
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(post)
+    Community.findOne = jest.fn().mockResolvedValue(community)
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(Community.findOne).toHaveBeenCalledWith({ name: 'validCommunityName', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community rule does not apply' })
+  })
+
+  test('should return a 400 error when reporting your own post', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'otherUser'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const post = {
+      _id: 'validPostId',
+      isDeleted: false,
+      isRemoved: false,
+      communityName: 'validCommunityName',
+      type: 'Post',
+      username: 'otherUser'
+    }
+
+    Post.findOne = jest.fn().mockResolvedValue(post)
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You cannot report your own post' })
+  })
+
+  test('should return a 500 error when an error occurs while reporting a post', async () => {
+    const req = {
+      params: {
+        postId: 'validPostId'
+      },
+      body: {
+        communityRule: 'validCommunityRule'
+      },
+      decoded: {
+        username: 'validUsername'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    Post.findOne = jest.fn().mockRejectedValue(new Error('Database error'))
+
+    await reportPost(req, res)
+
+    expect(Post.findOne).toHaveBeenCalledWith({ _id: 'validPostId', isDeleted: false, isRemoved: false })
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Database error' })
+  })
+})
+
+describe('acceptPost', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should successfully approve a post when all conditions are met', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isApproved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    const post = {
+      communityName: 'community1',
+      isDeleted: false,
+      save: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.acceptPost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(post.isApproved).toBe(true)
+    expect(post.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post approved successfully' })
+  })
+
+  test('should return a 404 error when post is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.acceptPost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post not found' })
+  })
+
+  test('should return a 404 error if user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isApproved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = null
+
+    const post = {
+      communityName: 'community1',
+      isDeleted: false
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.acceptPost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  test('should return a 401 error when user is not authorized to approve the post', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isApproved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    const post = {
+      communityName: 'community3',
+      isDeleted: false
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.acceptPost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to approve this post' })
+  })
+
+  test('should return a 500 error if an error occurs while approving the post', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isApproved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('Database error'))
+
+    await PostController.acceptPost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error approving post: Database error' })
+  })
+})
+
+describe('removePost', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test('should successfully remove a post when all conditions are met', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isRemoved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    const post = {
+      communityName: 'community1',
+      isDeleted: false,
+      save: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(post.isRemoved).toBe(true)
+    expect(post.save).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post removed successfully' })
+  })
+
+  test('should return a 404 error when post is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Post not found' })
+  })
+
+  test('should return a 404 error if user is not found', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isRemoved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = null
+
+    const post = {
+      communityName: 'community1',
+      isDeleted: false
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  test('should return a 401 error when user is not authorized to remove the post', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isRemoved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    const user = {
+      moderatorInCommunities: ['community1', 'community2']
+    }
+
+    const post = {
+      communityName: 'community3',
+      isDeleted: false
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(user)
+    PostModel.findOne = jest.fn().mockResolvedValue(post)
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).toHaveBeenCalledWith({ _id: '1234567890', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(PostModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(res.json).toHaveBeenCalledWith({ message: 'You are not authorized to remove this post' })
+  })
+
+  test('should return a 500 error if an error occurs while approving the post', async () => {
+    const req = {
+      decoded: {
+        username: 'testuser'
+      },
+      params: {
+        postId: '1234567890'
+      },
+      body: {
+        isRemoved: true
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockRejectedValue(new Error('Database error'))
+
+    await PostController.removePost(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testuser', isDeleted: false })
+    expect(PostModel.findOne).not.toHaveBeenCalled()
+    expect(UserModel.findOne).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Error removing post: Database error' })
+  })
+})
+
+describe('deleteImages', () => {
+  jest.unmock('../src/utils/Media')
+  test('should delete images when all conditions are met', async () => {
+    MediaUtils.cloudinary.uploader.destroy = jest.fn().mockResolvedValue({ result: 'ok' })
+
+    await MediaUtils.deleteImages(['image1', 'image2'])
+
+    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledTimes(0)
+  })
+
+  test('should delete images when all conditions are met', async () => {
+    MediaUtils.cloudinary.uploader.destroy = jest.fn().mockResolvedValue({ result: 'ok' })
+
+    expect(MediaUtils.deleteImages(['res.cloudinary.com'])).rejects.toThrow(new Error('Invalid image or video URLs found in post'))
+
+    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledTimes(0)
+  })
+
+  test('should delete images when all conditions are met', async () => {
+    MediaUtils.cloudinary.uploader.destroy = jest.fn().mockResolvedValue({ result: 'ok' })
+
+    await MediaUtils.deleteImages(['res.cloudinary.com/cReddit/a.mp4'])
+
+    expect(MediaUtils.cloudinary.uploader.destroy).toHaveBeenCalledTimes(1)
   })
 })

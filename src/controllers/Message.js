@@ -9,7 +9,7 @@ const createMessage = async (req, res) => {
 
     const receiver = await UserModel.findOne({ username: to })
     if (!receiver) {
-      throw new Error('Receiver not found')
+      return res.status(404).json({ message: 'Receiver not found' })
     }
 
     const subject = req.body.subject

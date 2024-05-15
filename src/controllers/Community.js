@@ -842,7 +842,7 @@ const updateCommunityIcon = async (req, res) => {
 
     const icon = req.files.image
 
-    const urls = community.banner ? [community.icon] : []
+    const urls = community.icon ? [community.icon] : []
     await MediaUtils.deleteImages(urls)
     const newIcon = await MediaUtils.uploadImages(icon)
     community.icon = newIcon[0]

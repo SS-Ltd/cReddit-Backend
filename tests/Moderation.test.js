@@ -64,6 +64,37 @@ describe('inviteModerator', () => {
     expect(res.status).toHaveBeenCalledWith(200)
   })
 
+  test('should return an error if the community is not found', async () => {
+    const req = {
+      body: {
+        username: 'user1'
+      },
+      params: {
+        communityName: 'community1'
+      },
+      decoded: {
+        username: 'moderator1'
+      }
+    }
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'moderator1', isDeleted: false })
+    UserModel.findOne.mockResolvedValueOnce({ username: 'user1', isDeleted: false })
+    CommunityModel.findOne = jest.fn().mockResolvedValueOnce(null)
+
+    await Moderation.inviteModerator(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'moderator1', isDeleted: false })
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'user1', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalledWith({ name: 'community1', isDeleted: false })
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
+  })
+
   test('should not send an invitation if the user is already a moderator', async () => {
     const req = {
       body: {
@@ -325,6 +356,31 @@ describe('acceptInvitation', () => {
     expect(res.status).toHaveBeenCalledWith(200)
   })
 
+  test('should return error message with status code 404 when user is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'testCommunity', isDeleted: false, invitations: ['testUser'], moderators: [] })
+
+    await Moderation.acceptInvitation(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
   test('should not accept a user invite to moderate a community if user has not been invited', async () => {
     const req = {
       params: {
@@ -488,6 +544,31 @@ describe('rejectInvitation', () => {
     expect(community.moderators).toHaveLength(0)
     expect(res.json).toHaveBeenCalledWith({ message: 'Moderator invitation rejected' })
     expect(res.status).toHaveBeenCalledWith(200)
+  })
+
+  test('should return error message with status code 404 when user is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'testCommunity', isDeleted: false, invitations: ['testUser'], moderators: [] })
+
+    await Moderation.rejectInvitation(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
   })
 
   test('should not reject a user invite to moderate a community if user has not been invited', async () => {
@@ -658,6 +739,31 @@ describe('leaveModeration', () => {
     expect(res.status).toHaveBeenCalledWith(200)
   })
 
+  test('should return error message with status code 404 when user is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'testCommunity', isDeleted: false, invitations: ['testUser'], moderators: [] })
+
+    await Moderation.leaveModeration(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
   test('should return an error message if user is not a moderator', async () => {
     const req = {
       params: {
@@ -791,6 +897,62 @@ describe('removeModerator', () => {
     expect(user.moderatorInCommunities).toHaveLength(0)
     expect(res.json).toHaveBeenCalledWith({ message: 'Moderator removed' })
     expect(res.status).toHaveBeenCalledWith(200)
+  })
+
+  test('should return error message with status code 404 when user is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      body: {
+        username: 'user'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValue(null)
+    CommunityModel.findOne = jest.fn().mockResolvedValue({ name: 'testCommunity', isDeleted: false, invitations: ['testUser'], moderators: [] })
+
+    await Moderation.removeModerator(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' })
+  })
+
+  test('should return error message with status code 404 when community is not found', async () => {
+    const req = {
+      params: {
+        communityName: 'testCommunity'
+      },
+      body: {
+        username: 'user'
+      },
+      decoded: {
+        username: 'testUser'
+      }
+    }
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    }
+
+    UserModel.findOne = jest.fn().mockResolvedValueOnce({ username: 'testUser', isDeleted: false }).mockResolvedValueOnce({ username: 'user', isDeleted: false })
+    CommunityModel.findOne = jest.fn().mockResolvedValue(null)
+
+    await Moderation.removeModerator(req, res)
+
+    expect(UserModel.findOne).toHaveBeenCalledWith({ username: 'testUser', isDeleted: false })
+    expect(CommunityModel.findOne).toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(res.json).toHaveBeenCalledWith({ message: 'Community not found' })
   })
 
   test('should return an error message if user is not a moderator', async () => {

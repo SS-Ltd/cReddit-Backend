@@ -313,6 +313,7 @@ const loginGoogle = async (req, res) => {
 }
 
 module.exports = {
+  validatePassword,
   createUser,
   deleteUser,
   login,
