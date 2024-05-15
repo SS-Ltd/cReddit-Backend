@@ -6,7 +6,7 @@ const auth = require('../controllers/Auth')
 const multer = require('../utils/Multer')
 const router = express.Router()
 
-router.route('/').post(auth.createUser).delete(verifyToken, auth.deleteUser).get(verifyToken, user.getUser)
+router.route('/').post(auth.createUser).put(verifyToken, auth.deleteUser).get(verifyToken, user.getUser)
 router.route('/login').post(auth.login)
 router.route('/auth/google').post(verifyGoogleToken, auth.loginGoogle)
 router.route('/logout').post(verifyToken, auth.logout)
