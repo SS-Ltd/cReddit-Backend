@@ -2,8 +2,6 @@ const User = require('../models/User')
 const bcrypt = require('bcrypt')
 const emailValidator = require('email-validator')
 const { faker } = require('@faker-js/faker')
-const { sendVerificationEmail } = require('../utils/Email')
-const { generateTokens, decryptToken } = require('./JWT')
 
 const validatePassword = (password) => {
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\w!@#$%^&*()\-_=+\\|[\]{};:'",.<>/?`~ ])[\w!@#$%^&*()\-_=+\\|[\]{};:'",.<>/?`~ ]{8,}$/
