@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken')
 const sendVerificationEmail = async (req, email, username) => {
   const verificationToken = jwt.sign({ email, username }, process.env.VERIFICATION_TOKEN_SECRET, { expiresIn: '1d' })
   const subject = 'Email Verification'
-  const body = `Hello ${username},\n\nPlease verify your email by clicking on the link below\n\n${req.protocol}://creddit.tech/verify/${verificationToken}`
+  const body = `Hello ${username},\n\nPlease verify your email by clicking on the link below\n\n${req.protocol}://${req.get('host')}/verify/${verificationToken}`
   await sendEmail(email, subject, body)
 }
 

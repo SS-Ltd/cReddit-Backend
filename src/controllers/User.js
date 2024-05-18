@@ -345,7 +345,7 @@ const forgotPassword = async (req, res) => {
   const resetToken = await user.createResetPasswordToken()
   await user.save()
 
-  const resetURL = `${req.protocol}://creddit.tech/passwordrecovery/${resetToken}`
+  const resetURL = `${req.protocol}://${req.get('host')}/passwordrecovery/${resetToken}`
   const message = `Forgot your password? No problem! You can reset your password using the lovely url below\n\n ${resetURL}\n\nIf you didn't forget your password, please ignore this email!`
 
   try {
